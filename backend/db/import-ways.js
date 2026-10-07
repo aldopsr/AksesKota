@@ -9,17 +9,26 @@
 import { fetchOverpass } from './overpass.js';
 
 const dry = process.argv.includes('--dry');
-const BBOX = '-6.68,106.73,-6.53,106.86'; // sama dengan db/import-osm.js
+const KOTA = [ // sama dengan daftar di db/import-osm.js
+  { nama: 'Kota Bogor',   bbox: '-6.68,106.73,-6.53,106.86' },
+  { nama: 'DKI Jakarta',  bbox: '-6.37,106.70,-6.08,106.97' },
+  { nama: 'Kota Bandung', bbox: '-6.98,107.55,-6.84,107.74' },
+];
 
-const query = `[out:json][timeout:180];
+const queryUntuk = (bbox) => `[out:json][timeout:180];
 (
-  way["highway"~"^(footway|path|pedestrian|steps)$"](${BBOX});
-  way["sidewalk"]["highway"](${BBOX});
+  way["highway"~"^(footway|path|pedestrian|steps)$"](${bbox});
+  way["sidewalk"]["highway"](${bbox});
 );
 out geom;`;
 
-console.log('Overpass: jaringan pejalan kaki, bbox ' + BBOX);
-const { elements = [] } = await fetchOverpass(query);
+const elements = [];
+for (const kota of KOTA) {
+  console.log(`[${kota.nama}] Overpass: jaringan pejalan kaki`);
+  const { elements: e = [] } = await fetchOverpass(queryUntuk(kota.bbox));
+  console.log(`[${kota.nama}] ${e.length} elemen`);
+  elements.push(...e);
+}
 
 const angka = (v) => {
   const n = parseFloat(String(v ?? '').replace(',', '.'));
@@ -62,22 +71,39 @@ if (dry) {
 }
 
 const { pool } = await import('../src/db.js');
+
+// Insert per baris sempat dipakai saat datanya ~2000 ruas Bogor saja. Dengan Jakarta
+// ikut masuk, jumlahnya puluhan ribu dan satu round-trip per baris ke region DB
+// membuatnya berjam-jam. Satu INSERT multi-baris per 500 ruas memangkasnya jadi puluhan query.
+const UKURAN_BATCH = 500;
+const KOLOM = 11;
 let n = 0;
-// ponytail: satu insert per ruas. Beberapa ribu baris selesai dalam puluhan detik dan
-// hanya dijalankan sesekali; kalau nanti mencakup seluruh Jabodetabek, pindah ke COPY.
-for (const w of ways) {
+
+for (let i = 0; i < ways.length; i += UKURAN_BATCH) {
+  const batch = ways.slice(i, i + UKURAN_BATCH);
+  // Kolom terakhir (geom) dibungkus st_geogfromtext supaya EWKT-nya di-parse eksplisit,
+  // tidak bergantung pada cast implisit text -> geography.
+  const nilai = batch.map((_, b) => {
+    const p = Array.from({ length: KOLOM }, (_, c) => `$${b * KOLOM + c + 1}`);
+    p[KOLOM - 1] = `st_geogfromtext(${p[KOLOM - 1]})`;
+    return `(${p.join(',')})`;
+  });
+  const params = batch.flatMap((w) => [
+    w.osm_id, w.highway, w.wheelchair, w.tactile_paving, w.surface, w.smoothness,
+    w.incline, w.kerb, w.width, w.tags, `SRID=4326;${w.wkt}`,
+  ]);
   await pool.query(
     `insert into pedestrian_ways (osm_id, highway, wheelchair, tactile_paving, surface, smoothness,
                                   incline, kerb, width, tags, geom)
-     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, st_geogfromtext($11))
+     values ${nilai.join(',')}
      on conflict (osm_id) do update set
        highway=excluded.highway, wheelchair=excluded.wheelchair, tactile_paving=excluded.tactile_paving,
        surface=excluded.surface, smoothness=excluded.smoothness, incline=excluded.incline,
        kerb=excluded.kerb, width=excluded.width, tags=excluded.tags, geom=excluded.geom`,
-    [w.osm_id, w.highway, w.wheelchair, w.tactile_paving, w.surface, w.smoothness,
-     w.incline, w.kerb, w.width, w.tags, `SRID=4326;${w.wkt}`],
+    params,
   );
-  if (++n % 500 === 0) console.log(`  ${n}/${ways.length}`);
+  n += batch.length;
+  console.log(`  ${n}/${ways.length}`);
 }
 
 const { rows } = await pool.query(`

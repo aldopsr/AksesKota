@@ -95,10 +95,11 @@ adminRouter.get('/reports', async (req, res) => {
       `select r.id, r.report_type, r.status, r.description, r.resolution_note, r.resolved_at,
               r.facility_id, f.name as facility_name,
               r.review_id, rv.content as review_content, rv.rating as review_rating,
-              u.name as reported_by_name, u.email as reported_by_email
+              u.display_name as reported_by_name, au.email as reported_by_email
          from reports r
          join facilities f on f.id = r.facility_id
-         join users u on u.id = r.reported_by
+         join profiles u on u.id = r.reported_by
+         left join auth.users au on au.id = r.reported_by
          left join reviews rv on rv.id = r.review_id
         where ($1 = 'all' or r.status = $1)
         order by r.id desc limit 100`,

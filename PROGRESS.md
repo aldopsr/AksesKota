@@ -2,6 +2,60 @@
 
 Catatan kerja. Diperbarui setiap akhir fase. Deadline PRD: **25 Okt 2026**.
 
+> **Mengikuti PRD v2.0** (`AksesKota_PRD_20terbaruu.md`). Perubahan besar dari v1.2
+> dan dampaknya ke backend ada di bagian **Penyesuaian PRD 2.0** di bawah.
+
+## Penyesuaian PRD 2.0 (7 Okt 2026)
+
+| Perubahan PRD | Status backend |
+|---|---|
+| Scope **Kota Bogor → seluruh Indonesia** | selesai — bbox pembatas kontribusi dilebarkan ke Indonesia, dataset jadi 3 wilayah |
+| **Supabase Auth** jadi keputusan terkunci (FR-01, §27.2) | selesai — JWT sendiri dihapus, backend hanya verifikasi token + baca role |
+| Database **Supabase PostgreSQL + PostGIS** dikunci | sudah sesuai sejak awal |
+| Storage **Supabase Storage / R2** dikunci | sudah sesuai (Supabase Storage) |
+| Tabel **`profiles`** (FK ke `auth.users`) | selesai |
+| Role `user` → **`contributor`** | selesai |
+| `change_type` jadi **4 nilai** | selesai (`create_facility`, `update_facility`, `update_accessibility`, `add_photo`) |
+| `review_note` → **`review_notes`** | selesai |
+| Dataset **100–150 fasilitas, beberapa wilayah** | selesai — **136 fasilitas** di Bogor/Jakarta/Bandung |
+| **≥70%** punya data aksesibilitas | **74%** (sebelumnya 35%) |
+| AC-01: area tanpa hasil ≠ tanpa fasilitas | selesai — pesan AI diubah + endpoint `/api/coverage` |
+| §11.4: sistem wajib menampilkan keterbatasan cakupan | selesai — `GET /api/coverage` per wilayah |
+
+### Cara autentikasi sekarang bekerja
+
+```
+React --(supabase-js)--> Supabase Auth --access token--> Express --verifikasi--> role dari tabel profiles
+```
+
+Backend **tidak lagi punya** endpoint register/login, tidak menyimpan password, dan tidak
+melakukan hashing. Yang tersisa hanya `GET /api/auth/me`.
+
+- **Role tidak pernah dibaca dari isi token.** Token hanya membuktikan *siapa*; *boleh apa*
+  selalu dibaca dari tabel `profiles` (PRD 2.0 §27.2: hak akses admin tidak ditentukan dari
+  data yang dikirim client).
+- Baris `profiles` dibuat sambil jalan saat token sah pertama kali dipakai — bukan lewat trigger
+  di schema `auth`, supaya tidak butuh hak akses khusus dan tetap jalan di project mana pun.
+- Project ini memakai penandatanganan **HS256 lama** (endpoint JWKS membalas 404), jadi verifikasi
+  dilakukan dengan menanyakan token ke Supabase, hasilnya di-cache 60 detik per instance.
+  Konsekuensinya token yang baru sign-out masih diterima maksimal 60 detik. Kalau itu tidak bisa
+  diterima, verifikasi lokal dengan `SUPABASE_JWT_SECRET` menghapus cache sekaligus round-trip-nya.
+
+**Yang dihapus:** register, login, bcrypt, dan proteksi brute-force `login_attempts` — semuanya
+kini tanggung jawab Supabase Auth, termasuk rate limit login dan kebijakan password.
+
+### Untuk frontend
+
+Login/signup dilakukan di frontend dengan `supabase-js`, lalu kirim `session.access_token`
+sebagai `Authorization: Bearer <token>` ke semua endpoint kita. Tidak ada form register yang
+perlu dibuat di backend.
+
+### Jebakan setup yang sudah menelan waktu
+
+`SUPABASE_URL` harus **URL project saja** (`https://xxxx.supabase.co`), tanpa `/rest/v1`.
+Kalau sufiks itu ikut tersalin, seluruh endpoint `/auth/v1` membalas error PostgREST
+yang menyesatkan. `src/supabase.js` sekarang memangkas sufiks itu otomatis.
+
 ## Keputusan teknis (terkunci 7 Okt 2026)
 
 | Hal | Pilihan | Alasan |
@@ -504,3 +558,50 @@ admin tidak akan tertimpa kalau import diulang.
 
 > PostGIS di Supabase: kalau `create extension postgis` ditolak, aktifkan dulu lewat
 > dashboard **Database → Extensions → postgis**.
+
+
+---
+
+## Hasil setelah penyesuaian PRD 2.0 (7 Okt 2026, terverifikasi di database)
+
+| Ukuran | Hasil | Target PRD 2.0 | |
+|---|---|---|---|
+| Fasilitas terpetakan | **136** | 100–150 | tercapai |
+| Punya data aksesibilitas | **100 (74%)** | ≥70% | **tercapai** |
+| Wilayah | 3 (Bogor, Jakarta, Bandung) | beberapa wilayah | tercapai |
+| Ruas pejalan kaki | **24.147 (2.191 km)** | — | — |
+| Ruas bertag `wheelchair` | **271** | — | naik dari 6 |
+| Ruas tangga teridentifikasi | 2.221 | — | — |
+
+Cakupan per wilayah (`GET /api/coverage`): Bandung 81%, Jakarta 76%, Bogor 65%.
+
+### Skor rute akhirnya hidup
+
+Dengan data Jakarta yang jauh lebih kaya, cakupan jalur pada rute nyata mencapai 23–84%,
+sehingga melewati ambang `MIN_COVERAGE` dan formula 70/30 benar-benar dipakai:
+
+```
+Rumah Sakit Jakarta            2904m  aks=0.62 coverage=23%  skor=0.732
+Rumah Sakit Harum Sisma Medika 13816m aks=0.96 coverage=84%  skor=0.975
+Puskesmas Kecamatan Koja       16379m aks=0.98 coverage=25%  skor=0.986
+```
+
+Sebelum ada Jakarta, semua rute jatuh ke `aks=null` karena cakupan Bogor cuma 3–6%.
+
+### Yang diperbaiki saat migrasi
+
+- **Insert jalur pejalan kaki dibuat batch.** Satu insert per baris masih wajar untuk 2.000 ruas
+  Bogor, tapi dengan Jakarta jumlahnya 24.147 dan satu round-trip per baris ke region DB membuatnya
+  berjam-jam. Sekarang satu INSERT per 500 ruas. Ini persis batas yang ditandai komentar `ponytail:`
+  sebelumnya — dan sekarang batas itu tercapai, jadi dinaikkan.
+- **`src/supabase.js`** memangkas sufiks `/rest/v1` dari `SUPABASE_URL` otomatis.
+- Semua query yang menunjuk tabel `users` dipindah ke `profiles`; email diambil dari
+  `auth.users` hanya untuk layar admin, tidak pernah ditampilkan publik.
+
+### Masih terbuka
+
+| Apa | Catatan |
+|---|---|
+| 1 fasilitas berwilayah "Belum ditandai" | IPB Dramaga, titiknya tepat di luar bbox Bogor. Tidak mengganggu. |
+| Speech-to-Text Google Cloud | tetap dilewati; Web Speech API menangani STT di browser |
+| Test set 50–100 query AI (PRD §29) | butuh kuota Gemini; ini pekerjaan evaluasi, bukan kode |

@@ -97,28 +97,60 @@ const api = async (path, { token, ...init } = {}) => {
   return { status: res.status, body: await res.json() };
 };
 
-const email = `smoke-${Date.now()}@test.local`;
-const daftar = await api('/api/auth/register', { method: 'POST', body: { email, password: 'rahasia123', name: 'Smoke Test' } });
-assert.equal(daftar.status, 201, JSON.stringify(daftar.body));
-const userToken = daftar.body.token;
+// Akun dibuat lewat Supabase Auth, bukan endpoint kita — backend sudah tidak punya
+// register/login sejak pindah ke Supabase Auth (PRD 2.0 FR-01).
+const { sbUrl, sbServiceKey } = await import('../src/supabase.js');
+const sb = sbUrl();
+const sbKey = sbServiceKey();
+const sbAdmin = (path, init = {}) =>
+  fetch(`${sb}/auth/v1/admin/${path}`, {
+    ...init,
+    headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}`, 'Content-Type': 'application/json' },
+  });
 
-const masukAdmin = await api('/api/auth/login', { method: 'POST', body: { email: 'admin@akseskota.id', password: 'admin12345' } });
-assert.equal(masukAdmin.status, 200, 'akun admin seed tidak bisa login — jalankan npm run db:reset');
-const adminToken = masukAdmin.body.token;
+const masuk = async (email, password) => {
+  const r = await fetch(`${sb}/auth/v1/token?grant_type=password`, {
+    method: 'POST',
+    headers: { apikey: sbKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  const j = await r.json();
+  assert.ok(j.access_token, `gagal login ${email}: ${JSON.stringify(j).slice(0, 200)}`);
+  return j.access_token;
+};
+
+const email = `smoke-${Date.now()}@test.local`;
+const dibuat = await sbAdmin('users', {
+  method: 'POST',
+  body: JSON.stringify({ email, password: 'rahasia123', email_confirm: true }),
+});
+// Body hanya boleh dibaca sekali, jadi diambil dulu sebelum di-assert.
+const hasilBuat = await dibuat.json();
+assert.ok(dibuat.ok, `gagal membuat user uji di Supabase: ${JSON.stringify(hasilBuat).slice(0, 200)}`);
+const userId = hasilBuat.id;
+const userToken = await masuk(email, 'rahasia123');
+const adminToken = await masuk('admin@akseskota.id', 'admin12345');
+
+// Role datang dari tabel profiles kita, bukan dari isi token (PRD 2.0 27.2).
+const profil = await api('/api/auth/me', { token: userToken });
+assert.equal(profil.status, 200, JSON.stringify(profil.body));
+assert.equal(profil.body.role, 'contributor', 'akun baru seharusnya berperan contributor');
+assert.equal((await api('/api/auth/me', { token: adminToken })).body.role, 'admin');
+assert.equal((await api('/api/auth/me', { token: 'token-palsu' })).status, 401, 'token palsu diterima');
 
 const target = (await searchFacilities({ q: 'Terminal Baranangsiang' }))[0];
 
 // FR-08: atribut utama tanpa foto bukti harus ditolak.
 const tanpaFoto = await api('/api/contributions', {
   method: 'POST', token: userToken,
-  body: { facility_id: target.id, change_type: 'update', payload: { attributes: { ramp: 'available' } }, photos: [] },
+  body: { facility_id: target.id, change_type: 'update_accessibility', payload: { attributes: { ramp: 'available' } }, photos: [] },
 });
 assert.equal(tanpaFoto.status, 400, 'atribut utama lolos tanpa foto bukti');
 
 // Atribut non-utama boleh tanpa foto.
 const kirim = await api('/api/contributions', {
   method: 'POST', token: userToken,
-  body: { facility_id: target.id, change_type: 'update', payload: { attributes: { audio_access: 'available' } } },
+  body: { facility_id: target.id, change_type: 'update_accessibility', payload: { attributes: { audio_access: 'available' } } },
 });
 assert.equal(kirim.status, 201, JSON.stringify(kirim.body));
 assert.equal(kirim.body.status, 'pending');
@@ -162,7 +194,7 @@ assert.equal(ulang.status, 409, 'kontribusi bisa di-approve dua kali');
 // Reject tidak boleh mengubah data resmi.
 const kirim2 = await api('/api/contributions', {
   method: 'POST', token: userToken,
-  body: { facility_id: target.id, change_type: 'update', payload: { attributes: { audio_access: 'not_available' } } },
+  body: { facility_id: target.id, change_type: 'update_accessibility', payload: { attributes: { audio_access: 'not_available' } } },
 });
 await api(`/api/admin/contributions/${kirim2.body.id}/review`, {
   method: 'POST', token: adminToken, body: { action: 'reject', note: 'uji smoke' },
@@ -265,24 +297,13 @@ assert.equal(
   400,
 );
 
-// NFR-05: brute-force login harus terbendung. Dijalankan paling akhir karena
-// mengunci IP ini selama 15 menit.
-await pool.query('delete from login_attempts');
-let kena429 = false;
-for (let i = 0; i < 12; i++) {
-  const r = await api('/api/auth/login', { method: 'POST', body: { email, password: 'salahSemua123' } });
-  if (r.status === 429) { kena429 = true; break; }
-  assert.equal(r.status, 401);
-}
-assert.ok(kena429, 'login bisa dicoba tanpa batas — proteksi brute-force tidak jalan');
-await pool.query('delete from login_attempts'); // buka kunci lagi untuk run berikutnya
-
 // Bersihkan jejak uji supaya run berikutnya tetap valid.
 await pool.query('delete from reports where description = $1', ['uji smoke']);
 await pool.query("delete from ai_usage where key like '%:ip:%'");
 // contributions.submitted_by tidak cascade, jadi harus dihapus lebih dulu.
-await pool.query('delete from contributions where submitted_by = $1', [daftar.body.user.id]);
-await pool.query('delete from users where id = $1', [daftar.body.user.id]);
+await pool.query('delete from contributions where submitted_by = $1', [userId]);
+await pool.query('delete from profiles where id = $1', [userId]);
+await sbAdmin(`users/${userId}`, { method: 'DELETE' });
 await pool.query(
   `update accessibility_facilities set status='unknown', verified_by=null, verified_at=null
     where facility_id=$1 and attribute_code='audio_access'`,
@@ -291,4 +312,4 @@ await pool.query(
 
 server.close();
 await pool.end();
-console.log(`OK — ${dekatStasiun.length} fasilitas dalam 5km; match, sorting, crowdsourcing, verifikasi admin, review/report & proteksi brute-force lolos`);
+console.log(`OK — ${dekatStasiun.length} fasilitas dalam 5km; Supabase Auth, match, sorting, crowdsourcing, verifikasi admin & review/report lolos`);

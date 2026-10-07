@@ -11,10 +11,16 @@ import { fetchOverpass } from './overpass.js';
 
 const dry = process.argv.includes('--dry');
 
-// ponytail: bounding box, bukan lookup batas administratif.
-// Konsekuensi: ikut terambil sedikit area Kabupaten Bogor di pinggiran.
-// Kalau itu mengganggu, ganti ke: area["name"="Kota Bogor"]["admin_level"="5"]->.a; lalu nwr(area.a).
-const BBOX = '-6.68,106.73,-6.53,106.86'; // selatan,barat,utara,timur
+// PRD 2.0: scope nasional. Dataset awal diambil dari beberapa kota dengan data OSM
+// terkaya — bukan klaim cakupan merata, dan itu dilaporkan apa adanya lewat /api/coverage.
+//
+// ponytail: bounding box, bukan lookup batas administratif. Konsekuensinya ikut terambil
+// sedikit area kabupaten di pinggiran. Tambah kota cukup dengan menambah baris di sini.
+const KOTA = [
+  { nama: 'Kota Bogor',    bbox: '-6.68,106.73,-6.53,106.86' },
+  { nama: 'DKI Jakarta',   bbox: '-6.37,106.70,-6.08,106.97' },
+  { nama: 'Kota Bandung',  bbox: '-6.98,107.55,-6.84,107.74' },
+];
 
 const FILTERS = [
   '["amenity"~"^(hospital|clinic|doctors|puskesmas)$"]',
@@ -30,9 +36,9 @@ const FILTERS = [
   '["tourism"~"^(attraction|museum|zoo)$"]',
 ];
 
-const query = `[out:json][timeout:90];
+const queryUntuk = (bbox) => `[out:json][timeout:90];
 (
-${FILTERS.map((f) => `  nwr${f}(${BBOX});`).join('\n')}
+${FILTERS.map((f) => `  nwr${f}(${bbox});`).join('\n')}
 );
 out center tags;`;
 
@@ -76,50 +82,64 @@ const address = (t) =>
   [[t['addr:street'], t['addr:housenumber']].filter(Boolean).join(' No.'), t['addr:village'], t['addr:suburb']]
     .filter(Boolean).join(', ') || null;
 
-console.log(`Overpass: ${FILTERS.length} filter, bbox ${BBOX}`);
-const { elements = [] } = await fetchOverpass(query);
-console.log(`${elements.length} elemen mentah dari OSM`);
+const KUOTA = { kesehatan: 10, pendidikan: 8, layanan_publik: 8, transportasi: 6, komersial: 10 };
 
-const seen = new Map();
-for (const el of elements) {
-  const t = el.tags ?? {};
-  const name = t.name?.trim();
-  const category = classify(t);
-  const lat = el.lat ?? el.center?.lat;
-  const lon = el.lon ?? el.center?.lon;
-  if (!name || name.length < 4 || !category || lat === undefined) continue; // tanpa nama jelas = tidak berguna di UI
-  const attrs = attributes(t);
-  const f = {
-    name, category, lat, lon,
-    address: address(t),
-    osm_id: `${el.type}/${el.id}`,
-    attrs,
-    // Prioritas import. Bobot terbesar ke fasilitas yang sudah punya data aksesibilitas —
-    // itu barang paling berharga dan paling jarang di OSM.
-    score: attrs.length * 10 + Object.keys(t).length + (el.type !== 'node' ? 3 : 0),
-  };
-  const bentrok = seen.get(name.toLowerCase());
-  if (!bentrok || f.score > bentrok.score) seen.set(name.toLowerCase(), f); // nama kembar: ambil yang paling kaya data
+/** Ambil dan saring kandidat untuk satu kota. */
+async function kandidatKota({ nama, bbox }) {
+  console.log(`
+[${nama}] Overpass: ${FILTERS.length} filter, bbox ${bbox}`);
+  const { elements = [] } = await fetchOverpass(queryUntuk(bbox));
+
+  const seen = new Map();
+  for (const el of elements) {
+    const t = el.tags ?? {};
+    const name = t.name?.trim();
+    const category = classify(t);
+    const lat = el.lat ?? el.center?.lat;
+    const lon = el.lon ?? el.center?.lon;
+    if (!name || name.length < 4 || !category || lat === undefined) continue; // tanpa nama jelas = tidak berguna di UI
+    const attrs = attributes(t);
+    const f = {
+      name, category, lat, lon, region: nama,
+      address: address(t),
+      osm_id: `${el.type}/${el.id}`,
+      attrs,
+      // Prioritas import. Bobot terbesar ke fasilitas yang sudah punya data aksesibilitas —
+      // itu barang paling berharga dan paling jarang di OSM.
+      score: attrs.length * 10 + Object.keys(t).length + (el.type !== 'node' ? 3 : 0),
+    };
+    const bentrok = seen.get(name.toLowerCase());
+    if (!bentrok || f.score > bentrok.score) seen.set(name.toLowerCase(), f); // nama kembar: ambil yang paling kaya data
+  }
+
+  const semua = [...seen.values()].sort((a, b) => b.score - a.score);
+  const dipilih = process.argv.includes('--all')
+    ? semua
+    : Object.entries(KUOTA).flatMap(([cat, n]) => semua.filter((f) => f.category === cat).slice(0, n));
+  const berdata = dipilih.filter((f) => f.attrs.length > 0).length;
+  console.log(`[${nama}] ${elements.length} elemen -> ${semua.length} kandidat unik -> ${dipilih.length} dipilih, ${berdata} punya tag aksesibilitas`);
+  return dipilih;
 }
 
-// OSM punya >1700 fasilitas di Bogor tapi hampir semuanya sekolah tanpa data aksesibilitas.
-// Kuota per kategori menjaga dataset tetap seimbang dan sebesar target PRD (~100), bukan 1700 marker kosong.
-const KUOTA = { kesehatan: 25, pendidikan: 20, layanan_publik: 20, transportasi: 15, komersial: 25 };
-const semua = [...seen.values()].sort((a, b) => b.score - a.score);
-const facilities = process.argv.includes('--all')
-  ? semua
-  : Object.entries(KUOTA).flatMap(([cat, n]) => semua.filter((f) => f.category === cat).slice(0, n));
+const facilities = [];
+for (const kota of KOTA) facilities.push(...(await kandidatKota(kota)));
 
+const perWilayah = facilities.reduce((a, f) => ({ ...a, [f.region]: (a[f.region] ?? 0) + 1 }), {});
 const perKategori = facilities.reduce((a, f) => ({ ...a, [f.category]: (a[f.category] ?? 0) + 1 }), {});
 const berdata = facilities.filter((f) => f.attrs.length > 0).length;
-console.log(`${semua.length} kandidat unik -> ${facilities.length} dipilih${process.argv.includes('--all') ? ' (--all)' : ' (kuota per kategori)'}`);
+console.log(`
+TOTAL: ${facilities.length} fasilitas dari ${KOTA.length} wilayah`);
+console.table(perWilayah);
 console.table(perKategori);
 const persen = Math.round((100 * berdata) / facilities.length);
 console.log(`punya minimal 1 atribut aksesibilitas dari OSM: ${berdata}/${facilities.length} (${persen}%)`);
 if (persen < 70)
   console.warn(
-    `\nPERHATIAN: target PRD adalah >=70% fasilitas punya data aksesibilitas terisi.\n` +
-    `OSM hanya menyediakan ${persen}%. Sisanya HARUS diisi lewat survei manual / crowdsourcing\n` +
+    `
+PERHATIAN: target PRD adalah >=70% fasilitas pada dataset awal punya data aksesibilitas.
+` +
+    `OSM hanya menyediakan ${persen}%. Sisanya HARUS diisi lewat survei manual / crowdsourcing
+` +
     `(ini memang peran OSM di PRD 11.1: data dasar lokasi, bukan sumber data aksesibilitas).`,
   );
 
@@ -148,20 +168,21 @@ for (const f of facilities) {
           set location = st_setsrid(st_makepoint($2,$3),4326),
               address  = coalesce(address, $4),
               osm_id   = $5,
+              region   = coalesce(region, $6),
               updated_at = now()
         where id = $1`,
-      [ada.id, f.lon, f.lat, f.address, f.osm_id],
+      [ada.id, f.lon, f.lat, f.address, f.osm_id, f.region],
     );
     dikoreksi++;
     continue; // data aksesibilitas hasil survei tidak ditimpa data OSM
   }
 
   const row = await one(
-    `insert into facilities (name, category_id, address, location, osm_id, source)
+    `insert into facilities (name, category_id, address, location, osm_id, source, region)
      values ($1, (select id from categories where code = $2), $3,
-             st_setsrid(st_makepoint($4,$5),4326), $6, 'osm')
+             st_setsrid(st_makepoint($4,$5),4326), $6, 'osm', $7)
      returning id`,
-    [f.name, f.category, f.address, f.lon, f.lat, f.osm_id],
+    [f.name, f.category, f.address, f.lon, f.lat, f.osm_id, f.region],
   );
   baru++;
 

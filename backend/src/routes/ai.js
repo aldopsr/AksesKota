@@ -230,7 +230,9 @@ router.post('/query', async (req, res) => {
   // kalimat yang menyebut fasilitas atau atribut yang tidak ada di database (PRD 30.1-30.5).
   const message = results.length
     ? `Ditemukan ${results.length} fasilitas${needs.length ? ` yang dinilai terhadap ${needs.length} kebutuhan Anda` : ''}.`
-    : 'Tidak ditemukan fasilitas yang cocok dengan kriteria tersebut di data AksesKota.';
+    : 'Belum ada fasilitas yang cocok dalam data AksesKota untuk kriteria tersebut. ' +
+      'Cakupan data kami belum merata di seluruh Indonesia, jadi ini belum tentu berarti ' +
+      'tidak ada fasilitas aksesibel di sana.';
 
   res.json({
     intent: parsed.intent,

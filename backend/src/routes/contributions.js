@@ -5,9 +5,10 @@ import { semuaKode } from '../match.js';
 import { requireAuth, requireAdmin } from '../auth.js';
 import { prefixPublik, storageSiap, signUpload, extValid } from '../storage.js';
 
-// Sama dengan bbox di db/import-osm.js. MVP dibatasi Kota Bogor (PRD 3) —
-// titik di luar kotak ini hampir pasti salah input, bukan fasilitas Bogor.
-const BOGOR = { latMin: -6.68, latMax: -6.53, lonMin: 106.73, lonMax: 106.86 };
+// PRD 2.0 §3: scope produk adalah SELURUH INDONESIA, bukan lagi Kota Bogor.
+// Kotak ini cuma penjaga kewarasan agar koordinat tertukar (lat/lon terbalik) atau
+// salah ketik tidak masuk sebagai fasilitas di tengah samudra — bukan pembatas wilayah.
+const INDONESIA = { latMin: -11.1, latMax: 6.2, lonMin: 94.9, lonMax: 141.1 };
 
 const statusAtribut = z.enum(['available', 'not_available', 'unknown']);
 const atribut = z.record(z.string(), statusAtribut);
@@ -15,8 +16,8 @@ const atribut = z.record(z.string(), statusAtribut);
 const payloadCreate = z.object({
   name: z.string().trim().min(3).max(150),
   category_code: z.string().min(1).max(50),
-  lat: z.number().min(BOGOR.latMin).max(BOGOR.latMax),
-  lon: z.number().min(BOGOR.lonMin).max(BOGOR.lonMax),
+  lat: z.number().min(INDONESIA.latMin).max(INDONESIA.latMax),
+  lon: z.number().min(INDONESIA.lonMin).max(INDONESIA.lonMax),
   address: z.string().trim().max(300).optional(),
   description: z.string().trim().max(1000).optional(),
   attributes: atribut.default({}),
@@ -32,7 +33,7 @@ const payloadUpdate = z.object({
 
 const body = z.object({
   facility_id: z.number().int().positive().optional(),
-  change_type: z.enum(['create', 'update']),
+  change_type: z.enum(['create_facility', 'update_facility', 'update_accessibility', 'add_photo']),
   payload: z.object({}).passthrough(),
   photos: z.array(z.string().url()).max(10).default([]),
 });
@@ -58,12 +59,11 @@ router.post('/uploads/photo-url', requireAuth, async (req, res) => {
 
 router.post('/contributions', requireAuth, async (req, res) => {
   const { facility_id, change_type, photos } = body.parse(req.body);
-  if (change_type === 'update' && !facility_id)
+  const buatBaru = change_type === 'create_facility';
+  if (!buatBaru && !facility_id)
     return res.status(400).json({ error: 'facility_id wajib untuk perubahan data' });
 
-  const payload = change_type === 'create'
-    ? payloadCreate.parse(req.body.payload)
-    : payloadUpdate.parse(req.body.payload);
+  const payload = buatBaru ? payloadCreate.parse(req.body.payload) : payloadUpdate.parse(req.body.payload);
 
   // Foto hanya boleh dari bucket kita sendiri. Tanpa cek ini, kontributor bisa
   // menitipkan URL gambar sembarang (atau pelacak) ke dalam data resmi.
@@ -80,7 +80,7 @@ router.post('/contributions', requireAuth, async (req, res) => {
   if (sentuhUtama && photos.length === 0)
     return res.status(400).json({ error: 'Perubahan atribut aksesibilitas utama wajib menyertakan minimal 1 foto bukti' });
 
-  if (change_type === 'create') {
+  if (buatBaru) {
     const kategori = await one('select id from categories where code = $1', [payload.category_code]);
     if (!kategori) return res.status(400).json({ error: 'Kategori tidak dikenal' });
     const kembar = await one('select id from facilities where lower(name) = lower($1)', [payload.name]);
@@ -103,7 +103,7 @@ router.post('/contributions', requireAuth, async (req, res) => {
 router.get('/contributions/mine', requireAuth, async (req, res) => {
   res.json(
     await many(
-      `select k.id, k.change_type, k.status, k.review_note, k.created_at, k.reviewed_at,
+      `select k.id, k.change_type, k.status, k.review_notes, k.created_at, k.reviewed_at,
               k.facility_id, f.name as facility_name, k.payload
          from contributions k left join facilities f on f.id = k.facility_id
         where k.submitted_by = $1
@@ -123,12 +123,13 @@ adminRouter.get('/contributions', async (req, res) => {
     await many(
       `select k.id, k.change_type, k.status, k.created_at, k.reviewed_at,
               k.facility_id, f.name as facility_name,
-              u.name as submitted_by_name, u.email as submitted_by_email,
+              u.display_name as submitted_by_name, au.email as submitted_by_email,
               k.payload->>'name' as usulan_nama,
               coalesce(jsonb_array_length(k.payload->'photos'), 0) as jumlah_foto
          from contributions k
          left join facilities f on f.id = k.facility_id
-         join users u on u.id = k.submitted_by
+         join profiles u on u.id = k.submitted_by
+         left join auth.users au on au.id = k.submitted_by
         where ($1 = 'all' or k.status = $1)
         order by k.id desc limit 100`,
       [status],
@@ -140,8 +141,10 @@ adminRouter.get('/contributions', async (req, res) => {
 adminRouter.get('/contributions/:id', async (req, res) => {
   const id = z.coerce.number().int().positive().parse(req.params.id);
   const k = await one(
-    `select k.*, u.name as submitted_by_name, u.email as submitted_by_email, f.name as facility_name
-       from contributions k join users u on u.id = k.submitted_by
+    `select k.*, u.display_name as submitted_by_name, au.email as submitted_by_email, f.name as facility_name
+       from contributions k
+       join profiles u on u.id = k.submitted_by
+       left join auth.users au on au.id = k.submitted_by
        left join facilities f on f.id = k.facility_id
       where k.id = $1`,
     [id],
@@ -164,8 +167,8 @@ adminRouter.get('/contributions/:id', async (req, res) => {
 
   const riwayat = k.facility_id
     ? await many(
-        `select k2.id, k2.change_type, k2.status, k2.reviewed_at, u.name as reviewed_by_name
-           from contributions k2 left join users u on u.id = k2.reviewed_by
+        `select k2.id, k2.change_type, k2.status, k2.reviewed_at, u.display_name as reviewed_by_name
+           from contributions k2 left join profiles u on u.id = k2.reviewed_by
           where k2.facility_id = $1 and k2.id <> $2 and k2.status <> 'pending'
           order by k2.id desc limit 20`,
         [k.facility_id, id],
@@ -196,7 +199,7 @@ adminRouter.post('/contributions/:id/review', async (req, res) => {
     if (action === 'reject') {
       // Ditolak: data resmi tidak berubah sama sekali (AC-07).
       await c.query(
-        `update contributions set status='rejected', review_note=$2, reviewed_by=$3, reviewed_at=now() where id=$1`,
+        `update contributions set status='rejected', review_notes=$2, reviewed_by=$3, reviewed_at=now() where id=$1`,
         [id, note ?? null, req.user.id],
       );
       return { http: 200, body: { id, status: 'rejected' } };
@@ -205,7 +208,7 @@ adminRouter.post('/contributions/:id/review', async (req, res) => {
     const p = k.payload;
     let facilityId = k.facility_id;
 
-    if (k.change_type === 'create') {
+    if (k.change_type === 'create_facility') {
       const kembar = (await c.query('select id from facilities where lower(name) = lower($1)', [p.name])).rows[0];
       if (kembar)
         return { http: 409, body: { error: `Fasilitas "${p.name}" sudah dibuat sementara kontribusi ini menunggu`, facility_id: kembar.id } };
@@ -254,7 +257,7 @@ adminRouter.post('/contributions/:id/review', async (req, res) => {
     // Approve = admin sudah memverifikasi (FR-20).
     await c.query('update facilities set last_verified_at = now(), updated_at = now() where id = $1', [facilityId]);
     await c.query(
-      `update contributions set status='approved', review_note=$2, reviewed_by=$3, reviewed_at=now(),
+      `update contributions set status='approved', review_notes=$2, reviewed_by=$3, reviewed_at=now(),
                                 facility_id=$4 where id=$1`,
       [id, note ?? null, req.user.id, facilityId],
     );

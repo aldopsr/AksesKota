@@ -1,20 +1,76 @@
 import express from 'express';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { z } from 'zod';
-import { one, q } from './db.js';
+import { one } from './db.js';
+import { sbUrl, sbAnonKey } from './supabase.js';
 
-const SECRET = process.env.JWT_SECRET;
-if (!SECRET) throw new Error('JWT_SECRET belum diisi di .env');
+// PRD 2.0 §27.2: React -> Supabase Auth -> Access Token -> Express -> verifikasi -> role.
+//
+// Backend TIDAK lagi menangani register, login, password, atau reset password.
+// Semua itu milik Supabase Auth. Yang tersisa di sini hanya: memastikan token sah,
+// lalu menentukan role dari tabel `profiles` kita sendiri.
+//
+// Role TIDAK pernah dibaca dari isi token. Token hanya membuktikan "siapa";
+// "boleh apa" selalu dilihat dari database (PRD 2.0 §27.2: hak akses admin tidak
+// ditentukan dari data yang dikirim client).
 
-const sign = (u) => jwt.sign({ id: u.id, role: u.role, name: u.name }, SECRET, { expiresIn: '30d' });
+// Project ini memakai penandatanganan HS256 lama (endpoint JWKS membalas 404), jadi
+// verifikasi dilakukan dengan menanyakan token ke Supabase, bukan memeriksa tanda tangan
+// secara lokal. Hasilnya di-cache sebentar supaya tidak satu round-trip per request.
+//
+// ponytail: cache di memori, 60 detik. Konsekuensinya token yang baru di-sign-out masih
+// diterima paling lama 60 detik. Kalau itu tidak bisa diterima, verifikasi lokal dengan
+// SUPABASE_JWT_SECRET (HS256) menghilangkan cache sekaligus round-trip-nya.
+const TTL = 60_000;
+const cache = new Map();
 
-/** Dipasang global: isi req.user kalau ada token valid, diam saja kalau tidak.
- *  Guest tetap boleh lewat (PRD 7: login tidak wajib untuk eksplorasi). */
-export function optionalAuth(req, _res, next) {
+async function verifikasiToken(token) {
+  const tersimpan = cache.get(token);
+  if (tersimpan && tersimpan.sampai > Date.now()) return tersimpan.user;
+
+  const res = await fetch(`${sbUrl()}/auth/v1/user`, {
+    headers: { Authorization: `Bearer ${token}`, apikey: sbAnonKey() },
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!res.ok) {
+    cache.delete(token);
+    return null;
+  }
+  const user = await res.json();
+
+  if (cache.size > 1000) cache.clear(); // batas kasar, tidak perlu LRU untuk ini
+  cache.set(token, { user, sampai: Date.now() + TTL });
+  return user;
+}
+
+/**
+ * Pastikan ada baris profiles untuk akun ini, lalu kembalikan role-nya.
+ * Dibuat sambil jalan, bukan lewat trigger di schema auth — supaya tidak perlu
+ * hak akses khusus ke schema milik Supabase dan tetap jalan di project mana pun.
+ */
+async function profil(user) {
+  const nama = user.user_metadata?.display_name ?? user.user_metadata?.name ?? user.email?.split('@')[0] ?? null;
+  return one(
+    `insert into profiles (id, display_name) values ($1, $2)
+     on conflict (id) do update set display_name = coalesce(profiles.display_name, excluded.display_name),
+                                    updated_at = now()
+     returning id, display_name, role`,
+    [user.id, nama],
+  );
+}
+
+/** Dipasang global: isi req.user kalau tokennya sah, diam saja kalau tidak.
+ *  Guest tetap boleh lewat (PRD §7: login tidak wajib untuk eksplorasi). */
+export async function optionalAuth(req, _res, next) {
   const token = req.headers.authorization?.replace(/^Bearer /i, '');
-  if (token) {
-    try { req.user = jwt.verify(token, SECRET); } catch { /* token busuk = tetap guest */ }
+  if (!token) return next();
+  try {
+    const user = await verifikasiToken(token);
+    if (user) {
+      const p = await profil(user);
+      req.user = { id: p.id, email: user.email, name: p.display_name, role: p.role };
+    }
+  } catch (e) {
+    // Supabase Auth tidak bisa dihubungi: perlakukan sebagai guest, jangan matikan peta (NFR-04).
+    console.error('Verifikasi token gagal:', e.message);
   }
   next();
 }
@@ -25,57 +81,9 @@ export const requireAuth = (req, res, next) =>
 export const requireAdmin = (req, res, next) =>
   req.user?.role === 'admin' ? next() : res.status(403).json({ error: 'Khusus admin' });
 
-const credentials = z.object({
-  email: z.string().email().toLowerCase(),
-  password: z.string().min(8, 'Password minimal 8 karakter'),
-});
-
 export const router = express.Router();
 
-router.post('/register', async (req, res) => {
-  const { email, password } = credentials.parse(req.body);
-  const name = z.string().min(1).max(100).parse(req.body.name);
-
-  const exists = await one('select 1 from users where email = $1', [email]);
-  if (exists) return res.status(409).json({ error: 'Email sudah terdaftar' });
-
-  const user = await one(
-    'insert into users (email, password_hash, name) values ($1,$2,$3) returning id, email, name, role',
-    [email, await bcrypt.hash(password, 10), name],
-  );
-  res.status(201).json({ token: sign(user), user });
-});
-
-// Proteksi brute-force (NFR-05): maksimal 10 kegagalan per IP dalam 15 menit.
-// Dikunci per IP, bukan per email — kalau per email, siapa pun bisa mengunci akun orang lain
-// hanya dengan menebak-nebak password korban.
-const MAKS_GAGAL = 10;
-const JENDELA = '15 minutes';
-
-router.post('/login', async (req, res) => {
-  const { email, password } = credentials.parse(req.body);
-
-  const { gagal } = await one(
-    `select count(*)::int as gagal from login_attempts
-      where key = $1 and at > now() - interval '${JENDELA}'`,
-    [req.ip],
-  );
-  if (gagal >= MAKS_GAGAL)
-    return res.status(429).json({ error: 'Terlalu banyak percobaan login. Coba lagi dalam 15 menit.' });
-
-  const row = await one('select * from users where email = $1', [email]);
-  // Pesan error sengaja sama untuk email salah dan password salah: jangan bocorkan email mana yang terdaftar.
-  if (!row || !(await bcrypt.compare(password, row.password_hash))) {
-    await q('insert into login_attempts (key) values ($1)', [req.ip]);
-    await q(`delete from login_attempts where at < now() - interval '1 hour'`); // bersih-bersih sambil jalan
-    return res.status(401).json({ error: 'Email atau password salah' });
-  }
-
-  await q('delete from login_attempts where key = $1', [req.ip]); // berhasil = hitungan direset
-  const user = { id: row.id, email: row.email, name: row.name, role: row.role };
-  res.json({ token: sign(user), user });
-});
-
+/** Profil akun yang sedang login. Register/login dilakukan frontend lewat supabase-js. */
 router.get('/me', requireAuth, async (req, res) => {
-  res.json(await one('select id, email, name, role, created_at from users where id = $1', [req.user.id]));
+  res.json(await one('select id, display_name, role, created_at from profiles where id = $1', [req.user.id]));
 });
