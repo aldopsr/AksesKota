@@ -2,7 +2,7 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { one } from './db.js';
+import { one, q } from './db.js';
 
 const SECRET = process.env.JWT_SECRET;
 if (!SECRET) throw new Error('JWT_SECRET belum diisi di .env');
@@ -46,13 +46,32 @@ router.post('/register', async (req, res) => {
   res.status(201).json({ token: sign(user), user });
 });
 
+// Proteksi brute-force (NFR-05): maksimal 10 kegagalan per IP dalam 15 menit.
+// Dikunci per IP, bukan per email — kalau per email, siapa pun bisa mengunci akun orang lain
+// hanya dengan menebak-nebak password korban.
+const MAKS_GAGAL = 10;
+const JENDELA = '15 minutes';
+
 router.post('/login', async (req, res) => {
   const { email, password } = credentials.parse(req.body);
+
+  const { gagal } = await one(
+    `select count(*)::int as gagal from login_attempts
+      where key = $1 and at > now() - interval '${JENDELA}'`,
+    [req.ip],
+  );
+  if (gagal >= MAKS_GAGAL)
+    return res.status(429).json({ error: 'Terlalu banyak percobaan login. Coba lagi dalam 15 menit.' });
+
   const row = await one('select * from users where email = $1', [email]);
   // Pesan error sengaja sama untuk email salah dan password salah: jangan bocorkan email mana yang terdaftar.
-  if (!row || !(await bcrypt.compare(password, row.password_hash)))
+  if (!row || !(await bcrypt.compare(password, row.password_hash))) {
+    await q('insert into login_attempts (key) values ($1)', [req.ip]);
+    await q(`delete from login_attempts where at < now() - interval '1 hour'`); // bersih-bersih sambil jalan
     return res.status(401).json({ error: 'Email atau password salah' });
+  }
 
+  await q('delete from login_attempts where key = $1', [req.ip]); // berhasil = hitungan direset
   const user = { id: row.id, email: row.email, name: row.name, role: row.role };
   res.json({ token: sign(user), user });
 });

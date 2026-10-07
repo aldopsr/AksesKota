@@ -19,3 +19,23 @@ export const one = async (text, params) => (await q(text, params)).rows[0];
 
 /** Ambil semua baris. */
 export const many = async (text, params) => (await q(text, params)).rows;
+
+/**
+ * Jalankan fn dalam satu transaksi. Dipakai approve kontribusi: menulis ke
+ * facilities + accessibility_facilities + facility_photos + contributions sekaligus.
+ * Kalau satu gagal, semuanya dibatalkan — data resmi tidak boleh setengah berubah.
+ */
+export async function tx(fn) {
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+    const hasil = await fn(client);
+    await client.query('commit');
+    return hasil;
+  } catch (e) {
+    await client.query('rollback');
+    throw e;
+  } finally {
+    client.release();
+  }
+}

@@ -7,6 +7,8 @@
 //   Data OSM juga TIDAK ditandai terverifikasi (verified_at dibiarkan null) karena
 //   belum ada bukti lapangan — fasilitas hasil import akan tampil `needs_reverification`.
 
+import { fetchOverpass } from './overpass.js';
+
 const dry = process.argv.includes('--dry');
 
 // ponytail: bounding box, bukan lookup batas administratif.
@@ -75,17 +77,7 @@ const address = (t) =>
     .filter(Boolean).join(', ') || null;
 
 console.log(`Overpass: ${FILTERS.length} filter, bbox ${BBOX}`);
-const res = await fetch('https://overpass-api.de/api/interpreter', {
-  method: 'POST',
-  // Overpass menolak request tanpa User-Agent dengan 406. Jangan dihapus.
-  headers: {
-    'Content-Type': 'application/x-www-form-urlencoded',
-    'User-Agent': 'AksesKota/0.1 (riset aksesibilitas Kota Bogor)',
-  },
-  body: new URLSearchParams({ data: query }),
-});
-if (!res.ok) throw new Error(`Overpass ${res.status}: ${(await res.text()).slice(0, 300)}`);
-const { elements = [] } = await res.json();
+const { elements = [] } = await fetchOverpass(query);
 console.log(`${elements.length} elemen mentah dari OSM`);
 
 const seen = new Map();

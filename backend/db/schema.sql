@@ -111,13 +111,16 @@ create table if not exists reports (
 );
 create index if not exists reports_status_idx on reports (status, id desc);
 
--- Guardrail kuota AI per user per hari (PRD §27 API Usage Policy).
--- Tabel, bukan in-memory counter: server restart tidak boleh me-reset kuota.
+-- Guardrail kuota AI per hari (PRD §27 API Usage Policy).
+-- Tabel, bukan counter di memori: restart server (dan tiap instance serverless Vercel
+-- yang punya memori sendiri) tidak boleh me-reset kuota.
+-- `key` bukan user_id karena Guest juga boleh memakai AI (PRD §7):
+--   user login -> 'u:<id>',  guest -> 'ip:<alamat>'.
 create table if not exists ai_usage (
-  user_id int not null references users(id) on delete cascade,
-  day     date not null default current_date,
-  count   int not null default 0,
-  primary key (user_id, day)
+  key   text not null,
+  day   date not null default current_date,
+  count int not null default 0,
+  primary key (key, day)
 );
 
 -- Migrasi inkremental. Dijalankan setiap db:reset; aman berulang.
@@ -125,3 +128,47 @@ create table if not exists ai_usage (
 alter table facilities add column if not exists osm_id text;
 alter table facilities add column if not exists source text not null default 'manual';
 create index if not exists facilities_osm_idx on facilities (osm_id);
+
+-- ai_usage sempat memakai kolom user_id (hanya user login). Diganti ke `key` agar
+-- Guest ikut terhitung. Drop aman: tabel ini belum pernah dipakai fitur apa pun.
+do $$ begin
+  if exists (select 1 from information_schema.columns
+              where table_name = 'ai_usage' and column_name = 'user_id') then
+    drop table ai_usage;
+    create table ai_usage (
+      key   text not null,
+      day   date not null default current_date,
+      count int not null default 0,
+      primary key (key, day)
+    );
+  end if;
+end $$;
+
+-- Jaringan pejalan kaki dari OSM, untuk penilaian aksesibilitas rute (PRD 19.5).
+-- Diisi oleh db/import-ways.js. Kolom yang sering dipakai diekstrak jadi kolom sendiri
+-- supaya bisa diindeks/difilter; sisanya tetap disimpan di `tags` untuk jaga-jaga.
+create table if not exists pedestrian_ways (
+  osm_id         bigint primary key,
+  highway        text,
+  wheelchair     text,   -- yes | designated | limited | no
+  tactile_paving text,
+  surface        text,
+  smoothness     text,
+  incline        text,
+  kerb           text,
+  width          numeric,
+  tags           jsonb not null default '{}',
+  geom           geography(linestring,4326) not null
+);
+create index if not exists pedestrian_ways_geom_idx on pedestrian_ways using gist (geom);
+
+alter table reports add column if not exists resolution_note text;
+
+-- Proteksi brute-force login (NFR-05). Jendelanya menit, bukan hari, jadi tidak bisa
+-- menumpang tabel ai_usage yang berbasis tanggal.
+-- Baris lama dibersihkan sambil jalan saat login berikutnya — tidak perlu cron.
+create table if not exists login_attempts (
+  key text not null,
+  at  timestamptz not null default now()
+);
+create index if not exists login_attempts_idx on login_attempts (key, at desc);
