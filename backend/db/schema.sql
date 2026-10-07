@@ -119,3 +119,9 @@ create table if not exists ai_usage (
   count   int not null default 0,
   primary key (user_id, day)
 );
+
+-- Migrasi inkremental. Dijalankan setiap db:reset; aman berulang.
+-- Proyek ini belum pakai migration tool — kalau jumlah alter di bawah lewat ~10 baris, pindah ke node-pg-migrate.
+alter table facilities add column if not exists osm_id text;
+alter table facilities add column if not exists source text not null default 'manual';
+create index if not exists facilities_osm_idx on facilities (osm_id);

@@ -27,5 +27,10 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: 'Terjadi kesalahan di server' });
 });
 
-const port = process.env.PORT || 3000;
-app.listen(port, () => console.log(`AksesKota API -> http://localhost:${port}/api/health`));
+// Di Vercel tidak ada proses yang hidup terus: app diekspor sebagai handler, tidak listen.
+export default app;
+
+if (!process.env.VERCEL) {
+  const port = process.env.PORT || 3000;
+  app.listen(port, () => console.log(`AksesKota API -> http://localhost:${port}/api/health`));
+}

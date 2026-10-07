@@ -7,7 +7,8 @@
     "dev": "node --watch --env-file-if-exists=.env src/index.js",
     "start": "node --env-file-if-exists=.env src/index.js",
     "db:reset": "node --env-file-if-exists=.env db/reset.js",
-    "test": "node --env-file-if-exists=.env test/smoke.js"
+    "test": "node --env-file-if-exists=.env test/smoke.js",
+    "import:osm": "node --env-file-if-exists=.env db/import-osm.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

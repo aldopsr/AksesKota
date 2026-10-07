@@ -3,10 +3,13 @@ import pg from 'pg';
 // Supabase pooler butuh SSL tapi sertifikatnya tidak ada di trust store Node.
 const needsSsl = /supabase|render|neon|heroku/.test(process.env.DATABASE_URL ?? '');
 
+// Di Vercel setiap instance serverless punya pool sendiri dan bisa ada puluhan instance sekaligus.
+// max: 1 + connection string ke port 6543 (transaction pooler Supabase) supaya kuota koneksi tidak habis.
 export const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: needsSsl ? { rejectUnauthorized: false } : false,
-  max: 10,
+  max: process.env.VERCEL ? 1 : 10,
+  idleTimeoutMillis: process.env.VERCEL ? 10_000 : 30_000,
 });
 
 export const q = (text, params) => pool.query(text, params);
