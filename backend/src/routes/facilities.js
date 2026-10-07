@@ -101,8 +101,8 @@ router.get('/facilities/:id', async (req, res) => {
     ),
     many('select id, url, caption, created_at from facility_photos where facility_id = $1 order by id desc', [id]),
     many(
-      `select r.id, r.rating, r.content, r.created_at, u.name as user_name
-         from reviews r join users u on u.id = r.user_id
+      `select r.id, r.rating, r.content, r.created_at, u.display_name as user_name
+         from reviews r join profiles u on u.id = r.user_id
         where r.facility_id = $1 order by r.id desc limit 20`,
       [id],
     ),
@@ -127,6 +127,38 @@ router.get('/facilities/:id', async (req, res) => {
     reviews,
     ...ringkasan,
     disclaimer: DISCLAIMER,
+  });
+});
+
+/**
+ * PRD 2.0 §11.4 & AC-01: cakupan data TIDAK merata antarwilayah, dan sistem wajib
+ * menampilkan keterbatasan itu — supaya "tidak ada hasil" tidak dibaca pengguna
+ * sebagai "tidak ada fasilitas aksesibel di daerah saya".
+ * Frontend sebaiknya menampilkan ini di peta saat pengguna menggeser ke wilayah kosong.
+ */
+router.get('/coverage', async (_req, res) => {
+  const wilayah = await many(
+    `select coalesce(region, 'Belum ditandai') as region,
+            count(*)::int as facilities,
+            count(*) filter (where exists (
+              select 1 from accessibility_facilities af
+               where af.facility_id = f.id and af.status <> 'unknown'))::int as with_accessibility_data,
+            max(last_verified_at) as last_verified_at
+       from facilities f group by 1 order by 2 desc`,
+  );
+  const total = wilayah.reduce((a, w) => a + w.facilities, 0);
+  const berdata = wilayah.reduce((a, w) => a + w.with_accessibility_data, 0);
+  res.json({
+    regions: wilayah.map((w) => ({
+      ...w,
+      data_percent: w.facilities ? Math.round((100 * w.with_accessibility_data) / w.facilities) : 0,
+    })),
+    total_facilities: total,
+    total_with_accessibility_data: berdata,
+    data_percent: total ? Math.round((100 * berdata) / total) : 0,
+    notice:
+      'Cakupan data AksesKota belum merata di seluruh Indonesia. Wilayah tanpa data bukan berarti ' +
+      'tidak memiliki fasilitas aksesibel — hanya belum terpetakan di basis data kami.',
   });
 });
 

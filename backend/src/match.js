@@ -25,7 +25,8 @@ export function freshness(lastVerifiedAt) {
 }
 
 let kodeValid; // di-cache: daftar atribut tidak berubah saat runtime
-const semuaKode = async () =>
+/** Set berisi 10 kode atribut yang sah. */
+export const semuaKode = async () =>
   (kodeValid ??= new Set((await many('select code from accessibility_attributes')).map((r) => r.code)));
 
 /** Buang kode atribut yang tidak dikenal. Trust boundary: input ini bisa datang dari URL atau dari LLM. */

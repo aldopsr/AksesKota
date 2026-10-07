@@ -1,6 +1,7 @@
 -- Seed data awal. Idempotent (on conflict do nothing / update).
--- PERINGATAN: koordinat fasilitas di bawah masih PERKIRAAN hasil penelusuran manual.
--- Sebelum demo, verifikasi ulang tiap titik lewat OSM/Google Maps dan perbaiki di sini.
+-- Koordinat di bawah masih PERKIRAAN hasil penelusuran manual (beberapa meleset >1 km).
+-- `npm run import:osm` akan MENGOREKSI titik-titik ini pakai koordinat OSM untuk nama yang sama,
+-- jadi jalankan import setelah db:reset. Data aksesibilitas hasil survei di bawah tidak ditimpa.
 -- ponytail: 14 fasilitas starter, bukan 100. Target dataset PRD dicapai lewat
 -- import Overpass/Open Data Bogor (script terpisah), bukan tulis tangan di SQL.
 

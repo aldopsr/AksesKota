@@ -19,6 +19,27 @@ assert.equal(freshness(null), 'needs_reverification');
 assert.equal(freshness(new Date()), 'verified_recently');
 assert.equal(freshness(new Date(Date.now() - 400 * 86_400_000)), 'needs_reverification');
 
+// --- skor rute (PRD 19.7) ---
+const { skorRute } = await import('../src/routes/route.js');
+
+// Tanpa data jalur yang diketahui: urutkan dengan jarak saja, jangan mengarang penalti.
+const tanpaData = skorRute({ accessibility: null, distanceM: 1200, tersingkatM: 1000 });
+assert.equal(tanpaData.accessibility_score, null);
+assert.equal(tanpaData.basis, 'jarak_saja');
+assert.equal(tanpaData.score, tanpaData.distance_score);
+
+// Rute tersingkat mendapat distance_score penuh.
+assert.equal(skorRute({ accessibility: 1, distanceM: 1000, tersingkatM: 1000 }).distance_score, 1);
+// Bobot 70/30 benar-benar diterapkan.
+assert.equal(skorRute({ accessibility: 1, distanceM: 1000, tersingkatM: 1000 }).score, 1);
+assert.equal(skorRute({ accessibility: 0, distanceM: 1000, tersingkatM: 1000 }).score, 0.3);
+
+// Inti PRD 19.7: rute lebih aksesibel walau lebih jauh harus mengalahkan rute terpendek
+// yang buruk aksesibilitasnya. Kalau assert ini jatuh, bobotnya terbalik.
+const pendekTapiBuruk = skorRute({ accessibility: 0.2, distanceM: 1000, tersingkatM: 1000 });
+const jauhTapiBaik = skorRute({ accessibility: 1.0, distanceM: 1400, tersingkatM: 1000 });
+assert.ok(jauhTapiBaik.score > pendekTapiBuruk.score, 'aksesibilitas kalah oleh jarak — bobot 70/30 salah');
+
 if (!process.env.DATABASE_URL) {
   console.log('OK (logic only) — set DATABASE_URL untuk menjalankan cek database');
   process.exit(0);
@@ -52,5 +73,243 @@ const dalam1km = await searchFacilities({ lat: -6.5951, lon: 106.7901, radius: 1
 assert.ok(dalam1km.every((f) => f.distance_m <= 1000));
 assert.ok(dalam1km.length < dekatStasiun.length, 'radius tidak berpengaruh');
 
+// ---------------------------------------------------------------------------
+// Jalur kontribusi -> verifikasi admin. Diuji lewat HTTP sungguhan karena
+// aturannya (wajib foto, pending tidak mengubah data resmi, approve sekali saja)
+// hidup di dalam route handler, bukan di fungsi terpisah.
+// ---------------------------------------------------------------------------
+
+// Mencegah src/index.js memanggil listen() sendiri di port 3000 — kita listen di port acak.
+process.env.VERCEL = '1';
+const { default: app } = await import('../src/index.js');
+const server = app.listen(0);
+const base = `http://localhost:${server.address().port}`;
+
+const api = async (path, { token, ...init } = {}) => {
+  const res = await fetch(base + path, {
+    ...init,
+    headers: {
+      ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: init.body ? JSON.stringify(init.body) : undefined,
+  });
+  return { status: res.status, body: await res.json() };
+};
+
+// Akun dibuat lewat Supabase Auth, bukan endpoint kita — backend sudah tidak punya
+// register/login sejak pindah ke Supabase Auth (PRD 2.0 FR-01).
+const { sbUrl, sbServiceKey } = await import('../src/supabase.js');
+const sb = sbUrl();
+const sbKey = sbServiceKey();
+const sbAdmin = (path, init = {}) =>
+  fetch(`${sb}/auth/v1/admin/${path}`, {
+    ...init,
+    headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}`, 'Content-Type': 'application/json' },
+  });
+
+const masuk = async (email, password) => {
+  const r = await fetch(`${sb}/auth/v1/token?grant_type=password`, {
+    method: 'POST',
+    headers: { apikey: sbKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  const j = await r.json();
+  assert.ok(j.access_token, `gagal login ${email}: ${JSON.stringify(j).slice(0, 200)}`);
+  return j.access_token;
+};
+
+const email = `smoke-${Date.now()}@test.local`;
+const dibuat = await sbAdmin('users', {
+  method: 'POST',
+  body: JSON.stringify({ email, password: 'rahasia123', email_confirm: true }),
+});
+// Body hanya boleh dibaca sekali, jadi diambil dulu sebelum di-assert.
+const hasilBuat = await dibuat.json();
+assert.ok(dibuat.ok, `gagal membuat user uji di Supabase: ${JSON.stringify(hasilBuat).slice(0, 200)}`);
+const userId = hasilBuat.id;
+const userToken = await masuk(email, 'rahasia123');
+const adminToken = await masuk('admin@akseskota.id', 'admin12345');
+
+// Role datang dari tabel profiles kita, bukan dari isi token (PRD 2.0 27.2).
+const profil = await api('/api/auth/me', { token: userToken });
+assert.equal(profil.status, 200, JSON.stringify(profil.body));
+assert.equal(profil.body.role, 'contributor', 'akun baru seharusnya berperan contributor');
+assert.equal((await api('/api/auth/me', { token: adminToken })).body.role, 'admin');
+assert.equal((await api('/api/auth/me', { token: 'token-palsu' })).status, 401, 'token palsu diterima');
+
+const target = (await searchFacilities({ q: 'Terminal Baranangsiang' }))[0];
+
+// FR-08: atribut utama tanpa foto bukti harus ditolak.
+const tanpaFoto = await api('/api/contributions', {
+  method: 'POST', token: userToken,
+  body: { facility_id: target.id, change_type: 'update_accessibility', payload: { attributes: { ramp: 'available' } }, photos: [] },
+});
+assert.equal(tanpaFoto.status, 400, 'atribut utama lolos tanpa foto bukti');
+
+// Atribut non-utama boleh tanpa foto.
+const kirim = await api('/api/contributions', {
+  method: 'POST', token: userToken,
+  body: { facility_id: target.id, change_type: 'update_accessibility', payload: { attributes: { audio_access: 'available' } } },
+});
+assert.equal(kirim.status, 201, JSON.stringify(kirim.body));
+assert.equal(kirim.body.status, 'pending');
+
+// AC-06: selama pending, data resmi TIDAK berubah.
+const saatPending = await api(`/api/facilities/${target.id}`);
+assert.equal(
+  saatPending.body.attributes.find((a) => a.code === 'audio_access').status, 'unknown',
+  'kontribusi pending sudah mengubah data resmi',
+);
+
+// Non-admin tidak boleh masuk layar verifikasi.
+assert.equal((await api('/api/admin/contributions', { token: userToken })).status, 403);
+
+// Layar verifikasi harus memperlihatkan nilai sebelum vs usulan (PRD 12.4).
+const detail = await api(`/api/admin/contributions/${kirim.body.id}`, { token: adminToken });
+assert.equal(detail.status, 200);
+assert.deepEqual(
+  detail.body.perbandingan.map((p) => [p.code, p.status_sebelum, p.status_usulan]),
+  [['audio_access', 'unknown', 'available']],
+);
+
+const setuju = await api(`/api/admin/contributions/${kirim.body.id}/review`, {
+  method: 'POST', token: adminToken, body: { action: 'approve' },
+});
+assert.equal(setuju.status, 200, JSON.stringify(setuju.body));
+
+const setelahApprove = await api(`/api/facilities/${target.id}`);
+assert.equal(
+  setelahApprove.body.attributes.find((a) => a.code === 'audio_access').status, 'available',
+  'approve tidak menulis ke data resmi',
+);
+assert.equal(setelahApprove.body.freshness, 'verified_recently');
+
+// Approve dua kali harus ditolak.
+const ulang = await api(`/api/admin/contributions/${kirim.body.id}/review`, {
+  method: 'POST', token: adminToken, body: { action: 'approve' },
+});
+assert.equal(ulang.status, 409, 'kontribusi bisa di-approve dua kali');
+
+// Reject tidak boleh mengubah data resmi.
+const kirim2 = await api('/api/contributions', {
+  method: 'POST', token: userToken,
+  body: { facility_id: target.id, change_type: 'update_accessibility', payload: { attributes: { audio_access: 'not_available' } } },
+});
+await api(`/api/admin/contributions/${kirim2.body.id}/review`, {
+  method: 'POST', token: adminToken, body: { action: 'reject', note: 'uji smoke' },
+});
+const setelahReject = await api(`/api/facilities/${target.id}`);
+assert.equal(
+  setelahReject.body.attributes.find((a) => a.code === 'audio_access').status, 'available',
+  'reject mengubah data resmi',
+);
+
+// Profil aksesibilitas ikut dipakai otomatis saat needs tidak dikirim.
+await api('/api/profile/accessibility', { method: 'PUT', token: userToken, body: { needs: ['ramp', 'lift'] } });
+const pakaiProfil = await api('/api/facilities?limit=5', { token: userToken });
+assert.deepEqual(pakaiProfil.body.needs, ['ramp', 'lift'], 'profil user tidak dipakai sebagai kebutuhan default');
+const matiProfil = await api('/api/facilities?needs=none&limit=5', { token: userToken });
+assert.deepEqual(matiProfil.body.needs, [], 'needs=none tidak mematikan profil');
+assert.equal((await api('/api/profile/accessibility', { method: 'PUT', token: userToken, body: { needs: ['ngawur'] } })).status, 400);
+
+// ---------------------------------------------------------------------------
+// Batas kepercayaan AI (FR-16). Ini lapisan yang mencegah output model
+// menyentuh SQL mentah-mentah, jadi diuji dengan output yang sengaja nakal.
+// ---------------------------------------------------------------------------
+const { validateIntent } = await import('../src/routes/ai.js');
+
+// Kategori dan kode atribut karangan harus dibuang, bukan diteruskan ke query.
+const nakal = await validateIntent({
+  intent: 'search_facility',
+  category: 'hotel_bintang_lima',
+  accessibility_requirements: ['ramp', 'kolam_renang', 'lift', 'teleportasi'],
+  radius_m: 999_999_999,
+  query: null,
+});
+assert.equal(nakal.category, null, 'kategori halusinasi lolos ke query');
+assert.deepEqual(nakal.accessibility_requirements, ['ramp', 'lift'], 'kode atribut karangan lolos');
+assert.equal(nakal.radius_m, 20_000, 'radius tidak dijepit');
+
+// Kategori yang memang ada harus lolos.
+assert.equal((await validateIntent({ intent: 'search_facility', category: 'kesehatan' })).category, 'kesehatan');
+
+// Intent di luar daftar harus ditolak, bukan diteruskan.
+await assert.rejects(() => validateIntent({ intent: 'drop_table' }), 'intent asing diterima');
+await assert.rejects(() => validateIntent({ intent: 'search_facility', query: 'x'.repeat(500) }), 'query kepanjangan diterima');
+
+// NFR-04 / PRD 30.7: AI mati tidak boleh mematikan pencarian biasa.
+const kunciAsli = process.env.GEMINI_API_KEY;
+delete process.env.GEMINI_API_KEY;
+const aiMati = await api('/api/ai/query', { method: 'POST', body: { text: 'cari rumah sakit yang ada ramp' } });
+assert.equal(aiMati.status, 503, 'AI tanpa API key tidak mengembalikan 503');
+assert.equal(aiMati.body.fallback, 'search', 'tidak ada petunjuk fallback untuk frontend');
+assert.equal(aiMati.body.query, 'cari rumah sakit yang ada ramp', 'teks asli tidak dikembalikan untuk fallback');
+if (kunciAsli) process.env.GEMINI_API_KEY = kunciAsli;
+// Peta & pencarian biasa harus tetap hidup setelah AI gagal.
+assert.equal((await api('/api/facilities?limit=3')).status, 200, 'pencarian biasa mati saat AI gagal');
+
+// ---------------------------------------------------------------------------
+// Review, report, dan proteksi brute-force
+// ---------------------------------------------------------------------------
+
+// PRD 20: rating adalah informasi TERPISAH dari Accessibility Match.
+const sebelumReview = await api(`/api/facilities/${target.id}?needs=ramp,lift`);
+const review = await api(`/api/facilities/${target.id}/reviews`, {
+  method: 'POST', token: userToken, body: { rating: 5, content: 'Uji smoke' },
+});
+assert.equal(review.status, 201, JSON.stringify(review.body));
+const sesudahReview = await api(`/api/facilities/${target.id}?needs=ramp,lift`);
+assert.equal(
+  sesudahReview.body.match_pct, sebelumReview.body.match_pct,
+  'rating ikut mengubah Accessibility Match — PRD 20 dilanggar',
+);
+assert.equal(sesudahReview.body.rating_avg, 5);
+assert.equal(sesudahReview.body.rating_count, 1);
+
+// Kirim ulang = mengubah review sendiri, bukan menambah baris baru.
+await api(`/api/facilities/${target.id}/reviews`, { method: 'POST', token: userToken, body: { rating: 3 } });
+const setelahEdit = await api(`/api/facilities/${target.id}`);
+assert.equal(setelahEdit.body.rating_count, 1, 'review ganda tercipta untuk satu user');
+assert.equal(setelahEdit.body.rating_avg, 3);
+assert.equal((await api(`/api/facilities/${target.id}/reviews`, { method: 'POST', token: userToken, body: { rating: 9 } })).status, 400);
+
+// Report -> admin menutup laporan.
+const lapor = await api('/api/reports', {
+  method: 'POST', token: userToken,
+  body: { facility_id: target.id, report_type: 'atribut_tidak_sesuai', description: 'uji smoke' },
+});
+assert.equal(lapor.status, 201, JSON.stringify(lapor.body));
+assert.equal((await api('/api/admin/reports', { token: userToken })).status, 403, 'non-admin bisa lihat laporan');
+assert.ok((await api('/api/admin/reports', { token: adminToken })).body.some((r) => r.id === lapor.body.id));
+assert.equal(
+  (await api(`/api/admin/reports/${lapor.body.id}/resolve`, { method: 'POST', token: adminToken, body: { action: 'resolve', note: 'uji' } })).status,
+  200,
+);
+// Laporan yang sudah ditutup tidak bisa ditutup dua kali.
+assert.equal(
+  (await api(`/api/admin/reports/${lapor.body.id}/resolve`, { method: 'POST', token: adminToken, body: { action: 'dismiss' } })).status,
+  409,
+);
+// Laporan konten review wajib menyertakan review_id.
+assert.equal(
+  (await api('/api/reports', { method: 'POST', token: userToken, body: { facility_id: target.id, report_type: 'review_bermasalah' } })).status,
+  400,
+);
+
+// Bersihkan jejak uji supaya run berikutnya tetap valid.
+await pool.query('delete from reports where description = $1', ['uji smoke']);
+await pool.query("delete from ai_usage where key like '%:ip:%'");
+// contributions.submitted_by tidak cascade, jadi harus dihapus lebih dulu.
+await pool.query('delete from contributions where submitted_by = $1', [userId]);
+await pool.query('delete from profiles where id = $1', [userId]);
+await sbAdmin(`users/${userId}`, { method: 'DELETE' });
+await pool.query(
+  `update accessibility_facilities set status='unknown', verified_by=null, verified_at=null
+    where facility_id=$1 and attribute_code='audio_access'`,
+  [target.id],
+);
+
+server.close();
 await pool.end();
-console.log(`OK — ${dekatStasiun.length} fasilitas dalam 5km, semua aturan match & sorting lolos`);
+console.log(`OK — ${dekatStasiun.length} fasilitas dalam 5km; Supabase Auth, match, sorting, crowdsourcing, verifikasi admin & review/report lolos`);
