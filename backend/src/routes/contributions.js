@@ -6,13 +6,13 @@ import { z } from 'zod';
 import { many, one } from '../db.js';
 import { requireAuth } from '../auth.js';
 import { HttpError } from '../http.js';
-import { savePhoto, validateImage } from '../storage.js';
+import { savePhoto, validateImage, MAKS_FOTO_MB } from '../storage.js';
 
 export const router = express.Router();
 
 const MAX_PHOTOS = 3;
 const MAX_PER_DAY = 20;
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024, files: MAX_PHOTOS } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAKS_FOTO_MB * 1024 * 1024, files: MAX_PHOTOS } });
 
 const attribute = z.object({
   code: z.string().max(50),

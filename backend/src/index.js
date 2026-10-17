@@ -10,9 +10,13 @@ import { router as adminRouter } from './routes/admin.js';
 import { router as routingRouter } from './routes/routing.js';
 import { router as aiRouter } from './routes/ai.js';
 import { rateLimit } from './rateLimit.js';
-import { UPLOAD_DIR } from './storage.js';
+import { UPLOAD_DIR, MAKS_FOTO_MB } from './storage.js';
 
 const app = express();
+
+// Catatan di rateLimit.js: di balik proxy, req.ip harus membaca X-Forwarded-For.
+// Tanpa ini semua pengguna di Vercel terbaca sebagai satu IP dan saling menghabiskan jatah.
+app.set('trust proxy', 1);
 
 app.use(cors({ origin: process.env.CORS_ORIGIN?.split(',') ?? '*' }));
 app.use(express.json({ limit: '1mb' }));
@@ -37,7 +41,7 @@ app.use((err, _req, res, _next) => {
   if (err instanceof ZodError)
     return res.status(400).json({ error: 'Input tidak valid', issues: err.issues.map((i) => ({ field: i.path.join('.'), message: i.message })) });
   if (err.status) return res.status(err.status).json({ error: err.message, ...err.extra });
-  if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'Ukuran foto maksimal 5 MB' });
+  if (err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: `Ukuran foto maksimal ${MAKS_FOTO_MB} MB` });
   if (err.code === 'LIMIT_FILE_COUNT' || err.code === 'LIMIT_UNEXPECTED_FILE') return res.status(400).json({ error: 'Maksimal 3 foto' });
   if (err.code === '23505') return res.status(409).json({ error: 'Data sudah ada' });
   if (err.code === '23503') return res.status(400).json({ error: 'Referensi data tidak ditemukan' });
@@ -45,5 +49,15 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: 'Terjadi kesalahan di server' });
 });
 
-const port = process.env.PORT || 3000;
-app.listen(port, () => console.log(`AksesKota API -> http://localhost:${port}/api/health`));
+// Di Vercel tidak ada proses yang hidup terus: app diekspor sebagai handler, tidak listen.
+// Entry serverless-nya api/index.js, routing-nya vercel.json.
+export default app;
+
+if (!process.env.VERCEL) {
+  const port = process.env.PORT || 3000;
+  app.listen(port, () => console.log(`AksesKota API -> http://localhost:${port}/api/health`));
+} else if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
+  // Tanpa Supabase Storage, savePhoto() jatuh ke folder ./uploads. Di serverless folder itu
+  // sementara dan tidak dibagi antar instance, jadi foto kontribusi akan hilang diam-diam.
+  console.error('[FATAL] SUPABASE_URL/SUPABASE_SERVICE_KEY wajib di Vercel — tanpa itu foto kontribusi hilang.');
+}

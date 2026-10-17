@@ -49,3 +49,8 @@ export async function savePhoto(file) {
   const base = process.env.PUBLIC_URL ?? `http://localhost:${process.env.PORT || 3000}`;
   return `${base}/uploads/${name}`;
 }
+
+// Batas ukuran foto. 4 MB, bukan 5: Vercel membatasi body request serverless ~4,5 MB,
+// jadi batas 5 MB akan ditolak platform sebelum kode kita sempat memberi pesan yang jelas.
+// Angka ini dipakai bersama oleh multer dan pesan error di index.js.
+export const MAKS_FOTO_MB = 4;
