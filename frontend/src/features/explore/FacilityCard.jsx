@@ -52,7 +52,10 @@ export default function FacilityCard({ facility: f, level, distance, selected, t
       )}
 
       <div className="flex items-start gap-3">
-        <span aria-hidden="true" className="inline-flex size-10 shrink-0 items-center justify-center rounded-control bg-brand-100 text-brand-800"><Icon size={20} /></span>
+        {/* Ikon kategori dibuat netral: di dalam kartu, satu-satunya yang boleh berwarna
+            adalah hal yang membawa makna — lencana kecocokan dan chip atribut. Ikon ungu
+            di sebelahnya hanya bersaing menarik mata tanpa mengatakan apa pun. */}
+        <span aria-hidden="true" className="inline-flex size-10 shrink-0 items-center justify-center rounded-control bg-surface-subtle text-ink-secondary"><Icon size={20} /></span>
         <div className="min-w-0 flex-1">
           <h3 className="text-base font-semibold leading-snug">
             <Link to={to} aria-current={selected ? 'true' : undefined} className="after:absolute after:inset-0 focus-visible:outline-none">{f.name}</Link>

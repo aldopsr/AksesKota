@@ -5,8 +5,10 @@ export const LEVELS = {
   partial: { key: 'partial', label: 'Sebagian Sesuai', symbol: '◐', bg: '#92400e', cls: 'bg-match-partial-bg text-match-partial' },
   low: { key: 'low', label: 'Kurang Sesuai', symbol: '○', bg: '#991b1b', cls: 'bg-match-low-bg text-match-low' },
   limited: { key: 'limited', label: 'Data Terbatas', symbol: '?', bg: '#334155', cls: 'bg-match-limited-bg text-match-limited' },
-  // belum ada kebutuhan yang dipilih: marker netral, tanpa penilaian
-  neutral: { key: 'neutral', label: 'Fasilitas', symbol: '', bg: '#4f46e5', cls: 'bg-brand-100 text-brand-900' },
+  // Belum ada kebutuhan yang dipilih: marker TANPA penilaian. Warnanya abu, bukan ungu
+  // merek — kalau ungu, penanda "belum dinilai" terlihat sama menonjol dengan tombol
+  // aksi, dan warna berhenti menyampaikan status apa pun.
+  neutral: { key: 'neutral', label: 'Fasilitas', symbol: '', bg: '#475569', cls: 'bg-neutral-bg text-neutral' },
 };
 
 const BY_LABEL = Object.fromEntries(Object.values(LEVELS).map((l) => [l.label, l]));

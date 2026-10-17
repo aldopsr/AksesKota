@@ -12,12 +12,17 @@
   --color-brand-100: #e8e9ff;
   --color-brand-200: #d2d4ff;
   --color-brand-300: #b9bcff;
-  --color-brand-400: #969afb;
-  --color-brand-500: #7b80f2;
-  --color-brand-600: #6366e8;
-  --color-brand-700: #4f46e5;
-  --color-brand-800: #4338ca;
-  --color-brand-900: #312e81;
+  /* Disetel ke warna logo: periwinkle (500) dan indigo pekat kepala sosoknya (700/800).
+     ATURAN: ungu hanya untuk AKSI dan identitas merek. Status aksesibilitas memakai
+     hijau/kuning/merah/abu di bawah. Sebelumnya ungu dipakai untuk keduanya, sehingga
+     warna tidak mengatakan apa-apa — penanda peta tanpa penilaian terlihat sama
+     "bermerek" dengan tombol utama. */
+  --color-brand-400: #9a98ee;
+  --color-brand-500: #7b7be8;
+  --color-brand-600: #5a54dd;
+  --color-brand-700: #3b35d1;
+  --color-brand-800: #332dba;
+  --color-brand-900: #272293;
 
   --color-canvas: #f8f9fc;
   --color-surface: #ffffff;
@@ -106,7 +111,21 @@
   body { margin: 0; min-width: 320px; min-height: 100dvh; -webkit-font-smoothing: antialiased; line-height: 1.5; }
   :focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; border-radius: 6px; }
   .on-dark :focus-visible { outline-color: #fff; }
-  h1, h2, h3 { letter-spacing: -0.015em; }
+
+  /* --- tipografi: tracking & leading mengikuti UKURAN ---------------------
+     Satu nilai letter-spacing untuk semua judul selalu salah di salah satu ujung.
+     Huruf terbaca makin renggang saat membesar, jadi teks besar butuh tracking
+     NEGATIF; teks kecil justru butuh sedikit positif agar tetap terbaca. Leading
+     bergerak berlawanan: rapat saat besar, longgar saat kecil. */
+  h1 { letter-spacing: -0.03em; line-height: 1.08; }
+  h2 { letter-spacing: -0.022em; line-height: 1.15; }
+  h3 { letter-spacing: -0.015em; line-height: 1.25; }
+  /* Label kecil dan teks huruf besar: diberi jarak, bukan dirapatkan. */
+  .text-xs, .text-\[11px\], [class*="uppercase"] { letter-spacing: 0.01em; }
+  [class*="uppercase"] { letter-spacing: 0.06em; }
+  /* Angka yang berjajar (persentase, jarak) harus selebar sama agar kolomnya lurus
+     dan tidak bergeser saat nilainya berubah. */
+  .tabular, [class*="match"], time { font-variant-numeric: tabular-nums; }
 }
 
 /* Subjudul / teks penjelas memakai Atkinson Hyperlegible (design system 5.1) */
