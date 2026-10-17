@@ -1,7 +1,7 @@
 // Alat yang boleh dipanggil model. Semua membaca DATABASE; model tidak punya sumber data lain,
 // sehingga rekomendasi tidak bisa mengarang fasilitas atau atribut (PRD AI Safety).
 import { z } from 'zod';
-import { many } from '../db.js';
+import { many, one } from '../db.js';
 import { sanitizeNeeds } from '../match.js';
 import { searchFacilities } from '../routes/facilities.js';
 import { fetchWalkingRoute, scoreRoute } from '../routes/routing.js';
@@ -18,8 +18,9 @@ export const declarations = [
       properties: {
         category: { type: 'STRING', enum: CATEGORIES, description: 'Jenis tempat.' },
         needs: { type: 'ARRAY', items: { type: 'STRING', enum: NEEDS }, description: 'Kebutuhan aksesibilitas yang disebut pengguna. Kosongkan bila tidak disebut, maka profil tersimpan dipakai.' },
-        query: { type: 'STRING', description: 'HANYA untuk nama tempat atau nama daerah tertentu (mis. "Stasiun Bogor"). Jangan isi dengan jenis tempat umum.' },
-        radius_m: { type: 'INTEGER', description: 'Radius dalam meter dari lokasi pengguna ("dekat saya" = 2000).' },
+        query: { type: 'STRING', description: 'Nama fasilitas YANG DICARI pengguna, bila ia menyebut namanya (mis. "cari Botani Square" -> "Botani Square"). JANGAN isi dengan tempat yang hanya dipakai sebagai patokan lokasi — itu milik near_place.' },
+        near_place: { type: 'STRING', description: 'Tempat yang dipakai pengguna sebagai PATOKAN LOKASI, bukan yang dicari (mis. "rumah sakit di dekat Stasiun Bogor" -> "Stasiun Bogor"). Pencarian akan dipusatkan ke titik itu.' },
+        radius_m: { type: 'INTEGER', description: 'Radius dalam meter dari titik pusat pencarian ("dekat saya" = 2000).' },
         limit: { type: 'INTEGER', description: 'Jumlah hasil, 1 sampai 8. Default 5.' },
         use_profile: { type: 'BOOLEAN', description: 'false bila pengguna jelas tidak ingin memakai profil kebutuhannya.' },
       },
@@ -73,6 +74,7 @@ export function createExecutors(ctx) {
       category: z.enum(CATEGORIES).optional(),
       needs: z.array(z.string()).max(10).optional(),
       query: z.string().trim().max(80).optional(),
+      near_place: z.string().trim().max(80).optional(),
       radius_m: z.coerce.number().int().min(100).max(50_000).optional(),
       limit: z.coerce.number().int().min(1).max(8).default(5),
       use_profile: z.boolean().optional(),
@@ -81,26 +83,58 @@ export function createExecutors(ctx) {
     let needs = await sanitizeNeeds(a.needs ?? []);
     let usedProfile = false;
     if (!needs.length && a.use_profile !== false && ctx.profile.length) { needs = ctx.profile; usedProfile = true; }
-    const radius = ctx.origin && a.radius_m ? a.radius_m : null;
 
-    let rows = await searchFacilities({
-      q: a.query || null, category: a.category ?? null, needs,
-      lat: ctx.origin?.lat ?? null, lon: ctx.origin?.lon ?? null, radius, limit: a.limit,
+    // "di dekat Stasiun Bogor" artinya pusat pencarian pindah ke sana, BUKAN menyaring
+    // nama fasilitas. Titiknya dicari di tabel fasilitas kita sendiri — tidak memanggil
+    // layanan geocoding luar, dan tidak ada koordinat karangan dari model.
+    let origin = ctx.origin;
+    let nearResolved = null;
+    if (a.near_place) {
+      const p = await one(
+        `select name, st_y(location::geometry) as lat, st_x(location::geometry) as lon
+           from facilities where name ilike '%' || $1 || '%'
+          order by length(name) limit 1`,
+        [a.near_place],
+      );
+      if (p) { origin = { lat: p.lat, lon: p.lon }; nearResolved = p.name; }
+    }
+
+    const radius = origin && a.radius_m ? a.radius_m : null;
+    const cari = (q) => searchFacilities({
+      q: q || null, category: a.category ?? null, needs,
+      lat: origin?.lat ?? null, lon: origin?.lon ?? null, radius, limit: a.limit,
     });
+
+    let rows = await cari(a.query);
+    // Model kadang tetap memasukkan jenis atau patokan tempat ke `query`, dan itu
+    // menyaring NAMA fasilitas sehingga hasil yang benar hilang diam-diam. Kalau
+    // gabungan kategori+nama tidak menghasilkan apa pun, ulangi tanpa saringan nama.
+    let namaDiabaikan = false;
+    if (!rows.length && a.query && a.category) { rows = await cari(null); namaDiabaikan = rows.length > 0; }
+
     rows = await withRatings(rows);
     remember(rows);
     ctx.lastResults = rows;
     ctx.usedProfile = ctx.usedProfile || usedProfile;
-    ctx.applied = { category: a.category ?? null, needs, radius_m: radius, query: a.query ?? null, used_profile: usedProfile };
+    ctx.applied = {
+      category: a.category ?? null, needs, radius_m: radius,
+      query: namaDiabaikan ? null : a.query ?? null,
+      near_place: nearResolved, used_profile: usedProfile,
+    };
 
     return {
       jumlah: rows.length,
       hasil: rows.map(forModel),
       kebutuhan_dipakai: needs,
       memakai_profil_tersimpan: usedProfile,
-      lokasi_pengguna_diketahui: !!ctx.origin,
+      lokasi_pengguna_diketahui: !!origin,
+      pusat_pencarian: nearResolved ?? (ctx.origin ? 'lokasi pengguna' : null),
       catatan: [
-        a.radius_m && !ctx.origin ? 'Radius diabaikan karena lokasi pengguna belum aktif; hasil tidak diurutkan menurut jarak.' : null,
+        a.near_place && !nearResolved
+          ? `"${a.near_place}" tidak ada di database AksesKota, jadi pencarian tidak dipusatkan ke sana. Sampaikan hal ini ke pengguna.`
+          : null,
+        namaDiabaikan ? `Saringan nama "${a.query}" diabaikan karena tidak ada yang cocok; hasil di bawah berdasarkan kategori saja.` : null,
+        a.radius_m && !origin ? 'Radius diabaikan karena titik pusat belum diketahui; hasil tidak diurutkan menurut jarak.' : null,
         !rows.length ? 'Tidak ada fasilitas yang cocok di database. Sampaikan jujur dan sarankan melonggarkan kriteria.' : null,
       ].filter(Boolean),
     };

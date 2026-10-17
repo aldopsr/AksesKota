@@ -31,6 +31,11 @@ const call = async (path, { method = 'GET', body, token, form } = {}) => {
 };
 
 // PNG 1x1 valid
+// Nama unik per jalanan, sama alasannya dengan email uji di bawah: tes ini membuat
+// fasilitas lalu menyetujuinya, jadi kalau namanya tetap, jalanan kedua akan menemukan
+// sisa jalanan pertama dan assertion "belum approve" jatuh.
+const NAMA_UJI = `Klinik Uji Aksesibel ${Date.now()}`;
+
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
 const contribution = (payload, photos = []) => {
   const fd = new FormData();
@@ -60,7 +65,7 @@ try {
   assert.deepEqual((await call('/facilities?needs=none', { token })).json.needs, []);
 
   // --- kontribusi: usulan baru ---
-  const baru = { facility: { name: 'Klinik Uji Aksesibel', category: 'kesehatan', address: 'Jl. Uji No. 1, Bogor', description: 'x', lat: -6.59, lon: 106.8 },
+  const baru = { facility: { name: NAMA_UJI, category: 'kesehatan', address: 'Jl. Uji No. 1, Bogor', description: 'x', lat: -6.59, lon: 106.8 },
     attributes: [{ code: 'ramp', status: 'available', notes: 'landai' }, { code: 'braille', status: 'not_available' }], note: 'Saya cek langsung kemarin.' };
   assert.equal((await call('/contributions', { method: 'POST', token, form: contribution(baru) })).status, 422, 'atribut utama tanpa foto harus ditolak');
   assert.equal((await call('/contributions', { method: 'POST', form: contribution(baru, [PNG]) })).status, 401);
@@ -71,7 +76,7 @@ try {
   assert.ok(c1.json.payload.photos[0].includes('/uploads/'));
   assert.equal(c1.json.payload.note, 'Saya cek langsung kemarin.', 'catatan kontributor tersimpan');
   assert.equal((await fetch(c1.json.payload.photos[0])).status, 200, 'foto harus bisa diakses');
-  assert.equal((await call('/facilities?q=Klinik Uji')).json.count, 0, 'belum approve: tidak boleh tampil');
+  assert.equal((await call(`/facilities?q=${encodeURIComponent(NAMA_UJI)}`)).json.count, 0, 'belum approve: tidak boleh tampil');
 
   // --- admin ---
   assert.equal((await call('/admin/contributions', { token })).status, 403);
@@ -82,7 +87,7 @@ try {
   const ok = await call(`/admin/contributions/${c1.json.id}`, { method: 'PATCH', token: adm, body: { status: 'approved', review_note: 'ok' } });
   assert.equal(ok.json.status, 'approved');
   assert.equal((await call(`/admin/contributions/${c1.json.id}`, { method: 'PATCH', token: adm, body: { status: 'approved' } })).status, 409);
-  const found = await call('/facilities?q=Klinik Uji');
+  const found = await call(`/facilities?q=${encodeURIComponent(NAMA_UJI)}`);
   assert.equal(found.json.count, 1);
   const fid = found.json.results[0].id;
   const detail = (await call(`/facilities/${fid}?needs=ramp,braille`)).json;
@@ -158,4 +163,14 @@ try {
   server.kill();
   mapbox.close();
   gemini.close();
+
+  // Hapus jejak: fasilitas uji beserta kontribusi/review/laporan yang menggantung padanya.
+  // Tanpa ini database ikut kotor setiap kali tes dijalankan.
+  // contributions.submitted_by tidak cascade, jadi kontribusi dihapus sebelum akunnya.
+  const { pool } = await import('../src/db.js');
+  const uji = "select id from users where email like 'uji%@mail.id'";
+  await pool.query(`delete from contributions where submitted_by in (${uji}) or reviewed_by in (${uji})`);
+  await pool.query('delete from facilities where name = $1', [NAMA_UJI]);
+  await pool.query(`delete from users where id in (${uji})`);
+  await pool.end();
 }
