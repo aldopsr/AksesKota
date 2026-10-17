@@ -119,3 +119,13 @@ create table if not exists ai_usage (
   count   int not null default 0,
   primary key (user_id, day)
 );
+
+-- Dipakai db/import-osm.js: asal data dan wilayah tiap fasilitas.
+-- `region` juga menjadi dasar pelaporan cakupan data per wilayah — PRD v2.0 §11.4 mewajibkan
+-- sistem menampilkan keterbatasan cakupan agar "tidak ada data" tidak dibaca sebagai
+-- "tidak ada fasilitas aksesibel".
+alter table facilities add column if not exists osm_id text;
+alter table facilities add column if not exists source text not null default 'manual';
+alter table facilities add column if not exists region text;
+create index if not exists facilities_osm_idx on facilities (osm_id);
+create index if not exists facilities_region_idx on facilities (region);

@@ -28,12 +28,31 @@ const { searchFacilities } = await import('../src/routes/facilities.js');
 const { pool } = await import('../src/db.js');
 
 // AC-03: unknown tidak boleh dihitung sebagai terpenuhi.
-// Terminal Baranangsiang di seed: ramp/toilet = not_available, lift = unknown.
+//
+// Diuji terhadap ATURAN, bukan angka hafalan dari seed: status atribut dibaca langsung
+// dari database lalu dibandingkan dengan hasil searchFacilities. Versi sebelumnya
+// mengunci "Terminal Baranangsiang harus 0%" dan jatuh begitu ada kontribusi yang
+// disetujui di fasilitas itu — tes merah padahal kodenya benar.
+const { many } = await import('../src/db.js');
 const needs = ['ramp', 'accessible_toilet', 'lift'];
 const hasil = await searchFacilities({ q: 'Terminal Baranangsiang', needs });
 assert.equal(hasil.length, 1, 'fasilitas seed tidak ditemukan — jalankan npm run db:reset');
-assert.equal(hasil[0].match_pct, 0, 'unknown/not_available bocor jadi terpenuhi');
-assert.equal(hasil[0].needs_unknown, 1);
+
+const statusAsli = await many(
+  `select a.code, coalesce(af.status, 'unknown') as status
+     from accessibility_attributes a
+     left join accessibility_facilities af on af.attribute_code = a.code and af.facility_id = $1
+    where a.code = any($2::text[])`,
+  [hasil[0].id, needs],
+);
+const tersedia = statusAsli.filter((a) => a.status === 'available').length;
+const takDiketahui = statusAsli.filter((a) => a.status === 'unknown').length;
+
+assert.equal(hasil[0].needs_met, tersedia, 'hanya status available yang boleh dihitung terpenuhi');
+assert.equal(hasil[0].needs_unknown, takDiketahui, 'jumlah unknown salah hitung');
+assert.equal(hasil[0].match_pct, Math.round((100 * tersedia) / needs.length), 'match_pct tidak sesuai rumus PRD');
+// Inti AC-03: kalau ada yang unknown, match TIDAK BOLEH 100%.
+if (takDiketahui > 0) assert.ok(hasil[0].match_pct < 100, 'unknown bocor jadi terpenuhi');
 
 // Sorting: match desc lebih dulu, baru jarak asc (PRD 15).
 const dekatStasiun = await searchFacilities({
