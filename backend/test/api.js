@@ -124,7 +124,23 @@ try {
   const route = await call(`/routes/walking?from=106.79,-6.595&to=106.80,-6.60&facility_id=${fid}`);
   assert.equal(route.status, 200);
   assert.equal(route.json.distance_m, 1200);
-  assert.ok(route.json.accessibility_score !== null && route.json.route_score > 0);
+  // Skor aksesibilitas rute kini dinilai dari JALUR yang dilewati, bukan dari atribut
+  // fasilitas tujuan. Konsekuensinya nilainya boleh null bila data jalur OSM di sekitar
+  // rute belum cukup — itu jawaban yang benar, bukan kegagalan. Jadi yang diuji adalah
+  // ATURANnya, bukan angka tertentu: null harus berpasangan dengan basis "jarak_saja",
+  // dan skor yang ada harus berada di rentang yang sah serta didukung cakupan memadai.
+  const r = route.json;
+  assert.ok(r.route_score > 0, 'route_score harus selalu terisi');
+  assert.ok(typeof r.coverage === 'number' && r.coverage >= 0 && r.coverage <= 1, 'coverage harus dilaporkan');
+  if (r.accessibility_score === null) {
+    assert.equal(r.basis, 'jarak_saja', 'tanpa data jalur, peringkat memakai jarak saja');
+    assert.equal(r.route_score, r.distance_score, 'tanpa data jalur, skor rute = skor jarak');
+  } else {
+    assert.ok(r.accessibility_score >= 0 && r.accessibility_score <= 100);
+    assert.equal(r.basis, 'aksesibilitas_jalur+jarak');
+    assert.ok(r.coverage_cukup, 'skor hanya boleh muncul bila cakupan data jalur memadai');
+    assert.equal(r.route_score, Math.round(r.accessibility_score * 0.7 + r.distance_score * 0.3), 'bobot 70/30 PRD §19.7');
+  }
   assert.equal((await call('/routes/walking?from=abc&to=1,2')).status, 400);
 
   // --- asisten AI (Gemini tiruan) ---

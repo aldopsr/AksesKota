@@ -129,3 +129,22 @@ alter table facilities add column if not exists source text not null default 'ma
 alter table facilities add column if not exists region text;
 create index if not exists facilities_osm_idx on facilities (osm_id);
 create index if not exists facilities_region_idx on facilities (region);
+
+-- Jaringan pejalan kaki dari OSM, diisi db/import-ways.js.
+-- Dipakai GET /routes/walking untuk menilai aksesibilitas JALUR yang dilewati (PRD §19.5).
+-- Tanpa tabel ini, bobot 70% aksesibilitas pada Route Score tidak punya sumber data
+-- dan skor apa pun yang ditampilkan hanya karangan.
+create table if not exists pedestrian_ways (
+  osm_id         bigint primary key,
+  highway        text,
+  wheelchair     text,   -- yes | designated | limited | no
+  tactile_paving text,
+  surface        text,
+  smoothness     text,
+  incline        text,
+  kerb           text,
+  width          numeric,
+  tags           jsonb not null default '{}',
+  geom           geography(linestring,4326) not null
+);
+create index if not exists pedestrian_ways_geom_idx on pedestrian_ways using gist (geom);

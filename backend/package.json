@@ -9,7 +9,8 @@
     "db:reset": "node --env-file-if-exists=.env db/reset.js",
     "test": "node --env-file-if-exists=.env test/smoke.js",
     "test:api": "node --env-file-if-exists=.env test/api.js",
-    "import:osm": "node --env-file-if-exists=.env db/import-osm.js"
+    "import:osm": "node --env-file-if-exists=.env db/import-osm.js",
+    "import:ways": "node --env-file-if-exists=.env db/import-ways.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

@@ -2,7 +2,7 @@
 // Token Mapbox disimpan di server (.env), tidak dikirim ke client lewat endpoint ini.
 import express from 'express';
 import { z } from 'zod';
-import { many } from '../db.js';
+import { one } from '../db.js';
 import { HttpError } from '../http.js';
 import { rateLimit } from '../rateLimit.js';
 
@@ -15,15 +15,91 @@ const query = z.object({
   facility_id: z.coerce.number().int().positive().optional(),
 });
 
-/** Skor aksesibilitas hanya dari atribut yang DIKETAHUI; unknown tidak dihitung (PRD 23.4). */
-export function scoreRoute(distanceM, attributes) {
-  const known = attributes.filter((a) => a.status !== 'unknown');
-  const accessibility = known.length
-    ? Math.round((100 * known.filter((a) => a.status === 'available').length) / known.length)
-    : null;
+// Seberapa jauh dari garis rute sebuah ruas pejalan kaki masih dianggap bagian dari rute.
+const TOLERANSI_M = 15;
+
+// Cakupan minimum sebelum skor aksesibilitas layak ditampilkan.
+//
+// Alasannya bias pemetaan OSM: tangga dipetakan rajin (2.221 ruas) sementara
+// `wheelchair=yes` jarang ditulis (271 ruas). Tanpa ambang ini, rute dengan sampel
+// 3% jalur bisa mendapat skor 0 — angka yang terlihat pasti padahal hanya mencerminkan
+// kebiasaan pemetaan, bukan kondisi jalan.
+const MIN_COVERAGE = 0.2;
+
+/**
+ * Nilai aksesibilitas JALUR yang dilewati rute, dari jaringan pejalan kaki OSM (PRD §19.5).
+ *
+ * Hanya ruas yang statusnya DIKETAHUI yang masuk hitungan:
+ *   accessibility = panjang_baik / (panjang_baik + panjang_buruk)
+ * Ruas tanpa tag aksesibilitas tidak dihitung baik maupun buruk — itu `unknown`,
+ * dan PRD §19.7 melarang memperlakukannya sebagai tidak tersedia.
+ */
+async function nilaiJalur(geometry, panjangM) {
+  // ponytail: panjang ruas dihitung PENUH, bukan hanya bagian yang berimpit dengan rute.
+  // Ruas panjang yang cuma menyerempet jadi over-counted. Naik kelas ke ST_Intersection
+  // pada geometry terproyeksi (EPSG:32748 untuk Jawa bagian barat) kalau presisinya kurang.
+  const r = await one(
+    `with rute as (select st_setsrid(st_geomfromgeojson($1),4326)::geography g),
+          dekat as (
+            select w.*, st_length(w.geom) as len
+              from pedestrian_ways w, rute r
+             where st_dwithin(w.geom, r.g, $2)
+          ),
+          kelas as (
+            select len, (highway = 'steps') as tangga, case
+              when highway = 'steps' or wheelchair = 'no'
+                   or smoothness in ('bad','very_bad','horrible','very_horrible','impassable')
+                then 'buruk'
+              when wheelchair in ('yes','designated') or tactile_paving = 'yes'
+                   or smoothness in ('excellent','good')
+                then 'baik'
+              else 'unknown' end as kelas
+              from dekat
+          )
+     select coalesce(sum(len) filter (where kelas = 'baik'), 0)::float  as baik_m,
+            coalesce(sum(len) filter (where kelas = 'buruk'), 0)::float as buruk_m,
+            count(*) filter (where tangga)::int as ruas_tangga,
+            count(*)::int as ruas_terdekat
+       from kelas`,
+    [JSON.stringify(geometry), TOLERANSI_M],
+  );
+
+  const diketahui = r.baik_m + r.buruk_m;
+  const coverage = panjangM > 0 ? Math.min(1, diketahui / panjangM) : 0;
+  return {
+    // Skor hanya ditampilkan kalau sampelnya cukup besar untuk berarti.
+    accessibility_score: diketahui > 0 && coverage >= MIN_COVERAGE
+      ? Math.round((100 * r.baik_m) / diketahui)
+      : null,
+    coverage: Math.round(coverage * 100) / 100,
+    coverage_cukup: coverage >= MIN_COVERAGE,
+    ruas_diketahui_m: Math.round(diketahui),
+    // Hambatan yang BENAR-BENAR terdeteksi. Bukti negatif di OSM jauh lebih lengkap
+    // daripada bukti positif, jadi jumlah tangga lebih layak dipercaya daripada rasio apa pun.
+    hambatan: { ruas_tangga: r.ruas_tangga, ruas_terdekat: r.ruas_terdekat },
+  };
+}
+
+/**
+ * Route Score = 70% aksesibilitas jalur + 30% jarak (PRD §19.7).
+ *
+ * `geometry` adalah garis rute dari Mapbox. Sebelumnya fungsi ini menerima atribut
+ * FASILITAS TUJUAN dan menyebutnya skor aksesibilitas rute — itu mengukur hal yang salah:
+ * aksesibilitas tujuan sudah dihitung terpisah sebagai Accessibility Match, dan tidak
+ * mengatakan apa pun tentang perjalanannya.
+ */
+export async function scoreRoute(distanceM, geometry) {
+  const jalur = await nilaiJalur(geometry, distanceM);
   const distance = Math.max(0, Math.min(100, Math.round(100 - (distanceM / 1000) * 10)));
-  const route = accessibility === null ? distance : Math.round(accessibility * 0.7 + distance * 0.3);
-  return { accessibility_score: accessibility, distance_score: distance, route_score: route, known_attributes: known.length };
+  const a = jalur.accessibility_score;
+  // Data jalur tidak diketahui -> urutkan dengan jarak saja. Tidak ada penalti karangan.
+  const route = a === null ? distance : Math.round(a * 0.7 + distance * 0.3);
+  return {
+    ...jalur,
+    distance_score: distance,
+    route_score: route,
+    basis: a === null ? 'jarak_saja' : 'aksesibilitas_jalur+jarak',
+  };
 }
 
 /** Panggil Mapbox Directions (walking). Melempar HttpError bila tidak tersedia. */
@@ -48,13 +124,14 @@ export async function fetchWalkingRoute(from, to) {
 router.get('/routes/walking', rateLimit({ windowMs: 60_000, max: 30 }), async (req, res) => {
   const { from, to, facility_id } = query.parse(req.query);
   const route = await fetchWalkingRoute(from, to);
-  const attributes = facility_id
-    ? await many('select status from accessibility_facilities where facility_id = $1', [facility_id])
-    : [];
+  // facility_id tidak lagi dipakai untuk menilai rute — aksesibilitas tujuan sudah
+  // dilaporkan terpisah sebagai Accessibility Match di endpoint fasilitas. Parameternya
+  // dibiarkan diterima agar panggilan frontend yang sudah ada tidak perlu diubah.
   res.json({
     distance_m: Math.round(route.distance),
     duration_s: Math.round(route.duration),
     geometry: route.geometry,
-    ...scoreRoute(route.distance, attributes),
+    facility_id: facility_id ?? null,
+    ...(await scoreRoute(route.distance, route.geometry)),
   });
 });

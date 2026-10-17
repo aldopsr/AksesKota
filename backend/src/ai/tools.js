@@ -176,9 +176,25 @@ export function createExecutors(ctx) {
     }
     try {
       const route = await fetchWalkingRoute([ctx.origin.lon, ctx.origin.lat], [row.lon, row.lat]);
-      const attrs = await many('select status from accessibility_facilities where facility_id = $1', [facility_id]);
-      const s = scoreRoute(route.distance, attrs);
-      return { ...out, jarak_m: Math.round(route.distance), durasi_menit: Math.max(1, Math.round(route.duration / 60)), skor_aksesibilitas: s.accessibility_score, skor_rute: s.route_score, catatan: 'Rute sudah ditampilkan di peta.' };
+      const s = await scoreRoute(route.distance, route.geometry);
+      return {
+        ...out,
+        jarak_m: Math.round(route.distance),
+        durasi_menit: Math.max(1, Math.round(route.duration / 60)),
+        skor_aksesibilitas_jalur: s.accessibility_score,
+        skor_rute: s.route_score,
+        cakupan_data_jalur: s.coverage,
+        ruas_tangga_di_jalur: s.hambatan.ruas_tangga,
+        catatan: [
+          'Rute sudah ditampilkan di peta.',
+          // Skor null berarti data jalur belum cukup — model harus mengatakannya apa adanya,
+          // bukan menyimpulkan rutenya mulus.
+          s.accessibility_score === null
+            ? 'Data aksesibilitas jalur pada rute ini belum cukup untuk dinilai; sampaikan apa adanya.'
+            : null,
+          s.hambatan.ruas_tangga ? `Terdeteksi ${s.hambatan.ruas_tangga} ruas tangga di sepanjang jalur.` : null,
+        ].filter(Boolean).join(' '),
+      };
     } catch {
       return { ...out, rute_tidak_dapat_dihitung: true, catatan: 'Estimasi rute belum tersedia saat ini, tetapi tempat tujuan sudah ditampilkan.' };
     }
