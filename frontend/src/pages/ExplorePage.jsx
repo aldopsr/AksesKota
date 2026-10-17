@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { Bot, List, LocateFixed, Map as MapIcon, SlidersHorizontal, SearchX } from 'lucide-react';
+import { Bot, LocateFixed, SlidersHorizontal, SearchX } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { useAssistant, useLocationState, useToast } from '../context/AppContexts';
@@ -17,7 +17,7 @@ import FilterSheet from '../features/explore/FilterSheet';
 import NeedsPrompt from '../features/accessibility/NeedsPrompt';
 import FacilityDetailPanel from '../features/explore/FacilityDetailPanel';
 import RouteSummary from '../features/explore/RouteSummary';
-import MapSheet from '../features/explore/MapSheet';
+import BottomSheet from '../features/explore/BottomSheet';
 import { Alert, Button, Chip, EmptyState, IconButton, LinkButton, RemovableChip, SearchInput, Skeleton } from '../components/ui';
 
 const PAGE = 20;
@@ -39,7 +39,6 @@ export default function ExplorePage() {
   useDocumentTitle(id ? null : 'Jelajahi fasilitas');
 
   const mapRef = useRef(null);
-  const [view, setView] = useState('list'); // mobile: 'list' | 'map'
   const [filterOpen, setFilterOpen] = useState(false);
   const [qInput, setQInput] = useState(params.q);
   const [limit, setLimit] = useState(PAGE);
@@ -109,7 +108,6 @@ export default function ExplorePage() {
   }
   async function startRoute(facilityId) {
     navigate({ pathname: `/facilities/${facilityId}`, search: buildExplore({ ...params, route: true }) });
-    if (!isDesktop) setView('map');
     const loc = geo.location ?? (await locateMe());
     if (loc) await buildRoute({ lng: loc.lng, lat: loc.lat, label: 'Lokasi saya' }, facilityId);
     else setRoute({ ...INITIAL_ROUTE, facilityId: String(facilityId) });
@@ -123,7 +121,7 @@ export default function ExplorePage() {
   }, [routeHere, geo.location, route.origin, route.loading, route.data, id]); // eslint-disable-line react-hooks/exhaustive-deps
   const closeRoute = () => navigate({ pathname: location.pathname, search: buildExplore({ ...params, route: false }) });
   const routeUseMyLocation = async () => { const loc = geo.location ?? (await locateMe()); if (loc) buildRoute({ lng: loc.lng, lat: loc.lat, label: 'Lokasi saya' }); };
-  const routeStartPick = () => { setRoute((r) => ({ ...r, picking: !r.picking, facilityId: String(id) })); if (!isDesktop) setView('map'); };
+  const routeStartPick = () => { setRoute((r) => ({ ...r, picking: !r.picking, facilityId: String(id) })); };
   const routePicked = ({ lng, lat: la }) => buildRoute({ lng, lat: la, label: 'Titik yang dipilih di peta' });
   const routeChooseFacility = (fid) => {
     const f = results.find((x) => String(x.id) === String(fid));
@@ -137,7 +135,7 @@ export default function ExplorePage() {
     if (isDesktop) document.getElementById(`facility-${mid}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [id, navigate, location.search, isDesktop]);
   const onDetailLoaded = useCallback((f) => { setLoaded(f); setFocus({ lng: f.lon, lat: f.lat, zoom: 15, key: `sel-${f.id}` }); }, []);
-  const openDetail = (fid) => { navigate({ pathname: `/facilities/${fid}`, search: location.search }); setView('list'); };
+  const openDetail = (fid) => { navigate({ pathname: `/facilities/${fid}`, search: location.search }); };
   const previewFacility = results.find((f) => String(f.id) === String(previewId)) ?? null;
 
   /* ---------- ringkasan ---------- */
@@ -158,7 +156,7 @@ export default function ExplorePage() {
         </IconButton>
         <IconButton label="Tanya asisten" onClick={assistant.openAssistant} className="lg:hidden"><Bot aria-hidden="true" size={20} /></IconButton>
       </div>
-      <div role="group" aria-label="Kategori" className={`no-scrollbar -mx-3 gap-2 overflow-x-auto px-3 pb-0.5 ${view === 'map' ? 'hidden lg:flex' : 'flex'}`}>
+      <div role="group" aria-label="Kategori" className={`no-scrollbar -mx-3 gap-2 overflow-x-auto px-3 pb-0.5 flex`}>
         <Chip pressed={!params.category} onClick={() => goExplore({ category: '' })}>Semua</Chip>
         {CATEGORIES.map((c) => <Chip key={c.code} pressed={params.category === c.code} onClick={() => goExplore({ category: c.code })}>{c.label}</Chip>)}
       </div>
@@ -192,8 +190,10 @@ export default function ExplorePage() {
         />
       )}
 
+      {/* Di HP jumlah hasil sudah terbaca di gagang panel bawah; mengulanginya di sini
+          hanya menambah satu baris sebelum hasil pertama. */}
       {!facilitiesQ.error && (
-      <div className="space-y-0.5">
+      <div className="hidden space-y-0.5 lg:block">
         <p role="status" aria-live="polite" className="font-semibold">
           {loadingList ? 'Memuat fasilitas…' : (
             <>{results.length} fasilitas{params.q && <> untuk “{params.q}”</>}{catLabel && <> · {catLabel}</>}{required.length > 0 && <> · {usingProfile ? 'profil Anda' : `${required.length} kebutuhan`}</>}</>
@@ -261,7 +261,7 @@ export default function ExplorePage() {
   const routeSummary = routeHere && route.facilityId === id ? (
     <RouteSummary
       route={route} facilityName={loaded?.name ?? 'fasilitas ini'} otherFacilities={results.filter((f) => String(f.id) !== id)}
-      geoStatus={geo.status} geoError={geo.error} compact={!isDesktop && view === 'map'}
+      geoStatus={geo.status} geoError={geo.error} compact={false}
       onUseMyLocation={routeUseMyLocation} onStartPick={routeStartPick} onChooseFacility={routeChooseFacility}
       onRetry={() => route.origin && buildRoute(route.origin)} onClose={closeRoute}
     />
@@ -272,8 +272,8 @@ export default function ExplorePage() {
       id={id} required={required} usingProfile={usingProfile}
       distance={results.find((f) => String(f.id) === id)?.distance_m ?? null}
       onBack={() => navigate({ pathname: '/map', search: buildExplore({ ...params, route: false }) })}
-      onStartRoute={() => startRoute(id)} onShowMap={() => setView('map')} onEditNeeds={() => setFilterOpen(true)} onLoaded={onDetailLoaded}
-      routeSlot={isDesktop || view === 'list' ? routeSummary : null}
+      onStartRoute={() => startRoute(id)} onEditNeeds={() => setFilterOpen(true)} onLoaded={onDetailLoaded}
+      routeSlot={routeSummary}
     />
   );
 
@@ -281,23 +281,16 @@ export default function ExplorePage() {
     <div className="flex h-[calc(100dvh-4rem)] flex-col lg:flex-row">
       <h1 className="sr-only">Jelajahi fasilitas aksesibel</h1>
 
-      <div className={`flex min-h-0 flex-col bg-surface lg:w-[24rem] lg:flex-none lg:border-r lg:border-border xl:w-[25rem] ${view === 'list' ? 'flex-1' : ''}`}>
+      {/* Mobile: kolom ini menyusut jadi bilah pencarian saja — hasilnya pindah ke panel
+          bawah di atas peta. Desktop: tetap kolom samping seperti semula. */}
+      <div className="flex min-h-0 flex-none flex-col bg-surface lg:w-[24rem] lg:flex-none lg:border-r lg:border-border xl:w-[25rem]">
         {!id && topBar}
-        <div className="border-b border-border bg-surface p-2 lg:hidden">
-          <div role="group" aria-label="Tampilan" className="grid grid-cols-2 gap-1 rounded-control bg-surface-subtle p-1">
-            {[['list', id ? 'Detail' : 'Daftar', List], ['map', 'Peta', MapIcon]].map(([k, label, Ic]) => (
-              <button key={k} type="button" aria-pressed={view === k} onClick={() => setView(k)} className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-control font-semibold transition-colors ${view === k ? 'bg-surface text-brand-900 shadow-panel' : 'text-ink-secondary'}`}>
-                <Ic aria-hidden="true" size={17} /> {label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <section aria-label={id ? 'Detail fasilitas' : 'Hasil pencarian'} className={`panel-scroll min-h-0 flex-1 overflow-y-auto bg-canvas ${view === 'list' ? '' : 'hidden lg:block'}`}>
+        <section aria-label={id ? 'Detail fasilitas' : 'Hasil pencarian'} className="panel-scroll hidden min-h-0 flex-1 overflow-y-auto bg-canvas lg:block">
           {id ? detail : listContent}
         </section>
       </div>
 
-      <div className={`relative min-h-0 flex-1 ${view === 'map' ? 'block' : 'hidden'} lg:block`}>
+      <div className="relative min-h-0 flex-1">
         <MapView
           ref={mapRef} items={items} selectedId={id ?? previewId} onSelect={onMarkerSelect}
           userLocation={geo.location} origin={routeHere ? route.origin : null} routeGeometry={routeHere ? route.data?.geometry ?? null : null}
@@ -316,10 +309,19 @@ export default function ExplorePage() {
           </div>
         )}
 
-        {!isDesktop && view === 'map' && (
-          routeHere && route.facilityId === id ? <MapSheet>{routeSummary}</MapSheet>
-            : id ? <MapSheet preview={loaded} onOpen={() => setView('list')} onRoute={() => startRoute(id)} />
-              : <MapSheet count={results.length} preview={previewFacility} onShowList={() => setView('list')} onOpen={openDetail} onRoute={startRoute} />
+        {/* Peta dan hasil kini terlihat bersamaan di HP. Memilih tempat butuh keduanya:
+            dengan tombol Daftar/Peta, pengguna harus bolak-balik dan kehilangan konteks. */}
+        {!isDesktop && (
+          <BottomSheet
+            label={id ? 'Detail fasilitas' : 'Hasil pencarian'}
+            ringkasan={
+              <p role="status" className="truncate text-center text-sm font-semibold">
+                {id ? (loaded?.name ?? 'Detail fasilitas') : `${results.length} fasilitas${required.length ? ` · ${required.length} kebutuhan` : ''}`}
+              </p>
+            }
+          >
+            {id ? detail : listContent}
+          </BottomSheet>
         )}
       </div>
 
