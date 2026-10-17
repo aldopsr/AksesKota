@@ -20,37 +20,32 @@ const EXAMPLE_ATTRS = [
   { code: 'braille', status: 'unknown' },
 ];
 
-function MapIllustration() {
+function HeroCard() {
+  const parts = breakdown(EXAMPLE_ATTRS, EXAMPLE_NEEDS);
+  const percent = Math.round((parts.met.length / EXAMPLE_NEEDS.length) * 100);
+  const byCode = Object.fromEntries(EXAMPLE_ATTRS.map((a) => [a.code, a]));
   return (
-    <svg viewBox="0 0 520 420" role="img" aria-label="Ilustrasi peta dengan penanda fasilitas dan garis rute" className="h-auto w-full">
-      <rect width="520" height="420" rx="28" fill="#e8e9ff" />
-      {/* blok kota (datar, tanpa gradasi) */}
-      <rect x="28" y="30" width="150" height="110" rx="16" fill="#d2d4ff" />
-      <rect x="210" y="30" width="110" height="78" rx="16" fill="#a8dfe8" />
-      <rect x="352" y="30" width="140" height="130" rx="16" fill="#d2d4ff" />
-      <rect x="28" y="172" width="104" height="104" rx="16" fill="#fff" />
-      <rect x="164" y="140" width="160" height="136" rx="16" fill="#fff" />
-      <rect x="356" y="192" width="136" height="84" rx="16" fill="#a8dfe8" />
-      <rect x="28" y="308" width="196" height="84" rx="16" fill="#d2d4ff" />
-      <rect x="256" y="308" width="236" height="84" rx="16" fill="#fff" />
-      {/* rute */}
-      <path d="M70 292 C 70 250, 150 290, 190 250 S 280 200, 330 226 S 410 170, 432 120" fill="none" stroke="#4338ca" strokeWidth="7" strokeLinecap="round" strokeDasharray="1 14" />
-      {/* titik pengguna */}
-      <circle cx="70" cy="292" r="20" fill="#2563eb" opacity=".22" />
-      <circle cx="70" cy="292" r="9" fill="#2563eb" stroke="#fff" strokeWidth="3" />
-      {/* penanda: sangat sesuai, sebagian, data terbatas */}
-      <g stroke="#fff" strokeWidth="4">
-        <circle cx="190" cy="250" r="17" fill="#92400e" />
-        <circle cx="330" cy="226" r="17" fill="#334155" />
-        <circle cx="262" cy="86" r="17" fill="#166534" />
-      </g>
-      <g fill="#fff" fontFamily="system-ui,sans-serif" fontWeight="700" fontSize="17" textAnchor="middle">
-        <text x="190" y="256">◐</text><text x="330" y="232">?</text><text x="262" y="92">●</text>
-      </g>
-      {/* tujuan */}
-      <path d="M432 76c-22 0-38 16-38 37 0 28 38 56 38 56s38-28 38-56c0-21-16-37-38-37z" fill="#4f46e5" stroke="#fff" strokeWidth="4" />
-      <circle cx="432" cy="113" r="13" fill="#fff" />
-    </svg>
+    <article aria-label="Contoh tampilan hasil" className="rounded-panel border border-border bg-surface p-5 shadow-panel">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xl font-bold leading-snug">Klinik Contoh Sehat</p>
+          <p className="font-sub text-sm text-ink-secondary">Kesehatan · Jl. Contoh No. 1, Bogor</p>
+        </div>
+        <span className="shrink-0 rounded-md bg-surface-subtle px-2 py-0.5 text-xs font-bold uppercase text-ink-secondary">Contoh</span>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+        <MatchBadge level={LEVELS.partial} percent={percent} />
+        <span className="font-sub text-sm text-ink-secondary">
+          {parts.met.length} dari {EXAMPLE_NEEDS.length} terpenuhi, {parts.unknown.length} belum diketahui
+        </span>
+      </div>
+      <ul className="mt-3 divide-y divide-border rounded-card border border-border px-3">
+        {EXAMPLE_NEEDS.map((c) => <AttributeRow key={c} code={c} status={byCode[c].status} note={byCode[c].notes} required />)}
+      </ul>
+      <p className="font-sub mt-3 text-sm text-ink-secondary">
+        Yang belum kami ketahui ditulis apa adanya sebagai <strong className="font-semibold text-ink">?</strong>, tidak pernah dihitung sebagai tersedia.
+      </p>
+    </article>
   );
 }
 
@@ -58,78 +53,50 @@ function Hero() {
   const navigate = useNavigate();
   const assistant = useAssistant();
   const [q, setQ] = useState('');
+  // Di HP urutannya judul -> kartu bukti -> tombol kebutuhan, supaya keluaran produk
+  // terlihat tanpa menggulir. Di layar lebar kartu pindah ke kolom kanan dan teks
+  // tetap mengalir dari atas ke bawah.
   return (
-    <section className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-10 sm:py-14 lg:grid-cols-[1.05fr_0.95fr] lg:py-20">
-      <div>
-        <p className="inline-flex items-center gap-2 rounded-full bg-brand-100 px-3.5 py-1.5 text-sm font-semibold text-brand-900">
-          <span aria-hidden="true" className="size-2 rounded-full bg-brand-700" /> Peta aksesibilitas fasilitas publik
-        </p>
-        <h1 className="mt-5 text-4xl font-extrabold leading-[1.05] sm:text-5xl lg:text-[3.5rem]">
-          Cek akses tempatnya <span className="text-brand-700">sebelum berangkat.</span>
+    <section className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:py-12 lg:grid lg:grid-cols-[1fr_27rem] lg:items-start lg:gap-x-14 lg:gap-y-8 lg:py-16">
+      <div className="lg:col-start-1 lg:row-start-1">
+        {/* Tanpa pil kecil di atas judul dan tanpa baris kedua berwarna: dua pola itu
+            muncul di hampir setiap halaman buatan generator, dan warna di tengah kalimat
+            memotong judul jadi dua benda. Satu warna, satu kalimat. */}
+        <h1 className="max-w-[16ch] text-4xl font-extrabold sm:text-5xl lg:text-[3.4rem]">
+          Cek akses tempatnya sebelum berangkat.
         </h1>
-        <p className="font-sub mt-4 max-w-xl text-lg text-ink-secondary sm:text-xl">
-          Lihat ramp, lift, toilet, guiding block, dan fasilitas lain di rumah sakit, sekolah, kantor layanan, dan tempat umum, dicocokkan dengan kebutuhan Anda.
+        <p className="font-sub mt-4 max-w-xl text-lg text-ink-secondary">
+          Ramp, lift, toilet, guiding block, dan jalur kursi roda di rumah sakit, sekolah,
+          kantor layanan, dan tempat umum — dicocokkan dengan kebutuhan Anda.
         </p>
 
+      </div>
+
+      {/* Barang aslinya, bukan ilustrasi peta dekoratif: komponen yang sama persis
+          dengan yang dilihat pengguna nanti. Hero menyatakan tesis dengan menunjukkannya,
+          bukan menceritakannya. */}
+      <div className="lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:pt-2"><HeroCard /></div>
+
+      {/* Kebutuhan didahulukan, sama seperti di halaman peta: tanpa itu hasilnya
+          tidak bisa dinilai cocok atau tidak. Pencarian teks jadi jalur kedua. */}
+      <div className="lg:col-start-1 lg:row-start-2">
+        <div>
+          <p className="mb-2 font-semibold">Mulai dari kebutuhan Anda</p>
+          <ul className="flex flex-wrap gap-2">
+            {QUICK_NEEDS.map((c) => (
+              <li key={c}><Link to={`/map?needs=${c}`} className="inline-flex min-h-11 items-center rounded-full border border-border-strong bg-surface px-4 text-sm font-semibold hover:bg-surface-subtle">{ATTRIBUTE_LABEL[c]}</Link></li>
+            ))}
+          </ul>
+        </div>
+
         <SearchInput
-          id="home-search" label="Cari fasilitas" className="mt-7 max-w-xl" value={q} onChange={setQ}
+          id="home-search" label="Atau cari nama tempat" className="mt-6 max-w-xl" value={q} onChange={setQ}
           placeholder="Rumah sakit di Bogor…" submitLabel="Jelajahi fasilitas"
           onSubmit={(v) => navigate(v.trim() ? `/map?q=${encodeURIComponent(v.trim())}` : '/map')}
         />
         <div className="mt-3">
           <Button variant="secondary" onClick={assistant.openAssistant}><Bot aria-hidden="true" size={18} /> Cari dengan asisten</Button>
         </div>
-
-        <div className="mt-7">
-          <p className="mb-2 font-semibold">Mulai dari kebutuhan Anda</p>
-          <ul className="flex flex-wrap gap-2">
-            {QUICK_NEEDS.map((c) => (
-              <li key={c}><Link to={`/map?needs=${c}`} className="inline-flex min-h-10 items-center rounded-full border border-border-strong bg-surface px-3.5 text-sm font-semibold hover:bg-surface-subtle">{ATTRIBUTE_LABEL[c]}</Link></li>
-            ))}
-          </ul>
-          <p className="font-sub mt-2 text-sm text-ink-secondary">Anda bisa mengubah atau menambah kebutuhan kapan saja di halaman peta.</p>
-        </div>
-      </div>
-      <div className="mx-auto w-full max-w-xl"><MapIllustration /></div>
-    </section>
-  );
-}
-
-function ExampleResult() {
-  const parts = breakdown(EXAMPLE_ATTRS, EXAMPLE_NEEDS);
-  const total = EXAMPLE_NEEDS.length;
-  const percent = Math.round((parts.met.length / total) * 100);
-  const byCode = Object.fromEntries(EXAMPLE_ATTRS.map((a) => [a.code, a]));
-  return (
-    <section aria-labelledby="example-title" className="mx-auto max-w-7xl px-4 py-10 sm:py-14">
-      <div className="grid items-center gap-8 lg:grid-cols-2">
-        <Reveal>
-          <h2 id="example-title" className="text-3xl font-bold sm:text-4xl">Informasi yang jelas, bukan sekadar angka</h2>
-          <p className="font-sub mt-3 text-lg text-ink-secondary">Setiap tempat menampilkan seberapa cocok ia dengan kebutuhan Anda, dan atribut mana yang tersedia, tidak tersedia, atau belum diketahui.</p>
-          <ul className="font-sub mt-5 space-y-3 text-ink-secondary">
-            {['Tersedia, tidak tersedia, dan belum diketahui dibedakan dengan ikon dan teks.', 'Data yang belum diketahui tidak pernah dihitung sebagai tersedia.', 'Waktu verifikasi terakhir selalu ditampilkan.'].map((t) => (
-              <li key={t} className="flex gap-2.5"><BadgeCheck aria-hidden="true" className="mt-0.5 shrink-0 text-brand-700" size={20} />{t}</li>
-            ))}
-          </ul>
-        </Reveal>
-        <Reveal delay={0.05}>
-          <article aria-label="Contoh hasil fasilitas" className="rounded-panel border border-border bg-surface p-5 shadow-panel">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div>
-                <p className="text-xl font-bold">Klinik Contoh Sehat</p>
-                <p className="font-sub text-ink-secondary">Kesehatan, Jl. Contoh No. 1, Bogor</p>
-              </div>
-              <span className="rounded-md bg-surface-subtle px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-ink-secondary">Contoh</span>
-            </div>
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <MatchBadge level={LEVELS.partial} percent={percent} />
-              <span className="font-sub text-sm text-ink-secondary">{parts.met.length} dari {total} kebutuhan terpenuhi, {parts.unknown.length} belum diketahui</span>
-            </div>
-            <ul className="mt-3 divide-y divide-border rounded-card border border-border px-3">
-              {EXAMPLE_NEEDS.map((c) => <AttributeRow key={c} code={c} status={byCode[c].status} note={byCode[c].notes} required />)}
-            </ul>
-          </article>
-        </Reveal>
       </div>
     </section>
   );
@@ -191,7 +158,6 @@ export default function HomePage() {
   return (
     <>
       <Hero />
-      <ExampleResult />
       <HowItWorks />
       <Community />
       <section aria-label="Cakupan data" className="mx-auto max-w-7xl px-4 pb-4">
