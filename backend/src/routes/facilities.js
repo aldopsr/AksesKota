@@ -24,6 +24,7 @@ export async function searchFacilities({
             st_y(f.location::geometry) as lat, st_x(f.location::geometry) as lon,
             coalesce(m.tersedia, 0)::int      as needs_met,
             coalesce(m.tidak_tersedia, 0)::int as needs_unavailable,
+            m.status_kebutuhan,
             case when cardinality($3::text[]) = 0 then null
                  else round(100.0 * coalesce(m.tersedia,0) / cardinality($3::text[]))::int end as match_pct,
             case when $4::float8 is null then null
@@ -32,7 +33,11 @@ export async function searchFacilities({
        left join categories c on c.id = f.category_id
        left join lateral (
          select count(*) filter (where af.status = 'available')     as tersedia,
-                count(*) filter (where af.status = 'not_available') as tidak_tersedia
+                count(*) filter (where af.status = 'not_available') as tidak_tersedia,
+                -- Status per atribut yang diminta, supaya kartu hasil bisa menunjukkan
+                -- MANA yang terpenuhi, bukan sekadar "3 dari 4". Bagi pengguna, "ada ramp
+                -- tapi tidak ada lift" adalah informasi yang sama sekali berbeda dari 75%.
+                jsonb_object_agg(af.attribute_code, af.status) as status_kebutuhan
            from accessibility_facilities af
           where af.facility_id = f.id and af.attribute_code = any($3::text[])
        ) m on true
@@ -49,10 +54,17 @@ export async function searchFacilities({
   return rows.map((r) => {
     // Atribut tanpa baris di DB dihitung sebagai unknown, bukan diabaikan.
     const unknown = needs.length - r.needs_met - r.needs_unavailable;
+    // Atribut yang diminta tapi tidak punya baris di DB tetap harus muncul sebagai
+    // unknown, bukan hilang dari daftar — pengguna perlu tahu apa yang belum diketahui.
+    const statusKebutuhan = Object.fromEntries(
+      needs.map((code) => [code, r.status_kebutuhan?.[code] ?? 'unknown']),
+    );
+    delete r.status_kebutuhan;
     return {
       ...r,
       needs_total: needs.length,
       needs_unknown: unknown,
+      needs_status: statusKebutuhan,
       ...(matchLabel(r.match_pct, needs.length ? unknown / needs.length : 0) ?? {}),
       freshness: freshness(r.last_verified_at),
     };

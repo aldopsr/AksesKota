@@ -25,6 +25,7 @@ function markerElement(facility, level, onSelect) {
   const el = document.createElement('button');
   el.type = 'button';
   el.className = 'ak-marker';
+  el.dataset.level = level.key; // bentuk marker ditentukan CSS per tingkat, bukan warna saja
   el.style.background = level.bg;
   el.setAttribute('aria-label', level.key === 'neutral' ? facility.name : `${facility.name}. ${level.label}`);
   const sym = document.createElement('span');

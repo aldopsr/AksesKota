@@ -14,6 +14,7 @@ import MapView from '../features/map/MapView';
 import { AssistantFab, MapControls, MapLegend } from '../features/map/MapChrome';
 import FacilityCard from '../features/explore/FacilityCard';
 import FilterSheet from '../features/explore/FilterSheet';
+import NeedsPrompt from '../features/accessibility/NeedsPrompt';
 import FacilityDetailPanel from '../features/explore/FacilityDetailPanel';
 import RouteSummary from '../features/explore/RouteSummary';
 import MapSheet from '../features/explore/MapSheet';
@@ -161,8 +162,11 @@ export default function ExplorePage() {
         <Chip pressed={!params.category} onClick={() => goExplore({ category: '' })}>Semua</Chip>
         {CATEGORIES.map((c) => <Chip key={c.code} pressed={params.category === c.code} onClick={() => goExplore({ category: c.code })}>{c.label}</Chip>)}
       </div>
+      {/* Satu baris yang bisa digeser, bukan membungkus jadi dua-tiga baris. Dengan empat
+          kebutuhan aktif, chip yang membungkus mendorong hasil pertama turun hampir
+          setinggi layar di HP — pengguna menggulir jauh hanya untuk melihat satu fasilitas. */}
       {(required.length > 0 || params.radius) && (
-        <ul aria-label="Filter aktif" className="flex flex-wrap gap-2">
+        <ul aria-label="Filter aktif" className="no-scrollbar -mx-3 flex gap-2 overflow-x-auto px-3 pb-0.5 sm:flex-wrap sm:overflow-visible [&>li]:shrink-0">
           {usingProfile && <li><RemovableChip label="Profil saya" onRemove={() => goExplore({ needsRaw: 'none' })} /></li>}
           {!usingProfile && required.map((c) => <li key={c}><RemovableChip label={ATTRIBUTE_LABEL[c]} onRemove={() => goExplore(needsPatch(required.filter((x) => x !== c)))} /></li>)}
           {params.radius && <li><RemovableChip label={`Radius ${params.radius >= 1000 ? `${params.radius / 1000} km` : `${params.radius} m`}`} onRemove={() => goExplore({ radius: null })} /></li>}
@@ -179,21 +183,40 @@ export default function ExplorePage() {
           Pilih fasilitas di daftar, lalu tekan <strong>Usulkan pembaruan</strong> di halaman detailnya.
         </Alert>
       )}
+      {/* Pertanyaan kebutuhan didahulukan: tanpa itu kartu tampil tanpa kecocokan
+          dan semua marker peta berwarna sama. */}
+      {required.length === 0 && !loadingList && (
+        <NeedsPrompt
+          onApply={(codes) => { goExplore(needsPatch(codes), { keepDetail: true }); toast.show(`${codes.length} kebutuhan diterapkan.`, 'info'); }}
+          onOpenFilter={() => setFilterOpen(true)}
+        />
+      )}
+
       {!facilitiesQ.error && (
       <div className="space-y-0.5">
         <p role="status" aria-live="polite" className="font-semibold">
           {loadingList ? 'Memuat fasilitas…' : (
-            <>{results.length} fasilitas{results.length >= limit && limit < 200 ? ' (dibatasi)' : ''}{params.q && <> untuk “{params.q}”</>}{catLabel && <> · {catLabel}</>}{required.length > 0 && <> · {usingProfile ? 'profil Anda' : `${required.length} kebutuhan`}</>}</>
+            <>{results.length} fasilitas{params.q && <> untuk “{params.q}”</>}{catLabel && <> · {catLabel}</>}{required.length > 0 && <> · {usingProfile ? 'profil Anda' : `${required.length} kebutuhan`}</>}</>
           )}
         </p>
-        <p className="font-sub text-sm text-ink-secondary">Urutan: {sortText}.</p>
+        {required.length > 0 && <p className="font-sub text-sm text-ink-secondary">Urutan: {sortText}.</p>}
       </div>
       )}
+      {/* Catatan privasi dipindah ke dalam tombol sebagai teks bantuan, bukan paragraf
+          tersendiri: di HP paragraf itu satu blok penuh yang menyela antara daftar dan
+          hasil pertama, padahal isinya penjelasan untuk tombol di sebelahnya. */}
       {!geo.location && (
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="secondary" size="sm" onClick={locateMe} loading={geo.status === 'loading'}><LocateFixed aria-hidden="true" size={15} /> Aktifkan lokasi untuk jarak</Button>
-          <span className="font-sub text-xs text-ink-secondary">Lokasi hanya disimpan sementara di peramban Anda.</span>
-        </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={locateMe}
+          loading={geo.status === 'loading'}
+          aria-describedby="catatan-lokasi"
+          className="w-full sm:w-auto"
+        >
+          <LocateFixed aria-hidden="true" size={15} /> Aktifkan lokasi untuk urutkan jarak
+          <span id="catatan-lokasi" className="sr-only">Lokasi hanya disimpan sementara di peramban Anda, tidak dikirim ke server.</span>
+        </Button>
       )}
       {geo.error && <p role="alert" className="text-sm font-semibold text-danger">{geo.error}</p>}
       {params.radius && !geo.location && <p className="font-sub text-sm text-ink-secondary">Radius hanya dipakai setelah lokasi aktif.</p>}

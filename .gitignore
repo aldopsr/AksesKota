@@ -5,3 +5,10 @@ uploads/
 *.log
 dist/
 uploads-test/
+
+# tooling skill, bukan kode proyek
+.agents/
+skills-lock.json
+
+backend/uploads-test/
+backend/uploads/

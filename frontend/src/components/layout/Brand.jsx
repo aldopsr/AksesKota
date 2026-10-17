@@ -1,13 +1,24 @@
 import { Link } from 'react-router-dom';
 
-// Simbol abstrak: pin lokasi + garis rute. Bukan simbol disabilitas literal (design system 3.3).
+/**
+ * Logo AksesKota: huruf A yang terbentuk dari sosok yang sedang bergerak —
+ * kaki kiri sebagai langkah, kepala, dan sayap aqua sebagai kaki kanan.
+ *
+ * Digambar ulang sebagai SVG, bukan memasang berkas JPEG-nya: tajam di segala ukuran,
+ * latarnya benar-benar transparan (JPEG membawa kotak lavender yang akan terlihat di
+ * atas permukaan putih), dan warnanya bisa ikut tema.
+ */
 export function LogoMark({ size = 36 }) {
   return (
-    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 40 40">
-      <rect width="40" height="40" rx="11" fill="#4f46e5" />
-      <path d="M20 8c-5 0-9 3.9-9 8.8 0 6.5 9 13.2 9 13.2s9-6.7 9-13.2C29 11.9 25 8 20 8z" fill="#fff" />
-      <circle cx="20" cy="16.8" r="3.6" fill="#4f46e5" />
-      <path d="M10 33.5c3.3-2.2 6.6-2.2 10 0s6.7 2.2 10 0" stroke="#a8dfe8" strokeWidth="2.4" fill="none" strokeLinecap="round" />
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 40 40" fill="none">
+      {/* kaki kiri huruf A */}
+      <path d="M10.2 29 L20.2 6.6" stroke="#7B7BE8" strokeWidth="5.6" strokeLinecap="round" />
+      {/* puncak kanan, nada lebih terang */}
+      <path d="M20.2 6.6 L24.9 13.1" stroke="#B3B0F0" strokeWidth="5.2" strokeLinecap="round" />
+      {/* sayap aqua sebagai kaki kanan */}
+      <path d="M16.8 21.2 C22.4 18.6 27.4 21.4 29.6 29" stroke="#A5D8DE" strokeWidth="5.4" strokeLinecap="round" />
+      {/* kepala */}
+      <circle cx="24.6" cy="16.4" r="3.1" fill="#3B35D1" />
     </svg>
   );
 }

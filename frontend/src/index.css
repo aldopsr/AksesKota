@@ -63,6 +63,13 @@
 }
 
 :root {
+  /* Kurva bawaan CSS terlalu lemah untuk UI. ease-in tidak pernah dipakai: ia menahan
+     gerakan justru di detik pengguna paling memperhatikan, sehingga terasa lamban. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+  --press: 160ms;
+
   --motion-fast: 140ms;
   --motion-normal: 200ms;
   --motion-slow: 280ms;
@@ -70,8 +77,33 @@
 }
 
 @layer base {
+  /* --- baseline mobile ----------------------------------------------------
+     Tanpa ini aplikasi tetap terasa "situs web di dalam browser": kilat abu saat
+     disentuh, pull-to-refresh yang membajak scroll, teks membesar sendiri saat
+     layar diputar, dan jeda ~300ms sebelum ketukan direspons. */
+  html {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior: none;
+  }
+  /* iOS memperbesar halaman saat fokus ke input <16px dan tidak mengembalikannya.
+     Memperbesar fontnya adalah perbaikan yang benar — bukan mematikan zoom,
+     yang justru merugikan pengguna low vision. */
+  input, textarea, select { font-size: 16px; }
+  button, a, [role="button"] {
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+  /* Umpan balik saat DITEKAN, bukan saat dilepas: tekanan terasa langsung didengar. */
+  button, [role="button"] { transition: transform var(--press) var(--ease-out); }
+  button:active:not(:disabled), [role="button"]:active { transform: scale(0.97); }
+
   html { font-family: var(--font-sans); background: var(--color-canvas); color: var(--color-ink); scroll-padding-top: 5rem; }
-  body { margin: 0; min-width: 320px; min-height: 100vh; -webkit-font-smoothing: antialiased; line-height: 1.5; }
+  /* dvh, bukan vh: 100vh adalah tinggi saat bar URL tersembunyi, sehingga konten
+     paling bawah tertutup bar itu persis saat halaman pertama dibuka. */
+  body { margin: 0; min-width: 320px; min-height: 100dvh; -webkit-font-smoothing: antialiased; line-height: 1.5; }
   :focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; border-radius: 6px; }
   .on-dark :focus-visible { outline-color: #fff; }
   h1, h2, h3 { letter-spacing: -0.015em; }
@@ -93,6 +125,21 @@
   box-shadow: 0 0 0 1px rgb(17 24 39 / .3), 0 2px 6px rgb(17 24 39 / .35);
 }
 .ak-marker > span:first-child:empty::before { content: ''; width: 10px; height: 10px; border-radius: 9999px; background: #fff; display: block; }
+
+/* PRD 13: marker memakai warna + ikon + LABEL, dan warna tidak boleh jadi satu-satunya
+   indikator. Karena itu tiap tingkat juga berbeda BENTUK — tetap terbaca oleh pengguna
+   buta warna dan saat dicetak hitam-putih. */
+.ak-marker[data-level="high"]    { border-radius: 9999px; }
+.ak-marker[data-level="partial"] { border-radius: 9999px; clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); }
+.ak-marker[data-level="low"]     { border-radius: 6px; transform: rotate(45deg); }
+.ak-marker[data-level="low"] > span:first-child { transform: rotate(-45deg); }
+.ak-marker[data-level="limited"] { border-radius: 9999px; border-style: dashed; border-color: #fff; }
+
+/* Di layar sentuh tidak ada hover, jadi label marker tak pernah muncul. Padahal PRD
+   mewajibkan label. Pada perangkat sentuh label ditampilkan permanen untuk marker terpilih. */
+@media (hover: none) {
+  .ak-marker[data-selected="true"] .ak-marker-label { display: block; }
+}
 .ak-marker[data-selected="true"] {
   width: 46px; height: 46px; font-size: 19px; z-index: 5;
   box-shadow: 0 0 0 3px var(--color-focus), 0 2px 8px rgb(17 24 39 / .4);
