@@ -2,7 +2,7 @@
 // Token Mapbox disimpan di server (.env), tidak dikirim ke client lewat endpoint ini.
 import express from 'express';
 import { z } from 'zod';
-import { one } from '../db.js';
+import { many, one } from '../db.js';
 import { HttpError } from '../http.js';
 import { rateLimit } from '../rateLimit.js';
 
@@ -80,6 +80,65 @@ async function nilaiJalur(geometry, panjangM) {
   };
 }
 
+// Di atas jarak ini, menyodorkan rute jalan kaki sebagai saran itu tidak jujur:
+// 3 km berarti sekitar 40 menit berjalan, dan bagi banyak pengguna kursi roda atau
+// lansia itu bukan pilihan. PRD §5 menutup integrasi transportasi umum sebagai non-goal,
+// jadi kita TIDAK membuat rute transit — kita hanya menunjukkan fasilitas transportasi
+// beraksesibilitas yang memang sudah ada di database kita, lengkap dengan apa yang
+// diketahui dan apa yang belum.
+const AMBANG_TRANSPORTASI_M = 3000;
+const RADIUS_CARI_TRANSPORTASI_M = 2500;
+
+/** "507 menit" tidak terbaca sebagai lama. Di atas 90 menit, tulis dalam jam. */
+const lamaJalan = (detik) => {
+  const menit = Math.round(detik / 60);
+  if (menit < 90) return `${menit} menit`;
+  const jam = Math.floor(menit / 60);
+  const sisa = menit % 60;
+  return sisa ? `${jam} jam ${sisa} menit` : `${jam} jam`;
+};
+
+/** Dua fasilitas transportasi terdekat dari sebuah titik, diurutkan dari yang paling aksesibel. */
+async function transportTerdekat(lon, lat) {
+  return many(
+    `with titik as (select st_setsrid(st_makepoint($1,$2),4326)::geography g)
+     select f.id, f.name, f.address,
+            round(st_distance(f.location, t.g))::int as jarak_m,
+            coalesce(array_agg(a.name order by a.sort) filter (where af.status = 'available'), '{}') as tersedia,
+            count(*) filter (where af.status <> 'unknown')::int as atribut_diketahui
+       from facilities f
+       join categories c on c.id = f.category_id and c.code = 'transportasi'
+       left join accessibility_facilities af on af.facility_id = f.id
+       left join accessibility_attributes a on a.code = af.attribute_code
+       cross join titik t
+      where st_dwithin(f.location, t.g, $3)
+      group by f.id, t.g
+      -- yang paling banyak atribut tersedianya dulu, baru yang terdekat: bagi pengguna
+      -- kursi roda, halte aksesibel 800 m lebih berguna daripada halte tak jelas 200 m
+      order by count(*) filter (where af.status = 'available') desc, jarak_m
+      limit 2`,
+    [lon, lat, RADIUS_CARI_TRANSPORTASI_M],
+  );
+}
+
+/**
+ * Saran transportasi umum bila rutenya terlalu jauh untuk berjalan kaki, atau null.
+ * Dipakai endpoint rute DAN tool AI `plan_route` — keduanya harus berhenti menyodorkan
+ * jalan kaki berjam-jam, bukan hanya salah satunya.
+ */
+export async function saranTransportasi(from, to, route) {
+  if (route.distance <= AMBANG_TRANSPORTASI_M) return null;
+  return {
+    alasan: `Jarak ${(route.distance / 1000).toFixed(1)} km, sekitar ${lamaJalan(route.duration)} berjalan kaki. Pertimbangkan transportasi umum.`,
+    dekat_anda: await transportTerdekat(from[0], from[1]),
+    dekat_tujuan: await transportTerdekat(to[0], to[1]),
+    // Dinyatakan terpisah supaya UI bisa bilang "belum terdata" alih-alih
+    // menampilkan daftar kosong yang terbaca seperti kerusakan.
+    radius_cari_m: RADIUS_CARI_TRANSPORTASI_M,
+    catatan: 'AksesKota tidak merencanakan perjalanan transportasi umum. Daftar ini hanya fasilitas transportasi terdekat beserta data aksesibilitas yang kami miliki.',
+  };
+}
+
 /**
  * Route Score = 70% aksesibilitas jalur + 30% jarak (PRD §19.7).
  *
@@ -124,6 +183,10 @@ export async function fetchWalkingRoute(from, to) {
 router.get('/routes/walking', rateLimit({ windowMs: 60_000, max: 30 }), async (req, res) => {
   const { from, to, facility_id } = query.parse(req.query);
   const route = await fetchWalkingRoute(from, to);
+
+  // Jarak jauh: jangan diam-diam menyodorkan rute jalan kaki 3 jam sebagai saran.
+  const saran = await saranTransportasi(from, to, route);
+
   // facility_id tidak lagi dipakai untuk menilai rute — aksesibilitas tujuan sudah
   // dilaporkan terpisah sebagai Accessibility Match di endpoint fasilitas. Parameternya
   // dibiarkan diterima agar panggilan frontend yang sudah ada tidak perlu diubah.
@@ -132,6 +195,8 @@ router.get('/routes/walking', rateLimit({ windowMs: 60_000, max: 30 }), async (r
     duration_s: Math.round(route.duration),
     geometry: route.geometry,
     facility_id: facility_id ?? null,
+    terlalu_jauh_untuk_jalan_kaki: saran !== null,
+    saran_transportasi: saran,
     ...(await scoreRoute(route.distance, route.geometry)),
   });
 });

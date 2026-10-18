@@ -30,7 +30,7 @@ export function LoginPage() {
   }
   return (
     <AuthShell
-      title="Masuk" subtitle="Masuk untuk menyimpan kebutuhan, mengirim data, dan menulis ulasan."
+      title="Masuk" subtitle="Lanjutkan dengan akun Anda."
       notice={reason && <Alert tone="info">{reason} Setelah masuk, Anda akan kembali ke halaman ini.</Alert>}
       footer={<>Belum punya akun? <Link to="/register" state={location.state} className="font-semibold text-action-secondary underline underline-offset-4">Daftar</Link></>}
     >
@@ -68,7 +68,7 @@ export function RegisterPage() {
   }
   return (
     <AuthShell
-      title="Daftar" subtitle="Akun gratis untuk berkontribusi dan menyimpan kebutuhan aksesibilitas."
+      title="Daftar" subtitle="Gratis. Cukup email dan kata sandi."
       notice={reason && <Alert tone="info">{reason} Setelah mendaftar, Anda akan kembali ke halaman ini.</Alert>}
       footer={<>Sudah punya akun? <Link to="/login" state={location.state} className="font-semibold text-action-secondary underline underline-offset-4">Masuk</Link></>}
     >

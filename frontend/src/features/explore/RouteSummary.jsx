@@ -1,10 +1,53 @@
 import { useState } from 'react';
-import { Crosshair, LocateFixed, MapPin, Route as RouteIcon, X } from 'lucide-react';
+import { Bus, Crosshair, LocateFixed, MapPin, Route as RouteIcon, X } from 'lucide-react';
 import { Alert, Button, IconButton, SelectField, Skeleton } from '../../components/ui';
 import { formatDistance, formatDuration } from '../../lib/geo';
 
 // Ringkasan rute jalan kaki (IA 5.4). Mewakili 5 keadaan: butuh titik awal, memuat, berhasil, gagal.
 // Rute ini DASAR: belum memakai data kondisi jalan, hanya atribut fasilitas tujuan yang diketahui.
+function DaftarTransport({ judul, daftar, radius }) {
+  return (
+    <div>
+      <p className="text-sm font-semibold">{judul}</p>
+      {daftar.length === 0 ? (
+        <p className="font-sub mt-0.5 text-sm text-ink-secondary">
+          Belum ada fasilitas transportasi terdata dalam {Math.round(radius / 1000)} km dari titik ini.
+        </p>
+      ) : (
+        <ul className="mt-1 space-y-1.5">
+          {daftar.map((t) => (
+            <li key={t.id} className="text-sm">
+              <span className="font-semibold">{t.name}</span>{' '}
+              <span className="font-sub text-ink-secondary tabular-nums">{t.jarak_m} m</span>
+              <span className="font-sub block text-ink-secondary">
+                {t.tersedia.length
+                  ? `✓ ${t.tersedia.join(', ')}`
+                  : 'Data aksesibilitas tempat ini belum ada.'}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function SaranTransportasi({ saran }) {
+  return (
+    <section aria-label="Saran transportasi umum" className="rounded-card border border-border bg-surface p-3">
+      <p className="flex items-start gap-2 text-sm font-semibold">
+        <Bus aria-hidden="true" size={17} className="mt-0.5 shrink-0 text-brand-800" />
+        {saran.alasan}
+      </p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <DaftarTransport judul="Terdekat dari Anda" daftar={saran.dekat_anda} radius={saran.radius_cari_m} />
+        <DaftarTransport judul="Terdekat dari tujuan" daftar={saran.dekat_tujuan} radius={saran.radius_cari_m} />
+      </div>
+      <p className="font-sub mt-3 text-xs text-ink-secondary">{saran.catatan}</p>
+    </section>
+  );
+}
+
 export default function RouteSummary({
   route, facilityName, otherFacilities, geoStatus, geoError,
   onUseMyLocation, onStartPick, onChooseFacility, onRetry, onClose, compact = false,
@@ -57,13 +100,38 @@ export default function RouteSummary({
             <div><dt className="font-sub text-sm text-ink-secondary">Perkiraan waktu</dt><dd className="text-2xl font-bold tabular-nums">{formatDuration(data.duration_s)}</dd></div>
           </dl>
           <p className="font-sub flex items-center gap-1.5 text-sm text-ink-secondary"><MapPin aria-hidden="true" size={14} /> Dari: <strong className="font-semibold text-ink">{origin.label}</strong></p>
+          {/* Yang dinilai adalah JALURNYA, bukan fasilitas tujuan. Teks lama menulis
+              "skor aksesibilitas tujuan" dan menyatakan kondisi trotoar belum tercakup —
+              keduanya tidak lagi benar sejak penilaian memakai data jaringan pejalan kaki. */}
           <p className="text-sm">
-            Skor aksesibilitas tujuan:{' '}
-            <strong>{data.accessibility_score === null ? 'belum ada data' : `${data.accessibility_score}%`}</strong>
-            <span className="font-sub text-ink-secondary"> · skor rute {data.route_score} (70% aksesibilitas, 30% jarak)</span>
+            Aksesibilitas jalur:{' '}
+            <strong>
+              {data.accessibility_score === null
+                ? 'data jalur belum cukup untuk dinilai'
+                : `${data.accessibility_score}% · skor rute ${data.route_score}`}
+            </strong>
+            {data.accessibility_score !== null && (
+              <span className="font-sub text-ink-secondary"> (70% aksesibilitas jalur, 30% jarak)</span>
+            )}
           </p>
+          {data.coverage !== undefined && (
+            <p className="font-sub text-sm text-ink-secondary">
+              Data jalur mencakup {Math.round(data.coverage * 100)}% panjang rute
+              {data.hambatan?.ruas_tangga > 0 && (
+                <strong className="font-semibold text-danger"> · terdeteksi {data.hambatan.ruas_tangga} ruas tangga</strong>
+              )}
+            </p>
+          )}
+
+          {/* Jarak jauh: rute jalan kaki 8 jam bukan saran yang jujur. Kami tidak
+              merencanakan perjalanan transportasi umum — hanya menunjukkan fasilitas
+              transportasi terdekat beserta data aksesibilitas yang kami punya. */}
+          {data.saran_transportasi && (
+            <SaranTransportasi saran={data.saran_transportasi} />
+          )}
+
           <p className="font-sub text-sm text-ink-secondary">
-            Ini rute jalan kaki dasar. Kondisi trotoar, penyeberangan, dan hambatan di jalan belum tercakup, dan tidak ada jaminan rute bebas hambatan.
+            Kondisi lapangan dapat berubah. Tidak ada jaminan rute sepenuhnya bebas hambatan.
           </p>
           <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>Ubah titik awal</Button>
         </div>

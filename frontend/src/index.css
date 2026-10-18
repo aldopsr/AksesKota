@@ -194,7 +194,7 @@
    Delay-nya ditumpuk DI ATAS delay kartu induknya (--i diwarisi dari <li>), jadi chip
    tidak pernah muncul sebelum kartu yang memuatnya. 22ms, bukan 40: ini gerak di dalam
    satu benda, bukan antar benda, jadi harus lebih rapat. */
-.ak-stagger .ak-chips > li {
+.ak-chips > li {
   animation: ak-masuk 200ms cubic-bezier(0.23, 1, 0.32, 1) backwards;
   animation-delay: calc(min(var(--i, 0), 8) * 40ms + 120ms + var(--j, 0) * 22ms);
 }
@@ -209,7 +209,7 @@
 .ak-menajam { animation: ak-menajam 220ms cubic-bezier(0.23, 1, 0.32, 1) backwards; }
 
 @media (prefers-reduced-motion: reduce) {
-  .ak-marker--pop, .ak-stagger > li, .ak-stagger .ak-chips > li { animation: none; }
+  .ak-marker--pop, .ak-stagger > li, .ak-chips > li { animation: none; }
   /* Pada mode ini kemunculan tetap dilunakkan dengan opacity saja — yang dihindari
      adalah gerak dan blur, bukan semua perubahan. */
   .ak-menajam { animation: none; }

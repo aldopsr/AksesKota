@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { many, one } from '../db.js';
 import { sanitizeNeeds } from '../match.js';
 import { searchFacilities } from '../routes/facilities.js';
-import { fetchWalkingRoute, scoreRoute } from '../routes/routing.js';
+import { fetchWalkingRoute, saranTransportasi, scoreRoute } from '../routes/routing.js';
 
 const CATEGORIES = ['kesehatan', 'pendidikan', 'layanan_publik', 'transportasi', 'komersial'];
 const NEEDS = ['ramp', 'guiding_block', 'accessible_toilet', 'lift', 'accessible_parking', 'wheelchair_path', 'braille', 'audio_access', 'accessible_entrance', 'handrail'];
@@ -177,6 +177,8 @@ export function createExecutors(ctx) {
     try {
       const route = await fetchWalkingRoute([ctx.origin.lon, ctx.origin.lat], [row.lon, row.lat]);
       const s = await scoreRoute(route.distance, route.geometry);
+      // Tanpa ini model menjawab "44 km, 8 jam jalan kaki" dengan nada menyarankan.
+      const saran = await saranTransportasi([ctx.origin.lon, ctx.origin.lat], [row.lon, row.lat], route);
       return {
         ...out,
         jarak_m: Math.round(route.distance),
@@ -185,6 +187,7 @@ export function createExecutors(ctx) {
         skor_rute: s.route_score,
         cakupan_data_jalur: s.coverage,
         ruas_tangga_di_jalur: s.hambatan.ruas_tangga,
+        saran_transportasi: saran,
         catatan: [
           'Rute sudah ditampilkan di peta.',
           // Skor null berarti data jalur belum cukup — model harus mengatakannya apa adanya,
@@ -193,6 +196,7 @@ export function createExecutors(ctx) {
             ? 'Data aksesibilitas jalur pada rute ini belum cukup untuk dinilai; sampaikan apa adanya.'
             : null,
           s.hambatan.ruas_tangga ? `Terdeteksi ${s.hambatan.ruas_tangga} ruas tangga di sepanjang jalur.` : null,
+          saran ? 'Jarak ini terlalu jauh untuk berjalan kaki: sebutkan lamanya, lalu sampaikan fasilitas transportasi di saran_transportasi beserta aksesibilitas yang diketahui. Jangan mengarang rute atau jadwal transportasi umum.' : null,
         ].filter(Boolean).join(' '),
       };
     } catch {
