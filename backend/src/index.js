@@ -18,7 +18,22 @@ const app = express();
 // Tanpa ini semua pengguna di Vercel terbaca sebagai satu IP dan saling menghabiskan jatah.
 app.set('trust proxy', 1);
 
-app.use(cors({ origin: process.env.CORS_ORIGIN?.split(',') ?? '*' }));
+// Daftar origin yang dipatok satu port bikin jebakan saat pengembangan: Vite diam-diam
+// pindah ke 5174 kalau 5173 sedang dipakai, lalu SELURUH aplikasi tampak "tidak dapat
+// terhubung ke server" padahal backend sehat dan membalas 200 ke curl. Di pengembangan,
+// port localhost mana pun diterima. Di produksi CORS_ORIGIN tetap mengikat.
+const originTerdaftar = process.env.CORS_ORIGIN?.split(',').map((s) => s.trim()).filter(Boolean);
+const ORIGIN_LOKAL = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+app.use(cors({
+  origin(origin, cb) {
+    // Tanpa header Origin: curl, health check, panggilan antar-server.
+    if (!origin) return cb(null, true);
+    if (!originTerdaftar?.length) return cb(null, true);
+    if (originTerdaftar.includes(origin)) return cb(null, true);
+    if (process.env.NODE_ENV !== 'production' && ORIGIN_LOKAL.test(origin)) return cb(null, true);
+    return cb(null, false);
+  },
+}));
 app.use(express.json({ limit: '1mb' }));
 app.use(optionalAuth); // guest tetap boleh lewat, req.user cuma diisi kalau ada token
 
