@@ -236,3 +236,40 @@ Setelahnya `scrollWidth` = lebar viewport, tidak ada geseran.
 Verifikasi memakai stub respons `/auth/*` dan `/admin/*` di peramban (database masih
 0 kontribusi); tidak ada akun Supabase yang dibuat dan tidak ada baris yang ditulis
 ke database.
+
+## Perbaikan: kerangka peta rusak sejak peta dipindah ke "/" (18 Okt 2026)
+
+Dilaporkan "kok tampilannya kelihatan belum banyak berubah". Ternyata memang ada yang
+rusak, bukan sekadar perasaan.
+
+**Akar masalah.** Pemeriksa "ini halaman peta?" di `PublicLayout` masih mencocokkan
+`/map` dan `/facilities/:id` saja; ia tidak pernah diperbarui setelah peta dipindah ke
+`/`. Di beranda, `workspace` jadi false sehingga **footer ikut dirender di bawah peta**,
+ditambah `pb-16` untuk bilah nav bawah, sementara peta sendiri dipatok
+`h-[calc(100dvh-4rem)]`. Total 1332 px di layar 812 px: halaman menggulir, panel bawah
+tergulir keluar layar, dan hasilnya terlihat seperti halaman panjang biasa.
+
+**Diperbaiki di akarnya, bukan dengan calc baru:**
+- `workspace` kini mencakup `/`.
+- Tinggi dipegang kerangka (`h-dvh overflow-hidden` + `min-h-0` pada `main`), dan
+  ExplorePage memakai `h-full`. Tidak ada lagi pengurangan tinggi header/nav manual
+  yang meleset begitu salah satu elemen muncul atau hilang.
+
+**Dua bug lanjutan di BottomSheet yang ketahuan setelah itu:**
+1. Tingginya `92dvh` — tinggi LAYAR, padahal wadahnya hanya area peta (561 px). Panel
+   jadi lebih tinggi daripada tempatnya, menjulur ke atas, menutupi peta sepenuhnya,
+   dan ketiga titik hentinya dihitung dari angka yang salah. Sekarang
+   `h-[calc(100%-2rem)]`, relatif terhadap wadahnya.
+2. Pengukuran pertama kadang terjadi saat elemennya belum punya tinggi. Nilai nol itu
+   tetap disimpan, posisi awal jadi 0 (terbuka penuh), dan karena offset sudah terisi
+   ia tidak pernah dikoreksi. Sekarang pengukuran kosong diabaikan, dan posisi disetel
+   ulang dari titik henti yang sedang dipakai setiap kali ukuran berubah.
+
+**Ambang saran transportasi: 3 km -> 2 km.** Angka 3 km salah untuk aplikasi yang kota
+utamanya Bogor — hampir semua perjalanan di dalam kota ada di bawahnya, jadi sarannya
+tidak pernah muncul sama sekali. Ambang yang tidak pernah terlampaui sama saja dengan
+fitur yang tidak ada. Stasiun Bogor -> Botani Square (2,8 km) sekarang memunculkannya.
+
+Terverifikasi: 375 px -> halaman tidak menggulir, panel berhenti di setengah layar,
+peta terlihat, 20 fasilitas termuat. 1280x800 -> peta 880x735 px, tidak menggulir.
+Token kedaluwarsa juga diuji: dibersihkan sendiri dan daftar tetap tampil.

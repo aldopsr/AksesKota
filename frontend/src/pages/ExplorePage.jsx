@@ -287,7 +287,7 @@ export default function ExplorePage() {
   );
 
   return (
-    <div className="flex h-[calc(100dvh-4rem)] flex-col lg:flex-row">
+    <div className="flex h-full flex-col lg:flex-row">
       <h1 className="sr-only">Jelajahi fasilitas aksesibel</h1>
 
       {/* Mobile: kolom ini menyusut jadi bilah pencarian saja — hasilnya pindah ke panel

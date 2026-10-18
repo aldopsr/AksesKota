@@ -82,12 +82,17 @@ async function nilaiJalur(geometry, panjangM) {
 }
 
 // Di atas jarak ini, menyodorkan rute jalan kaki sebagai saran itu tidak jujur:
-// 3 km berarti sekitar 40 menit berjalan, dan bagi banyak pengguna kursi roda atau
-// lansia itu bukan pilihan. PRD §5 menutup integrasi transportasi umum sebagai non-goal,
+// 2 km berarti sekitar 25-30 menit berjalan, dan bagi banyak pengguna kursi roda
+// atau lansia itu bukan pilihan.
+//
+// Sempat dipasang 3 km. Angka itu salah untuk aplikasi yang kota utamanya Bogor:
+// hampir seluruh perjalanan di dalam kota ada di bawahnya, jadi sarannya tidak
+// pernah muncul sama sekali. Ambang yang tidak pernah terlampaui sama saja dengan
+// fitur yang tidak ada. PRD §5 menutup integrasi transportasi umum sebagai non-goal,
 // jadi kita TIDAK membuat rute transit — kita hanya menunjukkan fasilitas transportasi
 // beraksesibilitas yang memang sudah ada di database kita, lengkap dengan apa yang
 // diketahui dan apa yang belum.
-const AMBANG_TRANSPORTASI_M = 3000;
+const AMBANG_TRANSPORTASI_M = 2000;
 const RADIUS_CARI_TRANSPORTASI_M = 2500;
 
 /** "507 menit" tidak terbaca sebagai lama. Di atas 90 menit, tulis dalam jam. */

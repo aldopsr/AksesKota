@@ -43,8 +43,16 @@ const BottomSheet = forwardRef(function BottomSheet({ titikPeek = 120, label, ri
   // Offset = seberapa jauh panel digeser ke bawah dari posisi penuh.
   const hitungSnaps = useCallback(() => {
     const tinggi = panelRef.current?.offsetHeight ?? 0;
+    // Pengukuran pertama kadang terjadi sebelum elemennya punya tinggi. Dulu nilai nol
+    // itu tetap disimpan jadi ketiga titik hentinya nol, posisi awal jadi 0 (terbuka
+    // penuh, peta tertutup), dan karena offset sudah terisi ia tidak pernah dikoreksi
+    // lagi. Sekarang pengukuran kosong diabaikan.
+    if (!tinggi) return;
     snaps.current = [Math.max(0, tinggi - titikPeek), Math.round(tinggi * 0.45), 0];
-    setOffset((o) => (o === null ? snaps.current[1] : o));
+    // Posisi disetel ulang dari titik henti yang SEDANG dipakai, bukan hanya sekali di
+    // awal — supaya ukuran yang berubah (rotasi layar, papan ketik muncul) tidak
+    // meninggalkan panel di tempat yang sudah tidak berarti apa-apa.
+    if (!geser.current.aktif) setOffset(snaps.current[snapRef.current]);
   }, [titikPeek]);
 
   useEffect(() => {
@@ -118,10 +126,16 @@ const BottomSheet = forwardRef(function BottomSheet({ titikPeek = 120, label, ri
 
   const namaPosisi = ['sebagian kecil', 'setengah layar', 'satu layar penuh'];
 
+  // Tinggi panel diukur dari WADAHNYA (area peta), bukan dari layar. Dulu 92dvh:
+  // begitu ada header dan bilah pencarian di atasnya, panel jadi lebih tinggi daripada
+  // tempat ia berada — ia menjulur ke atas, menutupi peta sepenuhnya, dan ketiga titik
+  // hentinya ikut dihitung dari angka yang salah. Sisa 2rem supaya pada posisi paling
+  // tinggi sekalipun peta masih terlihat sedikit.
+
   return (
     <div
       ref={panelRef}
-      className="absolute inset-x-0 bottom-0 z-30 flex h-[92dvh] flex-col rounded-t-[1.25rem] border-t border-border bg-surface shadow-popover lg:hidden"
+      className="absolute inset-x-0 bottom-0 z-30 flex h-[calc(100%-2rem)] flex-col rounded-t-[1.25rem] border-t border-border bg-surface shadow-popover lg:hidden"
       style={{
         transform: `translate3d(0, ${offset ?? 0}px, 0)`,
         // Transisi dimatikan selama menarik supaya panel benar-benar menempel pada jari.

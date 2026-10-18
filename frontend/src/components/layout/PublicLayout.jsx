@@ -117,7 +117,12 @@ function Footer() {
 
 export default function PublicLayout() {
   const { pathname, hash } = useLocation();
-  const workspace = pathname.startsWith('/map') || (pathname.startsWith('/facilities') && !pathname.startsWith('/facilities/new') && !pathname.includes('/update'));
+  // "Workspace" = kerangka aplikasi yang mengisi layar penuh dan TIDAK menggulir:
+  // peta dengan panel bawah di atasnya. Beranda sempat terlewat di sini setelah peta
+  // dipindah ke "/" — akibatnya footer ikut dirender di bawah peta, halaman jadi
+  // setinggi 1332 px di layar 812 px, dan panel bawah bisa tergulir keluar layar.
+  const workspace = pathname === '/' || pathname.startsWith('/map')
+    || (pathname.startsWith('/facilities') && !pathname.startsWith('/facilities/new') && !pathname.includes('/update'));
   const showBottomNav = BOTTOM_NAV_PATHS.includes(pathname);
   const section = workspace ? 'explore' : pathname.split('/')[1] || 'home';
 
@@ -130,13 +135,16 @@ export default function PublicLayout() {
     <LocationProvider>
       <AssistantProvider>
         <ToastProvider>
-          <div className="flex min-h-dvh flex-col">
+          {/* Tinggi dipegang kerangka ini, bukan dihitung ulang tiap halaman dengan
+              calc(100dvh - tinggi header - tinggi nav). Angka ajaib seperti itu yang
+              bikin peta meleset 64 px begitu bilah nav bawah muncul. */}
+          <div className={`flex flex-col ${workspace ? 'h-dvh overflow-hidden' : 'min-h-dvh'}`}>
             <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[70] focus:rounded-control focus:bg-brand-900 focus:px-4 focus:py-3 focus:font-semibold focus:text-white">
               Lewati ke konten utama
             </a>
             <Header />
-            <main id="main" tabIndex={-1} className={`flex-1 outline-none ${showBottomNav ? 'pb-16 md:pb-0' : ''}`}>
-              <m.div key={section} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
+            <main id="main" tabIndex={-1} className={`flex-1 outline-none ${workspace ? 'min-h-0' : ''} ${showBottomNav ? 'pb-16 md:pb-0' : ''}`}>
+              <m.div key={section} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }} className={workspace ? 'h-full' : undefined}>
                 <Outlet />
               </m.div>
             </main>
