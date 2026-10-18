@@ -41,6 +41,14 @@ export const ATTRIBUTE_HINT = {
   accessible_parking: 'Parkir khusus yang dekat dengan pintu masuk',
 };
 
+// Jalan pintas kebutuhan: satu ketukan mengisi beberapa atribut sekaligus.
+// Tinggal di sini, bukan di NeedsPrompt, karena halaman profil memakai daftar yang
+// sama persis — dua salinan akan menyimpang begitu salah satunya diubah.
+export const NEEDS_PRESETS = [
+  { key: 'kursi_roda', label: 'Saya pengguna kursi roda', icon: 'kursi_roda', codes: ['ramp', 'wheelchair_path', 'accessible_toilet', 'lift'] },
+  { key: 'netra', label: 'Saya tunanetra atau low vision', icon: 'netra', codes: ['guiding_block', 'audio_access', 'braille'] },
+];
+
 export const CATEGORIES = [
   { code: 'kesehatan', label: 'Kesehatan', hint: 'Rumah sakit, puskesmas, klinik' },
   { code: 'pendidikan', label: 'Pendidikan', hint: 'Sekolah, perguruan tinggi' },

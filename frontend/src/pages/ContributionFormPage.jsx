@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, LocateFixed } from 'lucide-react';
+import { CheckCircle2, LocateFixed, Plus } from 'lucide-react';
 import { api } from '../lib/api';
 import { ATTRIBUTE_GROUPS, ATTRIBUTE_LABEL, CATEGORIES, CATEGORY_CODES, CATEGORY_LABEL, CORE_CODES, STATUS } from '../features/accessibility/constants';
 import { normalizeFacility } from '../features/accessibility/match';
@@ -13,7 +13,6 @@ import { ID_BOUNDS } from '../lib/geo';
 import { useLocationState, useToast } from '../context/AppContexts';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import PageShell from '../components/layout/PageShell';
-import { AttributeStatus } from '../components/status';
 import { Alert, Button, LinkButton, SelectField, Skeleton, Stepper, TextArea, TextField } from '../components/ui';
 import LocationPicker from '../features/contribute/LocationPicker';
 import PhotoUpload from '../features/contribute/PhotoUpload';
@@ -49,6 +48,124 @@ function defaultsFrom(f) {
   };
 }
 function loadDraft() { try { return JSON.parse(sessionStorage.getItem(DRAFT_KEY) || 'null'); } catch { return null; } }
+
+/**
+ * Langkah "Atribut" — layar terberat di seluruh aplikasi.
+ *
+ * Versi sebelumnya menggambar sepuluh fieldset bertumpuk, masing-masing dengan
+ * judul, tiga tombol status, dan satu kolom catatan yang selalu terbuka: sekitar
+ * sepuluh layar penuh gulir di ponsel, sebagian besarnya kolom kosong yang tidak
+ * akan pernah diisi siapa pun.
+ *
+ * Sekarang satu atribut = satu baris, dan kolom catatan baru muncul kalau diminta.
+ * Warnanya mengikuti makna, bukan merek — hijau untuk tersedia, merah untuk tidak,
+ * netral untuk belum diketahui — sehingga baris yang sudah diisi langsung terlihat
+ * tanpa dibaca.
+ */
+const PILIHAN_CLS = {
+  available: 'has-[:checked]:border-success has-[:checked]:bg-success-bg has-[:checked]:text-success',
+  not_available: 'has-[:checked]:border-danger has-[:checked]:bg-danger-bg has-[:checked]:text-danger',
+  unknown: 'has-[:checked]:border-border-strong has-[:checked]:bg-surface-subtle has-[:checked]:text-ink-secondary',
+};
+
+function BarisAtribut({ code, register, nilai, adaCatatan, error, sebelumnya }) {
+  // Dibuka sendiri bila catatannya memang sudah ada, supaya isian yang tersimpan
+  // di draf tidak tersembunyi di balik tombol dan terlihat seolah hilang.
+  const [tulis, setTulis] = useState(adaCatatan);
+  const terisi = nilai && nilai !== 'unknown';
+
+  return (
+    <li className="p-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <div className="min-w-0">
+          <p className="font-semibold leading-snug">
+            {ATTRIBUTE_LABEL[code]}
+            {CORE_CODES.has(code) && (
+              <span className="ml-2 inline-block rounded-md bg-brand-100 px-1.5 py-0.5 align-middle text-xs font-semibold text-brand-900">
+                Butuh foto
+              </span>
+            )}
+          </p>
+          {sebelumnya && <p className="font-sub text-sm text-ink-secondary">Saat ini: {sebelumnya}</p>}
+        </div>
+
+        {/* Di ponsel kendali ini turun ke barisnya sendiri dan melebar penuh. Sempat
+            dicoba menyembunyikan teksnya dan menyisakan simbol saja supaya muat satu
+            baris, tapi "✓ ✕ ?" tanpa nama terlalu samar untuk pilihan yang menentukan
+            data yang dibaca orang lain. */}
+        <fieldset className="flex w-full shrink-0 gap-1 rounded-control bg-surface-subtle p-1 sm:w-auto">
+          <legend className="sr-only">{ATTRIBUTE_LABEL[code]}</legend>
+          {Object.entries(STATUS).map(([value, st]) => (
+            <label
+              key={value}
+              className={`flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-control border border-transparent bg-surface px-2.5 text-center text-sm font-semibold leading-tight has-[:focus-visible]:outline has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus sm:flex-none ${PILIHAN_CLS[value]}`}
+            >
+              <input type="radio" value={value} className="sr-only" {...register(`attrs.${code}`)} />
+              <span aria-hidden="true">{st.symbol}</span>
+              <span>{st.label}</span>
+            </label>
+          ))}
+        </fieldset>
+      </div>
+
+      {terisi && !tulis && (
+        <button
+          type="button"
+          onClick={() => setTulis(true)}
+          className="font-sub mt-2 inline-flex items-center gap-1 text-sm font-semibold text-action-secondary underline underline-offset-4"
+        >
+          <Plus aria-hidden="true" size={14} /> Tambah catatan
+        </button>
+      )}
+      {tulis && (
+        <TextField
+          className="mt-2"
+          label={`Catatan ${ATTRIBUTE_LABEL[code]} (opsional)`}
+          hint="Mis. letaknya, atau kondisi yang perlu diketahui."
+          error={error}
+          {...register(`notes.${code}`)}
+        />
+      )}
+    </li>
+  );
+}
+
+function LangkahAtribut({ register, errors, attrs, notes, isUpdate, was }) {
+  const diisi = ALL_CODES.filter((c) => (attrs?.[c] ?? 'unknown') !== 'unknown').length;
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-card border border-border bg-surface-subtle p-3">
+        <p role="status" className="text-sm font-semibold">
+          {diisi} dari {ALL_CODES.length} atribut Anda isi
+        </p>
+        <p className="font-sub mt-1 text-sm text-ink-secondary">
+          Isi hanya yang Anda lihat sendiri. Biarkan <strong className="font-semibold text-ink">Belum diketahui</strong> bila
+          ragu — itu tidak pernah dihitung sebagai tersedia, dan jauh lebih berguna daripada tebakan.
+        </p>
+      </div>
+
+      {ATTRIBUTE_GROUPS.map((g) => (
+        <section key={g.key} aria-label={g.label}>
+          <h3 className="mb-2 font-semibold">{g.label}</h3>
+          <ul className="divide-y divide-border rounded-card border border-border bg-surface">
+            {g.codes.map((code) => (
+              <BarisAtribut
+                key={code}
+                code={code}
+                register={register}
+                nilai={attrs?.[code]}
+                adaCatatan={!!notes?.[code]}
+                error={errors.notes?.[code]?.message}
+                sebelumnya={isUpdate ? was(code) : null}
+              />
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
+  );
+}
 
 function Wizard({ mode, facility }) {
   const isUpdate = mode === 'update';
@@ -197,31 +314,7 @@ function Wizard({ mode, facility }) {
         </div>
       )}
 
-      {step === 2 && (
-        <div className="space-y-5">
-          <p className="font-sub text-ink-secondary">Isi hanya yang Anda yakini. Pilih <strong className="text-ink">Belum diketahui</strong> bila tidak yakin; atribut itu tidak akan dihitung tersedia. Atribut utama memerlukan foto bukti.</p>
-          {ATTRIBUTE_GROUPS.map((g) => (
-            <section key={g.key} aria-label={g.label} className="space-y-2">
-              <h3 className="font-semibold">{g.label}</h3>
-              {g.codes.map((code) => (
-                <fieldset key={code} className="rounded-card border border-border bg-surface p-3">
-                  <legend className="px-1 font-semibold">{ATTRIBUTE_LABEL[code]}{CORE_CODES.has(code) && <span className="ml-2 rounded-md bg-brand-100 px-1.5 py-0.5 text-xs font-semibold text-brand-900">Butuh foto bukti</span>}</legend>
-                  {isUpdate && <p className="font-sub mb-1 text-sm text-ink-secondary">Saat ini: {was(code)}</p>}
-                  <div className="flex flex-wrap gap-2">
-                    {Object.entries(STATUS).map(([value, st]) => (
-                      <label key={value} className="flex min-h-11 cursor-pointer items-center gap-1.5 rounded-control border border-border-strong px-3 font-semibold has-[:checked]:border-brand-700 has-[:checked]:bg-brand-100 has-[:checked]:text-brand-900 has-[:focus-visible]:outline has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus">
-                        <input type="radio" value={value} className="sr-only" {...register(`attrs.${code}`)} />
-                        <span aria-hidden="true">{st.symbol}</span> {st.label}
-                      </label>
-                    ))}
-                  </div>
-                  <TextField className="mt-2" label={`Catatan ${ATTRIBUTE_LABEL[code]} (opsional)`} error={errors.notes?.[code]?.message} {...register(`notes.${code}`)} />
-                </fieldset>
-              ))}
-            </section>
-          ))}
-        </div>
-      )}
+      {step === 2 && <LangkahAtribut register={register} errors={errors} attrs={values.attrs} notes={values.notes} isUpdate={isUpdate} was={was} />}
 
       {step === 3 && (
         <div className="space-y-5">

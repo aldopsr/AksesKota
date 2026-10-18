@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Accessibility, Eye, SlidersHorizontal, X } from 'lucide-react';
-import { ATTRIBUTE_LABEL } from './constants';
+import { ATTRIBUTE_LABEL, NEEDS_PRESETS } from './constants';
 
 /**
  * Pertanyaan pertama di layar jelajah: "Apa yang Anda butuhkan?"
@@ -13,20 +13,7 @@ import { ATTRIBUTE_LABEL } from './constants';
  * Dua pilihan teratas mengisi beberapa atribut sekaligus dalam satu ketukan; menyusunnya
  * satu per satu tetap tersedia, satu tingkat lebih dalam (prinsip "jalur umum dulu").
  */
-const PRESETS = [
-  {
-    key: 'kursi_roda',
-    label: 'Saya pengguna kursi roda',
-    icon: Accessibility,
-    codes: ['ramp', 'wheelchair_path', 'accessible_toilet', 'lift'],
-  },
-  {
-    key: 'netra',
-    label: 'Saya tunanetra atau low vision',
-    icon: Eye,
-    codes: ['guiding_block', 'audio_access', 'braille'],
-  },
-];
+const IKON = { kursi_roda: Accessibility, netra: Eye };
 
 const KUNCI = 'ak_needs_prompt_ditutup';
 const sudahDitutup = () => {
@@ -76,7 +63,9 @@ export default function NeedsPrompt({ onApply, onOpenFilter }) {
       </p>
 
       <div className="mt-4 grid gap-2 sm:grid-cols-3">
-        {PRESETS.map(({ key, label, icon: Icon, codes }) => (
+        {NEEDS_PRESETS.map(({ key, label, icon, codes }) => {
+          const Icon = IKON[icon];
+          return (
           <button
             key={key}
             type="button"
@@ -91,7 +80,8 @@ export default function NeedsPrompt({ onApply, onOpenFilter }) {
               </span>
             </span>
           </button>
-        ))}
+          );
+        })}
 
         <button
           type="button"

@@ -162,3 +162,39 @@ ada rute transit yang dihitung. Bogor->Bandung menghasilkan nol opsi, bukan kara
 Terverifikasi: Bogor->Monas = Lin Bogor langsung, naik Bogor (ramp, guiding block,
 toilet aksesibel...), turun Juanda, 19 pemberhentian. Depok->Tanah Abang = ganti di
 Manggarai. Uji aturannya ada di `test/smoke.js`.
+
+## Rombak halaman profil dan tambah fasilitas (18 Okt 2026)
+
+**Profil aksesibilitas.** Dulu sepuluh kotak centang lalu tombol Simpan — benar
+secara fungsi, tapi tidak pernah menunjukkan akibat dari pilihan itu.
+
+- Preset "Mulai cepat" satu ketukan, dipindah ke `constants.js` sebagai `NEEDS_PRESETS`
+  supaya halaman profil dan prompt di peta memakai daftar yang sama (dua salinan pasti
+  menyimpang begitu salah satunya diubah).
+- Kebutuhan jadi kartu yang bisa diketuk, bukan baris centang; checkbox aslinya tetap
+  ada di balik `sr-only` untuk pembaca layar.
+- **Pratinjau hasil nyata dari database**, menempel di samping pada layar lebar dan
+  ikut berubah tiap kali pilihan diubah (ditunda 350 ms supaya empat ketukan tidak jadi
+  empat permintaan). Ini yang membuat aturan "belum diketahui tidak pernah dihitung
+  tersedia" terlihat, bukan sekadar dijanjikan lewat paragraf.
+- Bilah simpan jadi satu tombol + "Urungkan" (dulu tiga tombol sejajar).
+
+**Tambah fasilitas, langkah Atribut** — layar terberat di seluruh aplikasi. Dulu
+sepuluh fieldset bertumpuk, masing-masing dengan judul, tiga tombol, dan satu kolom
+catatan yang SELALU terbuka. Sekarang satu atribut = satu baris; kolom catatan baru
+muncul setelah status diisi dan tombol "Tambah catatan" ditekan. Sepuluh kolom teks
+yang selalu terbuka itu kini nol. Warna status mengikuti makna (hijau/merah/netral),
+jadi baris yang sudah diisi terlihat tanpa dibaca, dan ada penghitung "x dari 10
+atribut Anda isi".
+
+Teks "✓ Tersedia / ✕ Tidak tersedia / ? Belum diketahui" sengaja TIDAK disembunyikan
+di layar sempit meski lebih muat; simbol tanpa nama terlalu samar untuk pilihan yang
+menentukan data yang dibaca orang lain. Di ponsel kendalinya turun ke baris sendiri
+dan melebar penuh.
+
+Terverifikasi di peramban pada lebar 375 px: preset mengisi 4 kebutuhan dan pratinjau
+menampilkan Botani Square / RS PMI Bogor / RSUD Kota Bogor (semua 100%); langkah
+Atribut 2,8 layar dengan nol kolom teks terbuka, penghitung naik ke "1 dari 10" dan
+tombol catatan hanya muncul di baris yang sudah diisi.
+
+**Belum dirombak:** kontribusi saya, dasbor admin.

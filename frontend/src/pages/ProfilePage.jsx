@@ -1,12 +1,115 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Info } from 'lucide-react';
+import { m } from 'motion/react';
+import { Accessibility, Check, Eye, RotateCcw } from 'lucide-react';
 import { api } from '../lib/api';
-import { ATTRIBUTE_GROUPS, ATTRIBUTE_HINT, ATTRIBUTE_LABEL } from '../features/accessibility/constants';
+import { ATTRIBUTE_GROUPS, ATTRIBUTE_HINT, ATTRIBUTE_LABEL, NEEDS_PRESETS } from '../features/accessibility/constants';
+import { levelFor } from '../features/accessibility/match';
+import { MatchBadge } from '../components/status';
 import { useToast } from '../context/AppContexts';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import PageShell from '../components/layout/PageShell';
 import { Alert, Button, LinkButton, Skeleton } from '../components/ui';
+
+/**
+ * Profil aksesibilitas.
+ *
+ * Versi sebelumnya sepuluh kotak centang dalam tiga kelompok, lalu tombol Simpan.
+ * Benar secara fungsi, tapi tidak pernah menunjukkan AKIBAT dari pilihan itu —
+ * pengguna mencentang empat kotak dan tidak punya alasan untuk percaya ada yang
+ * berubah. Halaman ini sekarang menjawabnya langsung: preset satu ketukan di atas,
+ * dan pratinjau hasil nyata dari database yang ikut berubah setiap kali pilihan
+ * diubah. Itu juga yang membuat aturan "belum diketahui tidak pernah dihitung
+ * tersedia" terlihat, bukan sekadar dijanjikan lewat paragraf.
+ */
+
+const IKON_PRESET = { kursi_roda: Accessibility, netra: Eye };
+const sama = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
+
+/** Satu kebutuhan: kartu yang bisa diketuk. Checkbox aslinya tetap ada untuk pembaca layar. */
+function KartuKebutuhan({ code, dipilih, onToggle, j }) {
+  return (
+    <label
+      style={{ '--j': j }}
+      className="flex min-h-14 cursor-pointer items-start gap-3 rounded-card border border-border bg-surface p-3 transition-colors hover:border-brand-400 has-[:checked]:border-brand-700 has-[:checked]:bg-brand-50 has-[:focus-visible]:outline has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus"
+    >
+      <input type="checkbox" checked={dipilih} onChange={onToggle} className="sr-only" />
+      <span
+        aria-hidden="true"
+        className={`mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
+          dipilih ? 'border-brand-700 bg-brand-700 text-white' : 'border-border-strong'
+        }`}
+      >
+        {dipilih && <Check size={14} strokeWidth={3} />}
+      </span>
+      <span className="min-w-0">
+        <span className="block font-semibold leading-snug">{ATTRIBUTE_LABEL[code]}</span>
+        <span className="font-sub mt-0.5 block text-sm text-ink-secondary">{ATTRIBUTE_HINT[code]}</span>
+      </span>
+    </label>
+  );
+}
+
+/**
+ * Pratinjau: hasil sungguhan dari database, bukan contoh karangan.
+ *
+ * Permintaan ditunda sejenak setelah ketukan terakhir — tanpa itu, memilih empat
+ * kebutuhan berarti empat permintaan yang tiga di antaranya langsung basi.
+ */
+function Pratinjau({ codes }) {
+  const [tertunda, setTertunda] = useState(codes);
+  useEffect(() => {
+    const t = setTimeout(() => setTertunda(codes), 350);
+    return () => clearTimeout(t);
+  }, [codes]);
+
+  const kunci = tertunda.join(',');
+  const { data, isFetching } = useQuery({
+    queryKey: ['preview-profile', kunci],
+    queryFn: () => api('/facilities', { params: { needs: kunci, limit: 3 } }),
+    enabled: tertunda.length > 0,
+    placeholderData: (sebelumnya) => sebelumnya,
+  });
+
+  return (
+    <section aria-labelledby="pratinjau-judul" className="rounded-panel border border-border bg-surface-subtle p-4">
+      <h2 id="pratinjau-judul" className="text-sm font-bold uppercase tracking-wide text-ink-secondary">
+        Pratinjau hasil
+      </h2>
+      {codes.length === 0 ? (
+        <p className="font-sub mt-2 text-sm text-ink-secondary">
+          Pilih kebutuhan untuk melihat bagaimana fasilitas dinilai untuk Anda.
+        </p>
+      ) : (
+        <>
+          <p className="font-sub mt-1 text-sm text-ink-secondary">
+            Tiga fasilitas paling cocok dengan {codes.length} kebutuhan ini.
+          </p>
+          <ul className="mt-3 space-y-2" aria-busy={isFetching}>
+            {(data?.results ?? []).map((f) => (
+              <li key={f.id} className="rounded-card border border-border bg-surface p-3">
+                <p className="truncate font-semibold leading-snug">{f.name}</p>
+                <div className="mt-1.5">
+                  <MatchBadge level={levelFor(f)} percent={f.match_pct} />
+                </div>
+              </li>
+            ))}
+            {data && data.results.length === 0 && (
+              <li className="font-sub text-sm text-ink-secondary">
+                Belum ada fasilitas terdata yang cocok dengan kombinasi ini.
+              </li>
+            )}
+            {!data && isFetching && [0, 1, 2].map((i) => <li key={i}><Skeleton className="h-20 w-full" /></li>)}
+          </ul>
+          <p className="font-sub mt-3 text-xs text-ink-secondary">
+            Atribut yang belum diketahui tidak pernah dihitung tersedia, jadi angka di atas tidak
+            akan pernah lebih tinggi daripada yang benar-benar terdata.
+          </p>
+        </>
+      )}
+    </section>
+  );
+}
 
 export default function ProfilePage() {
   useDocumentTitle('Profil aksesibilitas');
@@ -18,53 +121,99 @@ export default function ProfilePage() {
   const [justSaved, setJustSaved] = useState(false);
   useEffect(() => { if (data) setSelected(data.attributes); }, [data]);
 
-  const dirty = selected.length !== saved.length || selected.some((c) => !saved.includes(c));
+  const dirty = !sama(selected, saved);
   const save = useMutation({
     mutationFn: () => api('/me/accessibility-profile', { method: 'PUT', body: { attributes: selected } }),
     onSuccess: (res) => { qc.setQueryData(['my-profile'], res); setJustSaved(true); toast.show('Profil aksesibilitas tersimpan.'); },
   });
-  const toggle = (c) => { setJustSaved(false); setSelected((s) => (s.includes(c) ? s.filter((x) => x !== c) : [...s, c])); };
+  const ubah = (next) => { setJustSaved(false); setSelected(next); };
+  const toggle = (c) => ubah(selected.includes(c) ? selected.filter((x) => x !== c) : [...selected, c]);
 
   return (
-    <PageShell title="Profil aksesibilitas" subtitle="Pilih fasilitas yang Anda butuhkan. Profil dipakai untuk menghitung kecocokan di peta, dan bisa Anda ubah kapan saja." breadcrumb={[{ label: 'Beranda', to: '/' }, { label: 'Profil aksesibilitas' }]}>
-      <div className="space-y-5">
-        <p className="font-sub flex gap-2 rounded-card bg-surface-subtle p-3 text-sm text-ink-secondary">
-          <Info aria-hidden="true" className="mt-0.5 shrink-0" size={16} />
-          Profil ini hanya dipakai untuk personalisasi hasil pencarian di akun Anda. Tidak ada pilihan yang dipilih sebelumnya.
-        </p>
+    <PageShell
+      title="Profil aksesibilitas"
+      subtitle="Pilih yang Anda butuhkan sekali. Setelah itu hasil pencarian, kartu, dan warna penanda peta dinilai dari kebutuhan Anda, bukan dari rata-rata semua orang."
+      breadcrumb={[{ label: 'Beranda', to: '/' }, { label: 'Profil aksesibilitas' }]}
+    >
+      {isLoading && <div className="space-y-3" aria-label="Memuat profil" role="status"><Skeleton className="h-40 w-full" /><Skeleton className="h-28 w-full" /></div>}
+      {error && <Alert tone="danger">{error.message}</Alert>}
 
-        {isLoading && <div className="space-y-3" aria-label="Memuat profil" role="status"><Skeleton className="h-40 w-full" /><Skeleton className="h-28 w-full" /></div>}
-        {error && <Alert tone="danger">{error.message}</Alert>}
+      {data && (
+        <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="lg:grid lg:grid-cols-[1fr_20rem] lg:items-start lg:gap-8">
+          <div className="space-y-6">
+            {/* Jalur umum dulu: sebagian besar orang terwakili salah satu dari dua preset
+                ini, dan menyusunnya sendiri butuh empat ketukan. */}
+            <section aria-labelledby="preset-judul">
+              <h2 id="preset-judul" className="mb-2 text-lg font-semibold">Mulai cepat</h2>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {NEEDS_PRESETS.map(({ key, label, icon, codes }) => {
+                  const Icon = IKON_PRESET[icon];
+                  const aktif = sama(selected, codes);
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => ubah(aktif ? [] : codes)}
+                      aria-pressed={aktif}
+                      className={`flex min-h-14 items-center gap-3 rounded-card border p-3 text-left transition-colors ${
+                        aktif ? 'border-brand-700 bg-brand-50' : 'border-border bg-surface hover:border-brand-400'
+                      }`}
+                    >
+                      <Icon aria-hidden="true" size={22} className="shrink-0 text-brand-700" />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold leading-snug">{label}</span>
+                        <span className="font-sub mt-0.5 block text-xs text-ink-muted">
+                          {codes.map((c) => ATTRIBUTE_LABEL[c]).join(', ')}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
 
-        {data && (
-          <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="space-y-6">
             {ATTRIBUTE_GROUPS.map((g) => (
               <fieldset key={g.key}>
-                <legend className="mb-1.5 text-lg font-semibold">{g.label}</legend>
-                <div className="divide-y divide-border rounded-card border border-border bg-surface">
-                  {g.codes.map((code) => (
-                    <label key={code} className="flex min-h-14 cursor-pointer items-start gap-3 px-4 py-3 hover:bg-surface-subtle">
-                      <input type="checkbox" checked={selected.includes(code)} onChange={() => toggle(code)} className="mt-0.5 size-5 shrink-0 accent-brand-700" />
-                      <span><span className="block font-semibold">{ATTRIBUTE_LABEL[code]}</span><span className="font-sub block text-sm text-ink-secondary">{ATTRIBUTE_HINT[code]}</span></span>
-                    </label>
+                <legend className="mb-2 text-lg font-semibold">{g.label}</legend>
+                <div className="ak-chips grid gap-2 sm:grid-cols-2">
+                  {g.codes.map((code, j) => (
+                    <KartuKebutuhan key={code} code={code} j={j} dipilih={selected.includes(code)} onToggle={() => toggle(code)} />
                   ))}
                 </div>
               </fieldset>
             ))}
+          </div>
 
-            <div className="sticky bottom-0 -mx-4 border-t border-border bg-canvas px-4 py-3 sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
-              <p role="status" className="font-sub mb-2 text-sm text-ink-secondary">{selected.length} kebutuhan dipilih{dirty ? ' · ada perubahan yang belum disimpan' : ''}</p>
-              {save.error && <Alert tone="danger" className="mb-2">{save.error.message}</Alert>}
-              <div className="flex flex-wrap gap-2">
-                <Button type="submit" loading={save.isPending} disabled={!dirty}>Simpan perubahan</Button>
-                <Button variant="secondary" disabled={!dirty} onClick={() => { setSelected(saved); setJustSaved(false); }}>Batalkan perubahan</Button>
-                <Button variant="ghost" disabled={selected.length === 0} onClick={() => { setSelected([]); setJustSaved(false); }}>Kosongkan semua</Button>
+          {/* Di layar lebar pratinjau menempel di samping agar perubahan terlihat tanpa
+              menggulir; di mobile ia jatuh ke bawah daftar, tepat sebelum bilah simpan. */}
+          <div className="mt-6 lg:sticky lg:top-20 lg:mt-0">
+            <Pratinjau codes={selected} />
+          </div>
+
+          <div className="sticky bottom-0 z-10 -mx-4 mt-6 border-t border-border bg-canvas/95 px-4 py-3 backdrop-blur lg:col-span-2 lg:mx-0 lg:rounded-card lg:border">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <p role="status" className="font-sub text-sm text-ink-secondary">
+                <strong className="font-semibold text-ink">{selected.length}</strong> kebutuhan dipilih
+                {dirty && <span className="font-semibold text-warning"> · belum disimpan</span>}
+              </p>
+              <div className="ml-auto flex flex-wrap items-center gap-2">
+                {dirty && (
+                  <Button variant="ghost" size="sm" onClick={() => ubah(saved)}>
+                    <RotateCcw aria-hidden="true" size={15} /> Urungkan
+                  </Button>
+                )}
+                <Button type="submit" loading={save.isPending} disabled={!dirty}>Simpan</Button>
               </div>
-              {justSaved && !dirty && <div className="mt-3"><LinkButton to="/map" variant="secondary">Jelajahi dengan profil ini</LinkButton></div>}
             </div>
-          </form>
-        )}
-      </div>
+            {save.error && <Alert tone="danger" className="mt-2">{save.error.message}</Alert>}
+            {justSaved && !dirty && (
+              <m.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.24, ease: [0.23, 1, 0.32, 1] }} className="mt-3">
+                <LinkButton to="/map" variant="secondary">Jelajahi peta dengan profil ini</LinkButton>
+              </m.div>
+            )}
+          </div>
+        </form>
+      )}
     </PageShell>
   );
 }
