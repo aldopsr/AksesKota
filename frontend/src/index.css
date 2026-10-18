@@ -159,6 +159,61 @@
 @media (hover: none) {
   .ak-marker[data-selected="true"] .ak-marker-label { display: block; }
 }
+
+/* Marker memantul sekali saat dipilih dari daftar. Tujuannya menjawab pertanyaan
+   "yang mana tadi di peta?" — tanpa ini pengguna harus memindai sendiri di antara
+   puluhan penanda. Sekali pantul, lalu diam; bukan animasi berulang yang mengganggu. */
+@keyframes ak-pop {
+  0%   { transform: scale(1); }
+  45%  { transform: scale(1.28); }
+  100% { transform: scale(1); }
+}
+.ak-marker--pop { animation: ak-pop 320ms cubic-bezier(0.23, 1, 0.32, 1); }
+/* Marker "Kurang Sesuai" sudah diputar 45 derajat; animasinya harus mempertahankan rotasi
+   itu, kalau tidak ia melompat jadi kotak lurus saat memantul. */
+.ak-marker[data-level="low"].ak-marker--pop { animation-name: ak-pop-low; }
+@keyframes ak-pop-low {
+  0%   { transform: rotate(45deg) scale(1); }
+  45%  { transform: rotate(45deg) scale(1.28); }
+  100% { transform: rotate(45deg) scale(1); }
+}
+
+/* Hasil masuk bergiliran saat filter berubah, supaya terbaca "diurutkan ulang" dan bukan
+   "diganti". Delay hanya untuk delapan kartu pertama: selebihnya langsung, karena menunggu
+   kartu ke-dua puluh membuat daftar terasa lambat, bukan hidup. */
+@keyframes ak-masuk {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+.ak-stagger > li {
+  animation: ak-masuk 260ms cubic-bezier(0.23, 1, 0.32, 1) backwards;
+  animation-delay: calc(min(var(--i, 0), 8) * 40ms);
+}
+/* Chip ✓✗? masuk bergiliran di dalam kartunya. Ini momen paling khas produk ini, dan
+   urutannya membuat mata membaca satu per satu alih-alih melihat sebaris warna.
+   Delay-nya ditumpuk DI ATAS delay kartu induknya (--i diwarisi dari <li>), jadi chip
+   tidak pernah muncul sebelum kartu yang memuatnya. 22ms, bukan 40: ini gerak di dalam
+   satu benda, bukan antar benda, jadi harus lebih rapat. */
+.ak-stagger .ak-chips > li {
+  animation: ak-masuk 200ms cubic-bezier(0.23, 1, 0.32, 1) backwards;
+  animation-delay: calc(min(var(--i, 0), 8) * 40ms + 120ms + var(--j, 0) * 22ms);
+}
+
+/* Isi asli menyeberang dari skeleton dengan blur tipis. Tanpa blur, mata melihat DUA
+   benda saling tumpang tindih saat bertukar; blur menjembatani keduanya sehingga
+   terbaca sebagai satu benda yang menajam. Di bawah 20px, karena blur mahal di Safari. */
+@keyframes ak-menajam {
+  from { opacity: 0; filter: blur(3px); }
+  to   { opacity: 1; filter: blur(0); }
+}
+.ak-menajam { animation: ak-menajam 220ms cubic-bezier(0.23, 1, 0.32, 1) backwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ak-marker--pop, .ak-stagger > li, .ak-stagger .ak-chips > li { animation: none; }
+  /* Pada mode ini kemunculan tetap dilunakkan dengan opacity saja — yang dihindari
+     adalah gerak dan blur, bukan semua perubahan. */
+  .ak-menajam { animation: none; }
+}
 .ak-marker[data-selected="true"] {
   width: 46px; height: 46px; font-size: 19px; z-index: 5;
   box-shadow: 0 0 0 3px var(--color-focus), 0 2px 8px rgb(17 24 39 / .4);

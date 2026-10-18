@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { m } from 'motion/react';
 import { MapPin, Navigation } from 'lucide-react';
 import { ATTRIBUTE_LABEL, CATEGORY_LABEL, STATUS } from '../accessibility/constants';
 import { categoryIcon } from '../accessibility/icons';
@@ -12,10 +13,10 @@ import { formatDate } from '../../lib/format';
  * terbaca pengguna buta warna; warna hanya memperkuat. `?` berarti belum diketahui —
  * bukan "tidak ada", dan itu dinyatakan lewat teks pada pembaca layar.
  */
-function AttributeChip({ code, status }) {
+function AttributeChip({ code, status, urutan = 0 }) {
   const s = STATUS[status] ?? STATUS.unknown;
   return (
-    <li className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${s.cls}`}>
+    <li style={{ '--j': urutan }} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${s.cls}`}>
       <span aria-hidden="true">{s.symbol}</span>
       {ATTRIBUTE_LABEL[code] ?? code}
       <span className="sr-only">: {s.label}</span>
@@ -44,9 +45,12 @@ export default function FacilityCard({ facility: f, level, distance, selected, t
     >
       {/* Baris penilaian: hal pertama yang dibaca. Jarak menempel di sini karena
           "seberapa cocok" dan "seberapa jauh" adalah satu keputusan, bukan dua. */}
+      {/* layoutId: nama dan lencana kecocokan adalah elemen yang SAMA dengan yang ada di
+          panel detail. Saat kartu dibuka, keduanya melebar ke posisi barunya alih-alih
+          hilang lalu muncul lagi — aplikasi terasa satu ruang, bukan tumpukan halaman. */}
       {f.label && (
         <div className="mb-2 flex items-center justify-between gap-2">
-          <MatchBadge level={level} percent={f.match_pct} />
+          <m.div layoutId={`match-${f.id}`}><MatchBadge level={level} percent={f.match_pct} /></m.div>
           {jarak && <span className="font-sub shrink-0 text-sm font-semibold text-ink-secondary">{jarak}</span>}
         </div>
       )}
@@ -57,9 +61,9 @@ export default function FacilityCard({ facility: f, level, distance, selected, t
             di sebelahnya hanya bersaing menarik mata tanpa mengatakan apa pun. */}
         <span aria-hidden="true" className="inline-flex size-10 shrink-0 items-center justify-center rounded-control bg-surface-subtle text-ink-secondary"><Icon size={20} /></span>
         <div className="min-w-0 flex-1">
-          <h3 className="text-base font-semibold leading-snug">
+          <m.h3 layoutId={`nama-${f.id}`} className="text-base font-semibold leading-snug">
             <Link to={to} aria-current={selected ? 'true' : undefined} className="after:absolute after:inset-0 focus-visible:outline-none">{f.name}</Link>
-          </h3>
+          </m.h3>
           <p className="font-sub text-sm text-ink-secondary">
             {CATEGORY_LABEL[f.category] ?? f.category_name}
             {!f.label && jarak && <> · <strong className="font-semibold text-ink">{jarak}</strong></>}
@@ -74,8 +78,8 @@ export default function FacilityCard({ facility: f, level, distance, selected, t
       {/* MANA yang terpenuhi, bukan sekadar "3 dari 4". Bagi pengguna kursi roda,
           "ada ramp tapi tidak ada lift" adalah informasi yang sama sekali berbeda dari 75%. */}
       {kebutuhan.length > 0 && (
-        <ul className="mt-3 flex flex-wrap gap-1.5">
-          {kebutuhan.map(([code, status]) => <AttributeChip key={code} code={code} status={status} />)}
+        <ul className="ak-chips mt-3 flex flex-wrap gap-1.5">
+          {kebutuhan.map(([code, status], j) => <AttributeChip key={code} code={code} status={status} urutan={j} />)}
         </ul>
       )}
 

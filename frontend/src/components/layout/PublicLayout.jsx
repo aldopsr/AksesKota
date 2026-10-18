@@ -53,7 +53,7 @@ function Header() {
             <Link to="/map?intent=update" className={menuItemClass}><ClipboardList aria-hidden="true" size={18} /> Perbarui data fasilitas</Link>
             {session && <Link to="/my-contributions" className={menuItemClass}><ListChecks aria-hidden="true" size={18} /> Kontribusi saya</Link>}
           </Menu>
-          <Link to="/#cara-kerja" className={navCls(false)}>Cara kerja</Link>
+          <Link to="/tentang#cara-kerja" className={navCls(false)}>Cara kerja</Link>
         </nav>
         <div className="ml-auto flex items-center gap-2">
           {session ? <AccountMenu /> : (
@@ -102,7 +102,7 @@ function Footer() {
         </div>
         <nav aria-label="Tautan footer">
           <ul className="font-semibold">
-            {[['/map', 'Jelajahi fasilitas'], ['/facilities/new', 'Tambah fasilitas'], ['/#cara-kerja', 'Cara kerja']].map(([to, label]) => (
+            {[['/map', 'Jelajahi fasilitas'], ['/facilities/new', 'Tambah fasilitas'], ['/tentang#cara-kerja', 'Cara kerja']].map(([to, label]) => (
               <li key={to}><Link to={to} className="inline-flex min-h-11 items-center text-ink-secondary hover:text-brand-800">{label}</Link></li>
             ))}
           </ul>

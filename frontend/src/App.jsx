@@ -26,12 +26,17 @@ export default function App() {
     <Suspense fallback={<LoadingBlock label="Memuat halaman…" />}>
       <Routes>
         <Route element={<PublicLayout />}>
-          <Route index element={<HomePage />} />
-          {/* Ruang jelajah: satu komponen untuk /map dan /facilities/:id (peta tidak dimuat ulang) */}
+          {/* PRD §13: "Peta adalah antarmuka utama AksesKota". Halaman depan dulu berisi
+              penjelasan setinggi 4,3 layar HP sebelum ada yang bisa disentuh — itu melawan
+              dokumennya sendiri. Sekarang alamat utama langsung peta, dan penjelasannya
+              pindah ke /tentang bagi yang memang ingin membaca.
+              Satu komponen untuk /, /map, dan /facilities/:id supaya peta tidak dimuat ulang. */}
           <Route element={<ExplorePage />}>
+            <Route index element={null} />
             <Route path="map" element={null} />
             <Route path="facilities/:id" element={null} />
           </Route>
+          <Route path="tentang" element={<HomePage />} />
           <Route path="login" element={<LoginPage />} />
           <Route path="register" element={<RegisterPage />} />
 

@@ -83,7 +83,21 @@ const MapCanvas = forwardRef(function MapCanvas({
   }, [items]);
 
   useEffect(() => {
-    markersRef.current.forEach((x) => { x.el.dataset.selected = String(String(x.id) === String(selectedId)); });
+    markersRef.current.forEach((x) => {
+      const terpilih = String(x.id) === String(selectedId);
+      const baruTerpilih = terpilih && x.el.dataset.selected !== 'true';
+      x.el.dataset.selected = String(terpilih);
+      // Pantul sekali hanya pada transisi menjadi-terpilih, bukan di setiap render.
+      //
+      // Lepas-reflow-pasang, bukan menunggu `animationend`: kalau event itu tidak sempat
+      // menyala (tab tersembunyi, halaman berhenti menggambar), kelasnya tertinggal dan
+      // marker yang sama tidak akan pernah memantul lagi. Cara ini selalu memutar ulang.
+      if (baruTerpilih) {
+        x.el.classList.remove('ak-marker--pop');
+        void x.el.offsetWidth; // paksa reflow supaya animasinya dihitung dari awal
+        x.el.classList.add('ak-marker--pop');
+      }
+    });
   }, [selectedId, items]);
 
   const fitKey = items.map((i) => i.facility.id).join(',');

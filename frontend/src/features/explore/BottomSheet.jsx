@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 
 /**
  * Panel bawah yang bisa ditarik di atas peta (mobile).
@@ -25,7 +25,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 const SENTAKAN = 0.4; // px/ms — di atas ini dianggap sentakan, bukan seretan
 const REDAM = 0.35; // seberapa jauh panel masih bergerak setelah melewati batas atas
 
-export default function BottomSheet({ titikPeek = 120, label, ringkasan, children }) {
+const BottomSheet = forwardRef(function BottomSheet({ titikPeek = 120, label, ringkasan, children }, ref) {
   const panelRef = useRef(null);
   const [snapIdx, setSnapIdx] = useState(1); // 0 peek, 1 setengah, 2 penuh
   const [menarik, setMenarik] = useState(false);
@@ -35,6 +35,9 @@ export default function BottomSheet({ titikPeek = 120, label, ringkasan, childre
   // memicu render ulang React.
   const [offset, setOffset] = useState(null);
   const snaps = useRef([0, 0, 0]);
+  // Cermin dari snapIdx. Dua ketukan cepat pada gagang membaca state yang sama dari
+  // closure dan menghasilkan posisi yang sama; ref selalu memberi nilai terkini.
+  const snapRef = useRef(1);
   const geser = useRef({ aktif: false, mulaiY: 0, mulaiOffset: 0, jejak: [] });
 
   // Offset = seberapa jauh panel digeser ke bawah dari posisi penuh.
@@ -52,6 +55,7 @@ export default function BottomSheet({ titikPeek = 120, label, ringkasan, childre
   }, [hitungSnaps]);
 
   const keSnap = useCallback((idx) => {
+    snapRef.current = idx;
     setSnapIdx(idx);
     setOffset(snaps.current[idx]);
   }, []);
@@ -104,6 +108,14 @@ export default function BottomSheet({ titikPeek = 120, label, ringkasan, childre
     keSnap(terdekat);
   };
 
+  // Dipakai saat marker diketuk sementara panel sedang di posisi terkecil: tanpa ini
+  // kartu yang digulir ke tampilan berada di balik panel yang tertutup.
+  // keSnap, bukan setSnapIdx: posisi panel digerakkan oleh state `offset`, dan mengubah
+  // indeksnya saja tidak memindahkan apa pun.
+  useImperativeHandle(ref, () => ({
+    minimalSetengah: () => { if (snapRef.current === 0) keSnap(1); },
+  }), [keSnap]);
+
   const namaPosisi = ['sebagian kecil', 'setengah layar', 'satu layar penuh'];
 
   return (
@@ -129,11 +141,11 @@ export default function BottomSheet({ titikPeek = 120, label, ringkasan, childre
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
-        onClick={() => keSnap(snapIdx === 2 ? 0 : snapIdx + 1)}
+        onClick={() => keSnap(snapRef.current === 2 ? 0 : snapRef.current + 1)}
         onKeyDown={(e) => {
           // Keyboard tidak bisa menyeret, jadi panah naik/turun memindahkan posisi.
-          if (e.key === 'ArrowUp') { e.preventDefault(); keSnap(Math.min(2, snapIdx + 1)); }
-          if (e.key === 'ArrowDown') { e.preventDefault(); keSnap(Math.max(0, snapIdx - 1)); }
+          if (e.key === 'ArrowUp') { e.preventDefault(); keSnap(Math.min(2, snapRef.current + 1)); }
+          if (e.key === 'ArrowDown') { e.preventDefault(); keSnap(Math.max(0, snapRef.current - 1)); }
         }}
         className="shrink-0 cursor-grab touch-none select-none px-4 pb-2 pt-3 active:cursor-grabbing"
       >
@@ -147,4 +159,6 @@ export default function BottomSheet({ titikPeek = 120, label, ringkasan, childre
       </div>
     </div>
   );
-}
+});
+
+export default BottomSheet;

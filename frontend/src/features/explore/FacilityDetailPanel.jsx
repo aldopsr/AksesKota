@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { m } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Flag, MapPin, MessageSquarePlus, Navigation, Pencil, SlidersHorizontal, Info } from 'lucide-react';
@@ -25,7 +26,7 @@ function Section({ id, title, children }) {
 }
 
 export default function FacilityDetailPanel({
-  id, required, usingProfile, distance, onBack, onStartRoute, onShowMap, onEditNeeds, onLoaded, routeSlot, backLabel = 'Kembali ke hasil',
+  id, required, usingProfile, distance, onBack, onStartRoute, onShowMap, onEditNeeds, onLoaded, routeSlot, awal = null, backLabel = 'Kembali ke hasil',
 }) {
   const needsParam = required.length ? required.join(',') : 'none';
   const { data, isLoading, error, refetch } = useQuery({ queryKey: ['facility', id, needsParam], queryFn: () => api(`/facilities/${id}`, { params: { needs: needsParam } }) });
@@ -37,10 +38,27 @@ export default function FacilityDetailPanel({
   useEffect(() => { if (f) onLoaded?.(f); }, [f?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const parts = useMemo(() => (f ? breakdown(f.attributes, required) : null), [f, required]);
 
+  // Judul, kategori, dan kecocokan sudah kita punya dari kartu yang barusan diketuk —
+  // tidak ada alasan menunggu jaringan untuk menampilkannya. Dulu seluruh panel kosong
+  // selama ±1 detik, dan transisi kartu->detail mustahil terjadi karena pasangan
+  // elemennya belum lahir saat kartunya menghilang.
   if (isLoading) {
     return (
-      <div className="space-y-3 p-4" role="status" aria-label="Memuat detail fasilitas">
-        <Skeleton className="h-8 w-1/3" /><Skeleton className="h-7 w-3/4" /><Skeleton className="h-4 w-1/2" /><Skeleton className="h-40 w-full" />
+      <div className="p-4" role="status" aria-label="Memuat detail fasilitas">
+        {awal ? (
+          <>
+            <m.h2 layoutId={`nama-${awal.id}`} className="text-2xl font-bold leading-tight">{awal.name}</m.h2>
+            <p className="font-semibold text-brand-800">{CATEGORY_LABEL[awal.category] ?? awal.category_name}</p>
+            {awal.label && (
+              <m.div layoutId={`match-${awal.id}`} className="mt-2 inline-block">
+                <MatchBadge level={levelFor(awal)} percent={awal.match_pct} />
+              </m.div>
+            )}
+          </>
+        ) : (
+          <><Skeleton className="h-8 w-1/3" /><Skeleton className="h-7 w-3/4" /></>
+        )}
+        <div className="mt-4 space-y-3"><Skeleton className="h-4 w-1/2" /><Skeleton className="h-40 w-full" /></div>
       </div>
     );
   }
@@ -58,13 +76,13 @@ export default function FacilityDetailPanel({
   const byCode = Object.fromEntries(f.attributes.map((a) => [a.code, a]));
 
   return (
-    <article aria-labelledby="facility-name">
+    <article aria-labelledby="facility-name" className="ak-menajam">
       <header className="border-b border-border bg-surface px-4 pb-4 pt-2">
         <Button variant="link" onClick={onBack} className="min-h-11"><ArrowLeft aria-hidden="true" size={16} /> {backLabel}</Button>
         <div className="mt-1 flex items-start gap-3">
           <span aria-hidden="true" className="inline-flex size-11 shrink-0 items-center justify-center rounded-control bg-brand-100 text-brand-800"><Icon size={22} /></span>
           <div className="min-w-0">
-            <h2 id="facility-name" className="text-2xl font-bold leading-tight">{f.name}</h2>
+            <m.h2 layoutId={`nama-${f.id}`} id="facility-name" className="text-2xl font-bold leading-tight">{f.name}</m.h2>
             <p className="font-semibold text-brand-800">{CATEGORY_LABEL[f.category] ?? f.category_name}</p>
             <p className="font-sub mt-1 flex items-start gap-1 text-ink-secondary"><MapPin aria-hidden="true" className="mt-1 shrink-0" size={15} /><span>{f.address}{distance != null && ` (${formatDistance(distance)} dari lokasi Anda)`}</span></p>
           </div>
@@ -89,7 +107,7 @@ export default function FacilityDetailPanel({
             <div className="space-y-3 rounded-card border border-border bg-surface p-4">
               <div className="flex flex-wrap items-center gap-3">
                 <p className="text-4xl font-extrabold tabular-nums">{f.match_pct}<span className="text-2xl">%</span></p>
-                <MatchBadge level={level} />
+                <m.div layoutId={`match-${f.id}`}><MatchBadge level={level} percent={f.match_pct} /></m.div>
               </div>
               <p><strong>{f.needs_met} dari {f.needs_total}</strong> kebutuhan terpenuhi{usingProfile && <span className="font-sub text-ink-secondary"> (berdasarkan profil Anda)</span>}.</p>
               <dl className="space-y-1.5 text-sm">

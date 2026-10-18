@@ -40,6 +40,7 @@ export default function ExplorePage() {
 
   const mapRef = useRef(null);
   const [filterOpen, setFilterOpen] = useState(false);
+  const sheetRef = useRef(null);
   const [qInput, setQInput] = useState(params.q);
   const [limit, setLimit] = useState(PAGE);
   const [previewId, setPreviewId] = useState(null);
@@ -132,7 +133,12 @@ export default function ExplorePage() {
   const onMarkerSelect = useCallback((mid) => {
     if (id) { navigate({ pathname: `/facilities/${mid}`, search: location.search }); return; }
     setPreviewId(mid);
-    if (isDesktop) document.getElementById(`facility-${mid}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    // Di HP kartunya ada di dalam panel bawah: naikkan dulu panelnya, baru gulirkan.
+    // Tanpa ini mengetuk marker di layar kecil tidak terlihat melakukan apa pun.
+    if (!isDesktop) sheetRef.current?.minimalSetengah();
+    requestAnimationFrame(() => {
+      document.getElementById(`facility-${mid}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    });
   }, [id, navigate, location.search, isDesktop]);
   const onDetailLoaded = useCallback((f) => { setLoaded(f); setFocus({ lng: f.lon, lat: f.lat, zoom: 15, key: `sel-${f.id}` }); }, []);
   const openDetail = (fid) => { navigate({ pathname: `/facilities/${fid}`, search: location.search }); };
@@ -240,9 +246,11 @@ export default function ExplorePage() {
         </EmptyState>
       )}
 
-      <ul className="space-y-2.5">
-        {items.map(({ facility, level, distance }) => (
-          <li key={facility.id}>
+      {/* key berganti saat filter berubah supaya animasi masuk terputar ulang —
+          tanpa itu ia hanya main sekali seumur halaman. */}
+      <ul key={filtersKey} className="ak-stagger space-y-2.5">
+        {items.map(({ facility, level, distance }, i) => (
+          <li key={facility.id} style={{ '--i': i }}>
             <FacilityCard
               facility={facility} level={level} distance={distance} selected={String(facility.id) === String(previewId)}
               to={`/facilities/${facility.id}${location.search}`} onRoute={() => startRoute(facility.id)}
@@ -273,6 +281,7 @@ export default function ExplorePage() {
       distance={results.find((f) => String(f.id) === id)?.distance_m ?? null}
       onBack={() => navigate({ pathname: '/map', search: buildExplore({ ...params, route: false }) })}
       onStartRoute={() => startRoute(id)} onEditNeeds={() => setFilterOpen(true)} onLoaded={onDetailLoaded}
+      awal={results.find((x) => String(x.id) === String(id)) ?? loaded ?? null}
       routeSlot={routeSummary}
     />
   );
@@ -313,6 +322,7 @@ export default function ExplorePage() {
             dengan tombol Daftar/Peta, pengguna harus bolak-balik dan kehilangan konteks. */}
         {!isDesktop && (
           <BottomSheet
+            ref={sheetRef}
             label={id ? 'Detail fasilitas' : 'Hasil pencarian'}
             ringkasan={
               <p role="status" className="truncate text-center text-sm font-semibold">

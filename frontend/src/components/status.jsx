@@ -1,4 +1,5 @@
 import { Check, CircleHelp, Clock, Star, X, CheckCircle2, XCircle } from 'lucide-react';
+import AngkaBerjalan from './AngkaBerjalan';
 import { ATTRIBUTES, ATTRIBUTE_HINT, ATTRIBUTE_LABEL, STATUS } from '../features/accessibility/constants';
 import { Badge } from './ui';
 import { formatDate } from '../lib/format';
@@ -11,7 +12,7 @@ export function MatchBadge({ level, percent = null, className = '' }) {
     <Badge className={`${level.cls} ${className}`}>
       {level.symbol && <span aria-hidden="true">{level.symbol}</span>}
       {level.label}
-      {percent !== null && percent !== undefined && <span className="tabular-nums">{percent}%</span>}
+      {percent !== null && percent !== undefined && <span><AngkaBerjalan nilai={percent} />%</span>}
     </Badge>
   );
 }
