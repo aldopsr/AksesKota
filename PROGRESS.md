@@ -198,3 +198,41 @@ Atribut 2,8 layar dengan nol kolom teks terbuka, penghitung naik ke "1 dari 10" 
 tombol catatan hanya muncul di baris yang sudah diisi.
 
 **Belum dirombak:** kontribusi saya, dasbor admin.
+
+## Rombak dasbor admin dan kontribusi saya (18 Okt 2026)
+
+**Kontribusi saya.** Tiap kartu dulu hanya punya satu lencana status. "Menunggu
+verifikasi" benar, tapi tidak menjawab pertanyaan yang sebenarnya ada di kepala
+kontributor: ini masih jalan atau sudah tersangkut? Sekarang tiap kartu punya jejak
+tiga langkah Dikirim -> Ditinjau admin -> Keputusan, memakai cerita yang sama dengan
+yang dijanjikan di halaman Tentang. Ditambah penanda buka/tutup, yang sebelumnya
+tidak ada sama sekali sehingga kartunya tidak terlihat bisa dibuka.
+
+Satu jebakan yang sempat masuk: pada usulan yang masih menunggu, langkah ketiga
+berbunyi "Disetujui" dan hanya diredupkan warnanya. Dibaca sekilas, dan oleh pembaca
+layar, itu menjanjikan hasil yang belum terjadi. Sekarang berbunyi "Keputusan"
+sampai keputusannya benar-benar ada.
+
+**Antrean admin.**
+- Tabel selebar 44rem yang harus digeser menyamping diganti daftar tautan. Antrean ini
+  bukan tabel data untuk dibandingkan antar-baris — tiap baris adalah satu hal untuk
+  dibuka dan diputuskan — jadi daftar lebih tepat, dan muat di lebar berapa pun.
+  (Tabel diff di halaman detail verifikasi TETAP tabel: itu memang perbandingan.)
+- Yang masih menunggu diurutkan dari yang **paling lama**, bukan terbaru. Antrean
+  verifikasi yang menaruh kiriman terbaru di atas membuat usulan lama terdorong ke
+  bawah dan tidak pernah ditinjau.
+- Lama menunggu ("menunggu 5 hari") ikut baris keterangan, bukan kolom kanan — sebagai
+  kolom ia harus disembunyikan di layar sempit, padahal justru itu dasar triasenya.
+- Subjudul "Tinjau kontribusi, tangani laporan, dan moderasi ulasan" hanya mengulang
+  nama tab. Diganti keadaan nyata: "3 kontribusi menunggu verifikasi, yang terlama
+  sudah 5 hari."
+
+**Bug yang ketemu saat mengukur:** seluruh halaman admin bisa digeser menyamping di
+375 px. Tombol "Lihat situs" diberi kelas `hidden sm:inline-flex`, tapi `buttonClass`
+sudah memasang `inline-flex` — dua utilitas display bertabrakan dan urutan CSS yang
+menang, jadi tombol itu tetap tampil di ponsel. Diperbaiki dengan membungkusnya.
+Setelahnya `scrollWidth` = lebar viewport, tidak ada geseran.
+
+Verifikasi memakai stub respons `/auth/*` dan `/admin/*` di peramban (database masih
+0 kontribusi); tidak ada akun Supabase yang dibuat dan tidak ada baris yang ditulis
+ke database.

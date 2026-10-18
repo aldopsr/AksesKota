@@ -1,14 +1,66 @@
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ClipboardList } from 'lucide-react';
+import { Check, ChevronDown, ClipboardList, X } from 'lucide-react';
 import { api } from '../lib/api';
 import { CONTRIBUTION_STATUS, contributionKind } from '../features/accessibility/constants';
 import { summarizePayload } from '../features/contribute/summary';
 import { ContributionBadge } from '../components/status';
-import { formatDateTime } from '../lib/format';
+import { formatDateTime, lamaSejak } from '../lib/format';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import PageShell from '../components/layout/PageShell';
 import { Alert, EmptyState, LinkButton, Skeleton, Tabs, panelId } from '../components/ui';
+
+/**
+ * Jejak satu usulan: Dikirim -> Ditinjau -> Hasil.
+ *
+ * Sebelumnya tiap kartu hanya punya satu lencana status. "Menunggu verifikasi"
+ * benar, tapi tidak menjawab pertanyaan yang sebenarnya ada di kepala kontributor:
+ * ini masih jalan atau sudah tersangkut? Tiga titik ini memakai cerita yang sama
+ * dengan yang dijanjikan di halaman Tentang, jadi apa yang dibaca sebelum mengirim
+ * cocok dengan apa yang dilihat sesudahnya.
+ */
+function Jejak({ status, dikirim, ditinjau }) {
+  const selesai = status !== 'pending';
+  const langkah = [
+    { nama: 'Dikirim', aktif: true, waktu: lamaSejak(dikirim) + ' lalu' },
+    { nama: 'Ditinjau admin', aktif: selesai, waktu: selesai ? null : 'sedang berjalan' },
+    {
+      // Selama belum ada keputusan, langkah ini TIDAK boleh berbunyi "Disetujui".
+      // Diredupkan saja tidak cukup: dibaca sekilas, dan oleh pembaca layar, itu
+      // menjanjikan hasil yang belum terjadi.
+      nama: !selesai ? 'Keputusan' : status === 'rejected' ? 'Ditolak' : 'Disetujui',
+      aktif: selesai,
+      gagal: status === 'rejected',
+      waktu: selesai && ditinjau ? lamaSejak(ditinjau) + ' lalu' : null,
+    },
+  ];
+
+  return (
+    <ol className="flex items-start gap-1">
+      {langkah.map((l, i) => (
+        <li key={l.nama} className="flex-1">
+          {/* Garis penghubung ada DI ATAS titik, bukan di antara dua elemen terpisah,
+              supaya lebarnya ikut kolom dan tidak perlu dihitung. */}
+          <div className="flex items-center gap-1">
+            <span
+              aria-hidden="true"
+              className={`inline-flex size-5 shrink-0 items-center justify-center rounded-full text-white ${
+                !l.aktif ? 'bg-border-strong' : l.gagal ? 'bg-danger' : 'bg-success'
+              }`}
+            >
+              {l.aktif && (l.gagal ? <X size={13} strokeWidth={3} /> : <Check size={13} strokeWidth={3} />)}
+            </span>
+            {i < langkah.length - 1 && (
+              <span aria-hidden="true" className={`h-0.5 flex-1 rounded-full ${langkah[i + 1].aktif ? 'bg-success' : 'bg-border'}`} />
+            )}
+          </div>
+          <p className={`mt-1.5 text-xs font-semibold leading-tight ${l.aktif ? '' : 'text-ink-muted'}`}>{l.nama}</p>
+          {l.waktu && <p className="font-sub text-xs leading-tight text-ink-secondary">{l.waktu}</p>}
+        </li>
+      ))}
+    </ol>
+  );
+}
 
 export default function MyContributionsPage() {
   useDocumentTitle('Kontribusi saya');
@@ -49,12 +101,22 @@ export default function MyContributionsPage() {
               return (
                 <li key={c.id}>
                   <details className="group rounded-card border border-border bg-surface">
-                    <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2 p-4 [&::-webkit-details-marker]:hidden">
-                      <div className="min-w-0">
-                        <p className="font-semibold">{c.facility_name}</p>
-                        <p className="font-sub text-sm text-ink-secondary">{contributionKind(c)} · #{c.id} · {formatDateTime(c.created_at)}</p>
+                    <summary className="cursor-pointer list-none p-4 [&::-webkit-details-marker]:hidden">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-semibold">{c.facility_name}</p>
+                          <p className="font-sub text-sm text-ink-secondary">{contributionKind(c)} · #{c.id} · {formatDateTime(c.created_at)}</p>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <ContributionBadge status={c.status} label={st.label} cls={st.cls} />
+                          {/* Tanpa penanda ini kartunya tidak terlihat bisa dibuka sama sekali. */}
+                          <ChevronDown aria-hidden="true" size={18} className="text-ink-secondary transition-transform group-open:rotate-180" />
+                        </div>
                       </div>
-                      <ContributionBadge status={c.status} label={st.label} cls={st.cls} />
+                      <div className="mt-3">
+                        <Jejak status={c.status} dikirim={c.created_at} ditinjau={c.reviewed_at} />
+                      </div>
+                      <span className="sr-only">Buka rincian usulan</span>
                     </summary>
                     <div className="space-y-3 border-t border-border p-4">
                       {changes.length > 0 && (

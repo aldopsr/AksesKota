@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Inbox } from 'lucide-react';
+import { ChevronRight, Clock, Inbox } from 'lucide-react';
 import { api } from '../lib/api';
 import { ATTRIBUTE_LABEL, CATEGORY_LABEL, CONTRIBUTION_STATUS, REPORT_LABEL, STATUS, contributionKind } from '../features/accessibility/constants';
 import { ContributionBadge, Stars } from '../components/status';
-import { formatDateTime } from '../lib/format';
+import { formatDateTime, lamaSejak } from '../lib/format';
 import { useToast } from '../context/AppContexts';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import PageShell from '../components/layout/PageShell';
@@ -19,7 +19,16 @@ function ContributionsTab() {
   const status = sp.get('status') ?? 'pending';
   const [term, setTerm] = useState('');
   const { data, isLoading, error } = useQuery({ queryKey: ['admin', 'contributions'], queryFn: () => api('/admin/contributions') });
-  const rows = (data ?? []).filter((c) => (status === 'all' || c.status === status) && (!term || `${c.facility_name} ${c.submitter_name}`.toLowerCase().includes(term.toLowerCase())));
+  const cocok = (data ?? []).filter((c) => (status === 'all' || c.status === status) && (!term || `${c.facility_name} ${c.submitter_name}`.toLowerCase().includes(term.toLowerCase())));
+  // Yang masih menunggu diurutkan dari yang PALING LAMA, bukan yang terbaru: antrean
+  // verifikasi yang menampilkan kiriman terbaru di atas membuat usulan lama terdorong
+  // ke bawah dan tidak pernah ditinjau. Yang sudah diputuskan tetap terbaru dulu.
+  const rows = [...cocok].sort((a, b) => {
+    if (a.status === 'pending' && b.status === 'pending') return new Date(a.created_at) - new Date(b.created_at);
+    if (a.status === 'pending') return -1;
+    if (b.status === 'pending') return 1;
+    return new Date(b.created_at) - new Date(a.created_at);
+  });
   const setStatus = (s) => { const n = new URLSearchParams(sp); n.set('status', s); setSp(n, { replace: true }); };
 
   return (
@@ -34,23 +43,45 @@ function ContributionsTab() {
       {error && <Alert tone="danger">{error.message}</Alert>}
       {data && rows.length === 0 && <EmptyState icon={Inbox} title={status === 'pending' && !term ? 'Antrean kosong' : 'Tidak ada kontribusi yang cocok'}>{status === 'pending' && !term ? 'Semua kontribusi sudah ditinjau.' : 'Ubah filter atau kata kunci pencarian.'}</EmptyState>}
       {rows.length > 0 && (
-        <div tabIndex={0} role="region" aria-label="Tabel kontribusi, dapat digulir ke samping" className="overflow-x-auto rounded-card border border-border bg-surface">
-          <table className="w-full min-w-[44rem] text-left">
-            <caption className="sr-only">Daftar kontribusi</caption>
-            <thead className="bg-surface-subtle text-sm"><tr>{['Fasilitas', 'Jenis', 'Pengirim', 'Dikirim', 'Status'].map((h) => <th key={h} scope="col" className="p-3 font-semibold">{h}</th>)}</tr></thead>
-            <tbody className="divide-y divide-border">
-              {rows.map((c) => (
-                <tr key={c.id} className="hover:bg-surface-subtle">
-                  <th scope="row" className="p-3 font-semibold"><Link to={`/admin/contributions/${c.id}`} className="text-action-secondary underline underline-offset-4">{c.facility_name}<span className="sr-only">, tinjau kontribusi #{c.id}</span></Link></th>
-                  <td className="p-3">{contributionKind(c)}</td>
-                  <td className="p-3">{c.submitter_name}</td>
-                  <td className="font-sub p-3">{formatDateTime(c.created_at)}</td>
-                  <td className="p-3"><ContributionBadge status={c.status} label={CONTRIBUTION_STATUS[c.status].label} cls={CONTRIBUTION_STATUS[c.status].cls} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ul className="space-y-2">
+          {rows.map((c) => {
+            const menunggu = c.status === 'pending';
+            return (
+              <li key={c.id}>
+                {/* Dulu ini tabel selebar 44rem yang harus digeser menyamping di ponsel.
+                    Antrean ini bukan tabel data untuk dibandingkan antar-baris — tiap
+                    baris adalah satu hal untuk dibuka dan diputuskan — jadi daftar
+                    tautan lebih tepat, dan muat di lebar berapa pun. */}
+                <Link
+                  to={`/admin/contributions/${c.id}`}
+                  className="flex items-center gap-3 rounded-card border border-border bg-surface p-3 transition-colors hover:border-brand-400 hover:bg-surface-subtle"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-semibold">{c.facility_name}</span>
+                    {/* Lama menunggu ikut baris keterangan, bukan kolom tersendiri di
+                        kanan: sebagai kolom ia harus disembunyikan di layar sempit,
+                        padahal justru itu yang menentukan mana yang ditinjau duluan.
+                        Hanya untuk yang masih menunggu — pada yang sudah diputuskan,
+                        angka itu tidak menuntut apa pun. */}
+                    <span className="font-sub block text-sm text-ink-secondary">
+                      {menunggu && (
+                        <span className="font-semibold text-warning">
+                          <Clock aria-hidden="true" size={13} className="mr-1 inline align-[-2px]" />
+                          menunggu {lamaSejak(c.created_at)}
+                          {' · '}
+                        </span>
+                      )}
+                      {contributionKind(c)} · {c.submitter_name} · {formatDateTime(c.created_at)}
+                    </span>
+                  </span>
+
+                  <ContributionBadge status={c.status} label={CONTRIBUTION_STATUS[c.status].label} cls={CONTRIBUTION_STATUS[c.status].cls} />
+                  <ChevronRight aria-hidden="true" size={18} className="shrink-0 text-ink-secondary" />
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
       )}
     </div>
   );
@@ -139,15 +170,26 @@ export function AdminQueuePage() {
   const contribs = useQuery({ queryKey: ['admin', 'contributions'], queryFn: () => api('/admin/contributions') });
   const reports = useQuery({ queryKey: ['admin', 'reports'], queryFn: () => api('/admin/reports') });
   const reviews = useQuery({ queryKey: ['admin', 'reviews'], queryFn: () => api('/admin/reviews') });
-  const pending = contribs.data?.filter((c) => c.status === 'pending').length;
+  const menunggu = (contribs.data ?? []).filter((c) => c.status === 'pending');
+  const pending = contribs.data ? menunggu.length : undefined;
   const open = reports.data?.filter((r) => r.status === 'open').length;
+
+  // Subjudul lama, "Tinjau kontribusi, tangani laporan, dan moderasi ulasan",
+  // hanya mengulang nama-nama tabnya. Sebuah dasbor seharusnya menjawab "apa yang
+  // menuntut saya sekarang", jadi tempat itu diisi keadaan nyata antreannya.
+  const terlama = menunggu.reduce((a, c) => (!a || new Date(c.created_at) < new Date(a.created_at) ? c : a), null);
+  const ringkas = !contribs.data
+    ? 'Memuat antrean…'
+    : pending === 0
+      ? `Tidak ada kontribusi yang menunggu${open ? `, tetapi ada ${open} laporan terbuka` : '. Antrean bersih'}.`
+      : `${pending} kontribusi menunggu verifikasi, yang terlama sudah ${lamaSejak(terlama.created_at)}${open ? `. ${open} laporan terbuka` : ''}.`;
   const tabs = [
     { key: 'contributions', label: 'Kontribusi', count: pending },
     { key: 'reports', label: 'Laporan', count: open },
     { key: 'reviews', label: 'Ulasan', count: reviews.data?.length },
   ];
   return (
-    <PageShell title="Antrean verifikasi" subtitle="Tinjau kontribusi, tangani laporan, dan moderasi ulasan." width="max-w-6xl">
+    <PageShell title="Antrean verifikasi" subtitle={ringkas} width="max-w-6xl">
       <Tabs group="admin" label="Bagian dasbor" tabs={tabs} value={tab} onChange={(k) => setSp({ tab: k }, { replace: true })} />
       <div role="tabpanel" id={panelId('admin', tab)} aria-labelledby={`admin-tab-${tab}`} className="mt-5">
         {tab === 'contributions' && <ContributionsTab />}
