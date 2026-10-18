@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { many, one } from '../db.js';
 import { HttpError } from '../http.js';
 import { rateLimit } from '../rateLimit.js';
+import { linPenghubung } from '../transit.js';
 
 export const router = express.Router();
 
@@ -128,14 +129,29 @@ async function transportTerdekat(lon, lat) {
  */
 export async function saranTransportasi(from, to, route) {
   if (route.distance <= AMBANG_TRANSPORTASI_M) return null;
+  const alasan = `Jarak ${(route.distance / 1000).toFixed(1)} km, sekitar ${lamaJalan(route.duration)} berjalan kaki. Pertimbangkan transportasi umum.`;
+
+  // Jawaban yang sebenarnya dicari pengguna adalah "naik apa dari sini ke sana".
+  const lin = await linPenghubung(from, to);
+  if (lin.length) {
+    return {
+      alasan,
+      lin,
+      catatan: 'Lin dan urutan pemberhentian berasal dari OpenStreetMap. AksesKota tidak menyediakan jadwal, tarif, atau waktu tempuh — periksa jadwal resmi operator sebelum berangkat.',
+    };
+  }
+
+  // Tidak ada lin yang menghubungkan keduanya di data kami. Daripada diam, tunjukkan
+  // titik transportasi terdekat — pengguna masih bisa melanjutkan dari sana sendiri.
   return {
-    alasan: `Jarak ${(route.distance / 1000).toFixed(1)} km, sekitar ${lamaJalan(route.duration)} berjalan kaki. Pertimbangkan transportasi umum.`,
+    alasan,
+    lin: [],
     dekat_anda: await transportTerdekat(from[0], from[1]),
     dekat_tujuan: await transportTerdekat(to[0], to[1]),
     // Dinyatakan terpisah supaya UI bisa bilang "belum terdata" alih-alih
     // menampilkan daftar kosong yang terbaca seperti kerusakan.
     radius_cari_m: RADIUS_CARI_TRANSPORTASI_M,
-    catatan: 'AksesKota tidak merencanakan perjalanan transportasi umum. Daftar ini hanya fasilitas transportasi terdekat beserta data aksesibilitas yang kami miliki.',
+    catatan: 'Tidak ada lin transportasi umum di data kami yang menghubungkan kedua titik ini. Daftar di bawah hanya fasilitas transportasi terdekat.',
   };
 }
 

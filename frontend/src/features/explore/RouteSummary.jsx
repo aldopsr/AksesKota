@@ -32,17 +32,120 @@ function DaftarTransport({ judul, daftar, radius }) {
   );
 }
 
+// Nama yang dipakai orang, bukan nilai tag OSM. "train" tidak berarti apa-apa
+// bagi pengguna; "KRL" langsung dikenali.
+const MODA = {
+  train: { label: 'KRL', warna: '#ec2329' },
+  subway: { label: 'MRT', warna: '#0066b3' },
+  light_rail: { label: 'LRT', warna: '#e5462f' },
+  bus: { label: 'Transjakarta', warna: '#cf2127' },
+};
+
+/** Satu pemberhentian pada diagram lin: titik, nama, jarak jalan kaki, aksesibilitas. */
+function Perhentian({ peran, stop, warna }) {
+  return (
+    <li className="relative pl-6">
+      <span
+        aria-hidden="true"
+        className="absolute left-0 top-1 size-3.5 rounded-full border-[3px] border-surface"
+        style={{ backgroundColor: warna, boxShadow: `0 0 0 2px ${warna}` }}
+      />
+      <p className="text-sm">
+        <span className="font-sub text-ink-secondary">{peran} </span>
+        <strong className="font-semibold">{stop.nama}</strong>
+        <span className="font-sub text-ink-secondary"> · {formatDistance(stop.jarak_m)} jalan kaki</span>
+      </p>
+      <p className="font-sub text-sm text-ink-secondary">
+        {stop.tersedia.length ? (
+          <>
+            <span aria-hidden="true">✓ </span>
+            <span className="sr-only">Tersedia: </span>
+            {stop.tersedia.join(', ')}
+          </>
+        ) : (
+          'Data aksesibilitas tempat ini belum ada.'
+        )}
+      </p>
+    </li>
+  );
+}
+
+/**
+ * Satu pilihan perjalanan, digambar sebagai diagram lin: garis vertikal berwarna
+ * resmi linnya dengan titik di tiap perhentian. Bentuk ini dipilih karena sudah
+ * dikenal dari peta transit mana pun — pengguna tidak perlu membaca untuk mengerti
+ * mana yang naik, mana yang turun, dan di mana harus berganti.
+ */
+function OpsiLin({ opsi, j }) {
+  const m = MODA[opsi.moda] ?? { label: opsi.operator ?? 'Transportasi umum' };
+  const warna = opsi.warna ?? m.warna ?? 'var(--color-brand-800)';
+  const lanjut = opsi.ganti && (MODA[opsi.ganti.moda] ?? {});
+  return (
+    <li style={{ '--j': j }} className="rounded-card border border-border bg-surface-subtle p-3">
+      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold">
+        <span
+          className="rounded-md px-1.5 py-0.5 text-xs font-bold uppercase tracking-wide text-white"
+          style={{ backgroundColor: warna }}
+        >
+          {m.label}
+        </span>
+        {opsi.lin}
+      </p>
+
+      {/* Garis penghubung antar titik: dekoratif, maknanya sudah ada di teks.
+          Dipasang di pembungkus, bukan di dalam <ul>, karena <ul> hanya boleh berisi <li>. */}
+      <div className="relative mt-2.5">
+        <span aria-hidden="true" className="absolute bottom-2 left-[6px] top-2 w-0.5 rounded-full opacity-35" style={{ backgroundColor: warna }} />
+        <ul className="space-y-2.5">
+        <Perhentian peran="Naik dari" stop={opsi.naik} warna={warna} />
+        {opsi.ganti && (
+          <li className="relative pl-6">
+            <span aria-hidden="true" className="absolute left-0 top-1 flex size-3.5 items-center justify-center rounded-full border-[3px] border-surface bg-ink-secondary" />
+            <p className="text-sm">
+              <span className="font-sub text-ink-secondary">Ganti di </span>
+              <strong className="font-semibold">{opsi.ganti.nama}</strong>
+            </p>
+            <p className="font-sub text-sm text-ink-secondary">
+              Lanjut naik {lanjut.label ? `${lanjut.label} ` : ''}{opsi.ganti.lin}
+            </p>
+          </li>
+        )}
+        <Perhentian peran="Turun di" stop={opsi.turun} warna={opsi.ganti ? (opsi.ganti.warna ?? warna) : warna} />
+        </ul>
+      </div>
+
+      {opsi.jumlah_berhenti > 0 && (
+        <p className="font-sub mt-2 text-xs text-ink-secondary tabular-nums">{opsi.jumlah_berhenti} pemberhentian</p>
+      )}
+    </li>
+  );
+}
+
 function SaranTransportasi({ saran }) {
   return (
     <section aria-label="Saran transportasi umum" className="rounded-card border border-border bg-surface p-3">
+      {/* saran.alasan mengulang jarak dan waktu yang sudah tercetak besar tepat di
+          atasnya, dengan pembulatan yang berbeda pula ("55 km" lalu "54.6 km").
+          Kalimat itu tetap dikirim backend untuk dipakai asisten AI, yang tidak
+          punya konteks di atasnya; di sini cukup alasannya saja. */}
       <p className="flex items-start gap-2 text-sm font-semibold">
         <Bus aria-hidden="true" size={17} className="mt-0.5 shrink-0 text-brand-800" />
-        {saran.alasan}
+        Terlalu jauh untuk berjalan kaki. Pertimbangkan transportasi umum:
       </p>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <DaftarTransport judul="Terdekat dari Anda" daftar={saran.dekat_anda} radius={saran.radius_cari_m} />
-        <DaftarTransport judul="Terdekat dari tujuan" daftar={saran.dekat_tujuan} radius={saran.radius_cari_m} />
-      </div>
+
+      {saran.lin?.length > 0 ? (
+        <ul className="ak-chips mt-3 space-y-2">
+          {saran.lin.map((o, j) => (
+            <OpsiLin key={`${o.lin}-${o.naik.nama}-${o.turun.nama}`} opsi={o} j={j} />
+          ))}
+        </ul>
+      ) : (
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <DaftarTransport judul="Terdekat dari Anda" daftar={saran.dekat_anda ?? []} radius={saran.radius_cari_m} />
+          <DaftarTransport judul="Terdekat dari tujuan" daftar={saran.dekat_tujuan ?? []} radius={saran.radius_cari_m} />
+        </div>
+      )}
+
       <p className="font-sub mt-3 text-xs text-ink-secondary">{saran.catatan}</p>
     </section>
   );

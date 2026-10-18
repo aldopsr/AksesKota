@@ -125,3 +125,40 @@ Tes: `npm run test:api` (butuh DB yang sudah di-`db:reset`).
 - `GET /api/ai/status` -> `{ enabled, daily_limit, used_today }`.
 - Perubahan kecil di file lama: `searchFacilities` menerima parameter opsional `ids` (kompatibel mundur); `routing.js` mengekspor `fetchWalkingRoute`.
 - Tes: `npm run test:api` memakai Gemini tiruan. Jalankan juga `node test/gemini-stub.js` bila ingin mencoba UI tanpa kunci sungguhan (set `GEMINI_API_KEY=apa-saja`, `GEMINI_API_BASE=http://127.0.0.1:4998`).
+
+## Saran transportasi umum untuk jarak jauh (18 Okt 2026)
+
+**Masalah.** Rute kami hanya jalan kaki. Untuk Bogor->Jakarta itu menghasilkan
+"54 km, 10 jam 30 menit" yang ditampilkan seolah sebuah saran.
+
+**Tahap 1 — fasilitas terdekat.** Di atas 3 km, tampilkan fasilitas transportasi
+beraksesibilitas terdekat dari titik awal dan tujuan. Berguna, tapi belum menjawab
+pertanyaan sebenarnya: "naik apa dari sini ke sana".
+
+**Tahap 2 — lin sungguhan.** Relasi `route` di OpenStreetMap ternyata memuat urutan
+pemberhentian: 32 dari 34 lin rel Jabodetabek terbaca lengkap, dengan warna resmi.
+GTFS resmi Transjakarta/KAI Commuter tidak terbit sebagai umpan publik yang stabil,
+dan kita memang hanya butuh daftar berhenti, bukan jadwal.
+
+- `db/import-transit.js` (`npm run import:transit`) -> 250 lin, 5.443 pemberhentian,
+  2.362 stasiun unik. KRL, MRT, LRT, Transjakarta; Jabodetabek + Bandung Raya.
+- `src/transit.js` mencari lin yang berhenti dekat kedua titik. Langsung dulu;
+  pencarian satu kali ganti (dicocokkan lewat NAMA pemberhentian) baru dijalankan
+  kalau tidak ada yang langsung.
+- Stasiun naik/turun ditempeli data aksesibilitas kita sendiri. Itu nilai tambah
+  AksesKota: aplikasi transit lain tidak bisa bilang stasiun naiknya punya ramp.
+
+**Tiga jebakan yang sempat masuk dan sudah diperbaiki:**
+1. Arah terbalik. Relasi OSM satu arah, jadi "Lin Bogor: Jakarta Kota -> Bogor"
+   sempat disarankan untuk berangkat DARI Bogor. Syaratnya `d.seq > o.seq`, bukan `<>`.
+2. Duplikat stasiun. Impor OSM meninggalkan fasilitas "Bogor" tanpa atribut 20 m dari
+   "Stasiun Bogor" yang punya 6 atribut terverifikasi; yang terdekat menang dan datanya
+   hilang. Urutan diubah: paling banyak data dulu, baru terdekat.
+3. Opsi kembar. OSM memecah satu lin jadi varian "full racket"/"half racket".
+
+**Tetap non-goal (PRD 5):** tidak ada jadwal, tarif, atau waktu tempuh, dan tidak
+ada rute transit yang dihitung. Bogor->Bandung menghasilkan nol opsi, bukan karangan.
+
+Terverifikasi: Bogor->Monas = Lin Bogor langsung, naik Bogor (ramp, guiding block,
+toilet aksesibel...), turun Juanda, 19 pemberhentian. Depok->Tanah Abang = ganti di
+Manggarai. Uji aturannya ada di `test/smoke.js`.

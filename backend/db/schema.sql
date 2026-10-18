@@ -148,3 +148,34 @@ create table if not exists pedestrian_ways (
   geom           geography(linestring,4326) not null
 );
 create index if not exists pedestrian_ways_geom_idx on pedestrian_ways using gist (geom);
+
+-- Lin transportasi umum (KRL, MRT, LRT, Transjakarta) dari relasi route OSM,
+-- diisi db/import-transit.js.
+--
+-- Ini BUKAN perencana perjalanan: tidak ada jadwal, tidak ada tarif, tidak ada
+-- waktu tempuh (PRD §5 menutup itu sebagai non-goal). Yang disimpan hanya fakta
+-- statis "lin X berhenti di stasiun A lalu B lalu C" — cukup untuk menjawab
+-- "naik apa dari sini ke sana", dan cukup untuk menempelkan data aksesibilitas
+-- kita sendiri pada stasiun naik dan turunnya.
+create table if not exists transit_lines (
+  osm_id   bigint primary key,
+  name     text not null,
+  mode     text not null,   -- train | subway | light_rail | bus
+  operator text,
+  ref      text,            -- nomor koridor/lin, mis. "1" untuk Transjakarta Koridor 1
+  colour   text             -- warna resmi lin, dipakai UI agar cocok dengan peta resmi
+);
+
+-- Satu baris per pemberhentian per lin, berurutan. Sebuah stasiun yang dilewati
+-- tiga lin muncul tiga kali — itu disengaja: urutan hanya berarti dalam konteks linnya.
+create table if not exists transit_stops (
+  line_id  bigint not null references transit_lines(osm_id) on delete cascade,
+  seq      int not null,
+  name     text not null,
+  location geography(point,4326) not null,
+  primary key (line_id, seq)
+);
+create index if not exists transit_stops_geom_idx on transit_stops using gist (location);
+-- Pencarian transit antar-lin mencocokkan pemberhentian lewat nama, bukan jarak:
+-- peron KRL dan peron MRT di stasiun yang sama bisa berjauhan 200 m.
+create index if not exists transit_stops_name_idx on transit_stops (lower(name));

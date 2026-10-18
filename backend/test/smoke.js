@@ -71,5 +71,32 @@ const dalam1km = await searchFacilities({ lat: -6.5951, lon: 106.7901, radius: 1
 assert.ok(dalam1km.every((f) => f.distance_m <= 1000));
 assert.ok(dalam1km.length < dekatStasiun.length, 'radius tidak berpengaruh');
 
+// Lin transportasi umum: yang diuji ATURANNYA, bukan isi data OSM yang bisa berubah.
+// Dilewati bila tabelnya belum diimpor, supaya smoke test tetap jalan di database baru.
+const { rows: [{ ada }] } = await pool.query('select count(*)::int > 0 as ada from transit_stops');
+if (!ada) {
+  console.log('(transit_stops kosong — uji lin dilewati, jalankan npm run import:transit)');
+} else {
+  const { linPenghubung } = await import('../src/transit.js');
+  const bogor = [106.7905, -6.5950];
+  const monas = [106.8272, -6.1754];
+  const opsi = await linPenghubung(bogor, monas);
+  assert.ok(opsi.length > 0, 'Bogor -> Monas seharusnya tersambung transportasi umum');
+
+  for (const o of opsi) {
+    // Arah: lin yang berangkat DARI Bogor, bukan relasi arah sebaliknya.
+    assert.ok(o.naik.nama && o.turun.nama, 'pemberhentian naik/turun harus bernama');
+    assert.notEqual(o.naik.nama, o.turun.nama, 'naik dan turun tidak boleh stasiun yang sama');
+    // Aksesibilitas hanya boleh berisi yang berstatus available (PRD 19.7).
+    assert.ok(Array.isArray(o.naik.tersedia) && Array.isArray(o.turun.tersedia));
+    if (o.jenis === 'langsung') assert.ok(o.jumlah_berhenti > 0, 'perjalanan langsung harus maju, bukan mundur');
+    else assert.ok(o.ganti?.nama, 'perjalanan satu ganti harus menyebut titik gantinya');
+  }
+
+  // Tidak tersambung harus menghasilkan daftar kosong, bukan opsi yang dipaksakan.
+  assert.equal((await linPenghubung(bogor, [107.6098, -6.9147])).length, 0, 'Bogor -> Bandung tidak boleh mengarang lin');
+  console.log(`  lin: ${opsi.length} opsi Bogor->Monas, arah & aksesibilitas lolos`);
+}
+
 await pool.end();
 console.log(`OK — ${dekatStasiun.length} fasilitas dalam 5km, semua aturan match & sorting lolos`);
