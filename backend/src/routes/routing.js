@@ -142,7 +142,7 @@ export async function saranTransportasi(from, to, route) {
     return {
       alasan,
       lin,
-      catatan: 'Lin dan urutan pemberhentian berasal dari OpenStreetMap. AksesKota tidak menyediakan jadwal, tarif, atau waktu tempuh — periksa jadwal resmi operator sebelum berangkat.',
+      catatan: 'Data lin berasal dari OpenStreetMap. AksesKota tidak menyediakan jadwal, tarif, atau waktu tempuh — periksa jadwal resmi operator sebelum berangkat.',
     };
   }
 

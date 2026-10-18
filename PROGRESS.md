@@ -273,3 +273,41 @@ fitur yang tidak ada. Stasiun Bogor -> Botani Square (2,8 km) sekarang memunculk
 Terverifikasi: 375 px -> halaman tidak menggulir, panel berhenti di setengah layar,
 peta terlihat, 20 fasilitas termuat. 1280x800 -> peta 880x735 px, tidak menggulir.
 Token kedaluwarsa juga diuji: dibersihkan sendiri dan daftar tetap tampil.
+
+## Angkot: saran transum akhirnya bekerja untuk perjalanan dalam kota (19 Okt 2026)
+
+Dilaporkan: rute dalam Kota Bogor selalu dijawab "Tidak ada lin transportasi umum di
+data kami yang menghubungkan kedua titik ini."
+
+**Penyebab.** Importer menyaring operator ke Transjakarta/KAI Commuter/MRT/LRT dengan
+alasan angkot tidak punya perhentian tetap. Alasannya benar, kesimpulannya salah:
+angkot justru tulang punggung angkutan DALAM kota. Survei OSM Kota Bogor menemukan
+42 trayek bus/angkot (angkot 01, 02, 04, 05, 09, 10, 12..., BisKita Trans Pakuan K1,
+20 trayek Kabupaten Bogor) — dan **41 dari 42 tidak punya satu pun perhentian bernama,
+tetapi SEMUANYA punya jalur yang dipetakan.**
+
+**Solusinya menyimpan jalurnya, bukan menyaringnya keluar.**
+- `transit_lines.geom` (multilinestring) diisi dari ruas anggota relasi.
+- Tingkat ketiga pencarian, `lewatDekat()`: lin yang JALURNYA lewat dalam 600 m dari
+  kedua titik. Sengaja tidak memeriksa urutan — relasi angkot disusun dari ruas yang
+  arahnya campur aduk, dan yang dijanjikan ke pengguna memang hanya "lin ini lewat
+  dekat kedua titik Anda", bukan rencana perjalanan.
+- Urutan pencarian: langsung antar-perhentian -> satu kali ganti -> lewat jalur.
+- Hasil impor: 837 lin (dari 250), 14.640 perhentian, semuanya punya jalur.
+
+**Tiga bug yang ketemu dalam perjalanan:**
+1. `way(r)` di Overpass membaca himpunan hasil TERAKHIR, yang sudah berganti jadi
+   kumpulan node — mengembalikan nol ruas tanpa pesan kesalahan. Himpunan relasi
+   harus diberi nama (`->.r`, lalu `way(r.r)`).
+2. Pencarian satu kali ganti menyarankan "naik kereta ke Sukabumi lalu balik lagi"
+   untuk perjalanan 800 m, karena kedua titik dekat stasiun yang sama. Ditambah syarat:
+   naik dan turun tidak boleh tempat yang sama, dan turun harus lebih dekat ke tujuan.
+3. Warna lin dari OSM dipakai apa adanya sebagai latar lencana dengan teks putih.
+   Angkot 10 Bogor berwarna hijau stabilo (#04ff00) — praktis tidak terbaca. Sekarang
+   warna teks dipilih dari kecerahan latarnya.
+
+Label moda ikut dibetulkan: "bus" tidak lagi berarti Transjakarta.
+
+Terverifikasi di peramban: Stasiun Bogor -> Botani Square memunculkan Angkot TPK-2
+(87 m / 45 m), Angkot 10, dan Angkot 01. Bogor -> Monas tetap KRL Lin Bogor.
+Bogor -> Bandung tetap nol opsi. Uji aturannya ditambahkan ke `test/smoke.js`.

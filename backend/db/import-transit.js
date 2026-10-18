@@ -17,18 +17,23 @@ const WILAYAH = [
   { nama: 'Bandung Raya', bbox: '-7.05,107.45,-6.80,107.80' },
 ];
 
-// Operator dibatasi supaya angkot dan bus karyawan perumahan — yang dipetakan
-// setengah jadi dan tidak punya pemberhentian tetap — tidak ikut masuk.
-const OPERATOR = 'Transjakarta|KAI Commuter|MRT Jakarta|LRT Jabodebek';
-
+// Operator sempat dibatasi ke Transjakarta/KAI/MRT/LRT dengan alasan angkot tidak
+// punya pemberhentian tetap. Alasannya benar, kesimpulannya salah: angkot justru
+// tulang punggung angkutan DALAM kota, dan menyaringnya keluar membuat setiap
+// perjalanan dalam Kota Bogor dijawab "tidak ada lin yang menghubungkan".
+// Yang dibutuhkan bukan menyaringnya, melainkan menyimpan JALUR-nya.
+// Himpunan relasi diberi nama (->.r). Tanpa itu, "way(r)" membaca himpunan hasil
+// TERAKHIR — yang sudah berganti menjadi kumpulan node oleh baris sebelumnya — dan
+// mengembalikan nol ruas tanpa pesan kesalahan apa pun.
 const queryUntuk = (bbox) => `[out:json][timeout:240];
-rel["type"="route"]["route"~"^(train|subway|light_rail|bus)$"]["operator"~"${OPERATOR}",i](${bbox});
-out body;
-node(r);
-out tags center;`;
+rel["type"="route"]["route"~"^(train|subway|light_rail|bus|minibus|share_taxi)$"](${bbox})->.r;
+.r out body;
+node(r.r); out tags center;
+way(r.r); out geom;`;
 
 const relasi = new Map();
 const nodes = new Map();
+const ways = new Map();
 
 for (const w of WILAYAH) {
   console.log(`[${w.nama}] Overpass: relasi rute transportasi umum`);
@@ -36,8 +41,9 @@ for (const w of WILAYAH) {
   for (const el of elements) {
     if (el.type === 'relation') relasi.set(el.id, el);
     else if (el.type === 'node') nodes.set(el.id, el);
+    else if (el.type === 'way' && Array.isArray(el.geometry)) ways.set(el.id, el.geometry);
   }
-  console.log(`[${w.nama}] total terkumpul: ${relasi.size} relasi, ${nodes.size} node`);
+  console.log(`[${w.nama}] total terkumpul: ${relasi.size} relasi, ${nodes.size} node, ${ways.size} ruas`);
 }
 
 const lines = [];
@@ -57,7 +63,21 @@ for (const rel of relasi.values()) {
     if (urut[urut.length - 1]?.name === nama) continue;
     urut.push({ name: nama, lon: n.lon ?? n.center?.lon, lat: n.lat ?? n.center?.lat });
   }
-  if (urut.filter((s) => s.lon != null).length < 2) { tanpaBerhenti++; continue; }
+  // Jalur lin: gabungan ruas-ruas anggotanya. Tidak disambung jadi satu garis —
+  // untuk menjawab "lin ini lewat dekat sini?" yang dibutuhkan hanya jaraknya,
+  // dan menyambung ruas yang arahnya campur aduk justru menghasilkan garis ngawur.
+  const potongan = [];
+  for (const m of rel.members ?? []) {
+    if (m.type !== 'way') continue;
+    const g = ways.get(m.ref);
+    if (!g || g.length < 2) continue;
+    potongan.push(`(${g.map((t) => `${t.lon} ${t.lat}`).join(',')})`);
+  }
+  const berhenti = urut.filter((s) => s.lon != null);
+
+  // Diterima bila punya urutan perhentian ATAU jalur. Dulu syaratnya perhentian saja,
+  // dan itulah yang membuang seluruh angkot.
+  if (berhenti.length < 2 && potongan.length === 0) { tanpaBerhenti++; continue; }
 
   lines.push({
     osm_id: rel.id,
@@ -66,6 +86,7 @@ for (const rel of relasi.values()) {
     operator: t.operator ?? null,
     ref: t.ref ?? null,
     colour: t.colour ?? null,
+    wkt: potongan.length ? `MULTILINESTRING(${potongan.join(',')})` : null,
   });
   urut.forEach((s, i) => {
     if (s.lon == null) return;
@@ -74,7 +95,8 @@ for (const rel of relasi.values()) {
 }
 
 console.log(`\n${relasi.size} relasi -> ${lines.length} lin, ${stops.length} pemberhentian`);
-console.log(`dilewati karena urutan berhentinya tidak terbaca: ${tanpaBerhenti}`);
+console.log(`dilewati karena tidak punya perhentian maupun jalur: ${tanpaBerhenti}`);
+console.log(`punya jalur: ${lines.filter((l) => l.wkt).length}, punya urutan perhentian: ${new Set(stops.map((s) => s.line_id)).size}`);
 console.table(
   Object.entries(lines.reduce((a, l) => ({ ...a, [l.mode]: (a[l.mode] ?? 0) + 1 }), {}))
     .map(([mode, jumlah]) => ({ mode, jumlah })),
@@ -87,14 +109,22 @@ if (dry) {
 
 const { pool } = await import('../src/db.js');
 
-await pool.query(
-  `insert into transit_lines (osm_id, name, mode, operator, ref, colour)
-   select * from unnest($1::bigint[], $2::text[], $3::text[], $4::text[], $5::text[], $6::text[])
-   on conflict (osm_id) do update set
-     name=excluded.name, mode=excluded.mode, operator=excluded.operator,
-     ref=excluded.ref, colour=excluded.colour`,
-  ['osm_id', 'name', 'mode', 'operator', 'ref', 'colour'].map((k) => lines.map((l) => l[k])),
-);
+// Jalur disimpan per potongan 200 lin: satu MULTILINESTRING angkot bisa puluhan ribu
+// titik, dan mengirim semuanya dalam satu pernyataan melampaui batas parameter.
+for (let i = 0; i < lines.length; i += 200) {
+  const b = lines.slice(i, i + 200);
+  await pool.query(
+    `insert into transit_lines (osm_id, name, mode, operator, ref, colour, geom)
+     select osm_id, name, mode, operator, ref, colour,
+            case when wkt is null then null else st_geogfromtext('SRID=4326;' || wkt) end
+       from unnest($1::bigint[], $2::text[], $3::text[], $4::text[], $5::text[], $6::text[], $7::text[])
+            as t(osm_id, name, mode, operator, ref, colour, wkt)
+     on conflict (osm_id) do update set
+       name=excluded.name, mode=excluded.mode, operator=excluded.operator,
+       ref=excluded.ref, colour=excluded.colour, geom=excluded.geom`,
+    ['osm_id', 'name', 'mode', 'operator', 'ref', 'colour', 'wkt'].map((k) => b.map((l) => l[k])),
+  );
+}
 
 // Urutan berhenti sebuah lin bisa BERUBAH panjangnya saat OSM diperbarui (stasiun baru,
 // lin diperpanjang). Upsert per baris akan meninggalkan ekor baris lama, jadi
@@ -118,7 +148,7 @@ const { rows } = await pool.query(`
   select (select count(*) from transit_lines) lin,
          (select count(*) from transit_stops) pemberhentian,
          (select count(distinct lower(name)) from transit_stops) stasiun_unik,
-         (select count(*) from transit_lines where colour is not null) punya_warna`);
+         (select count(*) from transit_lines where geom is not null) punya_jalur`);
 console.log('\ntersimpan:');
 console.table(rows);
 await pool.end();

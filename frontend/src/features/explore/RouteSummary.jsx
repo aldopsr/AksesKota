@@ -32,13 +32,28 @@ function DaftarTransport({ judul, daftar, radius }) {
   );
 }
 
-// Nama yang dipakai orang, bukan nilai tag OSM. "train" tidak berarti apa-apa
-// bagi pengguna; "KRL" langsung dikenali.
-const MODA = {
-  train: { label: 'KRL', warna: '#ec2329' },
-  subway: { label: 'MRT', warna: '#0066b3' },
-  light_rail: { label: 'LRT', warna: '#e5462f' },
-  bus: { label: 'Transjakarta', warna: '#cf2127' },
+// Nama yang dipakai orang, bukan nilai tag OSM. "train" tidak berarti apa-apa bagi
+// pengguna; "KRL" langsung dikenali. Nama operator didahulukan bila ada — setelah
+// angkot ikut diimpor, "bus" bukan lagi berarti Transjakarta: sebagian besar trayek
+// bus di Bogor adalah angkot tanpa operator terdaftar.
+const MODA_WARNA = { train: '#ec2329', subway: '#0066b3', light_rail: '#e5462f' };
+const MODA_LABEL = { train: 'KRL', subway: 'MRT', light_rail: 'LRT', bus: 'Angkot', minibus: 'Angkot', share_taxi: 'Angkot' };
+const namaModa = (o) => o.operator ?? MODA_LABEL[o.moda] ?? 'Transportasi umum';
+
+/**
+ * Hitam atau putih di atas warna lin.
+ *
+ * Warna datang dari OSM apa adanya, dan itu warna armada sungguhan — angkot 10 Bogor
+ * hijau stabilo (#04ff00). Teks putih di atasnya praktis tidak terbaca, dan ini
+ * aplikasi aksesibilitas: label yang tidak terbaca bukan sekadar jelek.
+ */
+const teksDiAtas = (hex) => {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex ?? '');
+  if (!m) return '#fff';
+  const lin = [0, 2, 4]
+    .map((i) => parseInt(m[1].slice(i, i + 2), 16) / 255)
+    .map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2] > 0.4 ? '#000' : '#fff';
 };
 
 /** Satu pemberhentian pada diagram lin: titik, nama, jarak jalan kaki, aksesibilitas. */
@@ -76,19 +91,48 @@ function Perhentian({ peran, stop, warna }) {
  * dikenal dari peta transit mana pun — pengguna tidak perlu membaca untuk mengerti
  * mana yang naik, mana yang turun, dan di mana harus berganti.
  */
+function LencanaLin({ opsi }) {
+  const warna = opsi.warna ?? MODA_WARNA[opsi.moda] ?? '#312e81';
+  return (
+    <span
+      className="rounded-md px-1.5 py-0.5 text-xs font-bold uppercase tracking-wide"
+      style={{ backgroundColor: warna, color: teksDiAtas(warna) }}
+    >
+      {namaModa(opsi)}
+      {opsi.ref ? ` ${opsi.ref}` : ''}
+    </span>
+  );
+}
+
 function OpsiLin({ opsi, j }) {
-  const m = MODA[opsi.moda] ?? { label: opsi.operator ?? 'Transportasi umum' };
-  const warna = opsi.warna ?? m.warna ?? 'var(--color-brand-800)';
-  const lanjut = opsi.ganti && (MODA[opsi.ganti.moda] ?? {});
+  const warna = opsi.warna ?? MODA_WARNA[opsi.moda] ?? 'var(--color-brand-800)';
+
+  // Lin yang hanya diketahui JALURNYA, bukan perhentiannya — hampir semua angkot.
+  // Digambar tanpa diagram naik/turun: kami memang tidak tahu di mana orang naik,
+  // dan menggambar dua titik seolah tahu akan mengarang.
+  if (opsi.jenis === 'lewat') {
+    return (
+      <li style={{ '--j': j }} className="rounded-card border border-border bg-surface-subtle p-3">
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold">
+          <LencanaLin opsi={opsi} />
+          {opsi.lin}
+        </p>
+        <p className="font-sub mt-1.5 text-sm text-ink-secondary">
+          Jalurnya lewat <strong className="font-semibold text-ink">{formatDistance(opsi.jarak_awal_m)}</strong> dari
+          titik awal Anda dan <strong className="font-semibold text-ink">{formatDistance(opsi.jarak_tujuan_m)}</strong> dari tujuan.
+        </p>
+        <p className="font-sub mt-1 text-xs text-ink-secondary">
+          Perhentiannya belum terdata, jadi kami belum bisa menyebut data aksesibilitas tempat naik dan turun.
+        </p>
+      </li>
+    );
+  }
+
+  const lanjut = opsi.ganti ?? null;
   return (
     <li style={{ '--j': j }} className="rounded-card border border-border bg-surface-subtle p-3">
       <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold">
-        <span
-          className="rounded-md px-1.5 py-0.5 text-xs font-bold uppercase tracking-wide text-white"
-          style={{ backgroundColor: warna }}
-        >
-          {m.label}
-        </span>
+        <LencanaLin opsi={opsi} />
         {opsi.lin}
       </p>
 
@@ -106,7 +150,7 @@ function OpsiLin({ opsi, j }) {
               <strong className="font-semibold">{opsi.ganti.nama}</strong>
             </p>
             <p className="font-sub text-sm text-ink-secondary">
-              Lanjut naik {lanjut.label ? `${lanjut.label} ` : ''}{opsi.ganti.lin}
+              Lanjut naik {MODA_LABEL[lanjut.moda] ? `${MODA_LABEL[lanjut.moda]} ` : ''}{opsi.ganti.lin}
             </p>
           </li>
         )}
@@ -136,7 +180,7 @@ function SaranTransportasi({ saran }) {
       {saran.lin?.length > 0 ? (
         <ul className="ak-chips mt-3 space-y-2">
           {saran.lin.map((o, j) => (
-            <OpsiLin key={`${o.lin}-${o.naik.nama}-${o.turun.nama}`} opsi={o} j={j} />
+            <OpsiLin key={`${o.lin}-${o.naik?.nama ?? o.jarak_awal_m}-${o.turun?.nama ?? o.jarak_tujuan_m}`} opsi={o} j={j} />
           ))}
         </ul>
       ) : (

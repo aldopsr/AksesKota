@@ -84,18 +84,37 @@ if (!ada) {
   assert.ok(opsi.length > 0, 'Bogor -> Monas seharusnya tersambung transportasi umum');
 
   for (const o of opsi) {
-    // Arah: lin yang berangkat DARI Bogor, bukan relasi arah sebaliknya.
     assert.ok(o.naik.nama && o.turun.nama, 'pemberhentian naik/turun harus bernama');
-    assert.notEqual(o.naik.nama, o.turun.nama, 'naik dan turun tidak boleh stasiun yang sama');
+    // Arah: lin yang berangkat DARI Bogor, bukan relasi arah sebaliknya.
+    assert.notEqual(o.naik.nama, o.turun.nama, 'naik dan turun tidak boleh tempat yang sama');
     // Aksesibilitas hanya boleh berisi yang berstatus available (PRD 19.7).
     assert.ok(Array.isArray(o.naik.tersedia) && Array.isArray(o.turun.tersedia));
     if (o.jenis === 'langsung') assert.ok(o.jumlah_berhenti > 0, 'perjalanan langsung harus maju, bukan mundur');
     else assert.ok(o.ganti?.nama, 'perjalanan satu ganti harus menyebut titik gantinya');
   }
 
+  // Perjalanan DALAM kota: tidak ada stasiun yang menghubungkannya, jadi jawabannya
+  // harus datang dari pencarian berbasis jalur (angkot). Ini yang dulu kosong dan
+  // membuat setiap rute dalam Kota Bogor dijawab "tidak ada lin yang menghubungkan".
+  const dalamKota = await linPenghubung([106.7901, -6.5951], [106.8046, -6.6016]);
+  assert.ok(dalamKota.length > 0, 'Stasiun Bogor -> Botani Square harus menemukan angkot');
+  for (const o of dalamKota) {
+    if (o.jenis !== 'lewat') continue;
+    assert.ok(o.lin, 'lin berbasis jalur harus punya nama');
+    assert.ok(o.jarak_awal_m >= 0 && o.jarak_tujuan_m >= 0, 'jarak ke jalur harus terukur');
+  }
+
+  // Dua titik yang sama-sama dekat satu stasiun tidak boleh menghasilkan saran
+  // "naik lalu balik lagi" — naik dan turun di tempat yang sama bukan perjalanan.
+  const dekatSekali = await linPenghubung([106.7901, -6.5951], [106.7975, -6.5950]);
+  for (const o of dekatSekali) {
+    if (o.jenis === 'lewat') continue;
+    assert.notEqual(o.naik.nama, o.turun.nama, 'naik dan turun di tempat yang sama');
+  }
+
   // Tidak tersambung harus menghasilkan daftar kosong, bukan opsi yang dipaksakan.
   assert.equal((await linPenghubung(bogor, [107.6098, -6.9147])).length, 0, 'Bogor -> Bandung tidak boleh mengarang lin');
-  console.log(`  lin: ${opsi.length} opsi Bogor->Monas, arah & aksesibilitas lolos`);
+  console.log(`  lin: ${opsi.length} opsi Bogor->Monas, ${dalamKota.length} opsi dalam kota; arah, aksesibilitas & jalur lolos`);
 }
 
 await pool.end();

@@ -76,6 +76,9 @@ async function langsung(params) {
          -- d.seq > o.seq, bukan <>: relasi route OSM satu arah, dan "Lin Bogor:
          -- Jakarta Kota → Bogor" tidak bisa dipakai untuk berangkat DARI Bogor.
          from o join d on d.line_id = o.line_id and d.seq > o.seq
+                       -- lin melingkar singgah di nama yang sama dua kali; naik dan
+                       -- turun di tempat yang sama bukan perjalanan
+                       and lower(d.name) <> lower(o.name)
         -- per lin, ambil pasangan naik/turun dengan total jalan kaki terpendek
         order by o.line_id, o.jarak_m + d.jarak_m
      )
@@ -112,6 +115,15 @@ async function satuGanti(params) {
          -- MRT di stasiun yang sama bisa terpisah ratusan meter di peta.
          join transit_stops sb on lower(sb.name) = lower(sa.name) and sb.line_id <> sa.line_id
          join d on d.line_id = sb.line_id and d.seq > sb.seq
+                and lower(d.name) <> lower(o.name)
+                and lower(d.name) <> lower(sa.name)
+                -- turun harus lebih dekat ke tujuan daripada tempat naik
+                and st_distance(d.location, st_setsrid(st_makepoint($4,$5),4326)::geography)
+                  < st_distance(o.location, st_setsrid(st_makepoint($4,$5),4326)::geography)
+        -- Naik dan turun harus beda tempat, dan turunnya harus benar-benar lebih
+        -- dekat ke tujuan daripada tempat naiknya. Tanpa syarat kedua, dua titik yang
+        -- sama-sama dekat satu stasiun menghasilkan saran "naik ke Sukabumi lalu
+        -- balik lagi" untuk perjalanan 800 meter.
         order by o.line_id, d.line_id, o.jarak_m + d.jarak_m
      )
      select la.name as lin, la.mode as moda, la.colour as warna, la.operator,
@@ -133,14 +145,56 @@ async function satuGanti(params) {
   }));
 }
 
+// Seberapa jauh orang dianggap masih mau berjalan ke JALUR sebuah lin. Lebih ketat
+// daripada radius perhentian: angkot bisa dihentikan di mana saja sepanjang jalurnya,
+// jadi yang diukur benar-benar jarak ke jalan yang dilewatinya.
+const RADIUS_JALUR_M = 600;
+
 /**
- * Lin yang menghubungkan dua titik. Perjalanan langsung dicari dulu; pencarian
- * satu kali ganti yang jauh lebih mahal baru dijalankan kalau tidak ada yang langsung.
+ * Lin yang JALURNYA melewati dekat kedua titik, tanpa memerlukan perhentian terdata.
+ *
+ * Ini satu-satunya cara menemukan angkot: 41 dari 42 trayek Kota Bogor di OSM tidak
+ * punya satu pun perhentian bernama, tetapi semuanya punya jalur. Sengaja TIDAK
+ * memeriksa urutan — relasi angkot dipetakan dari ruas-ruas yang arahnya campur aduk,
+ * jadi "mana yang lebih dulu" tidak bisa dipercaya. Yang dijanjikan ke pengguna pun
+ * hanya "lin ini lewat dekat kedua titik Anda", bukan rencana perjalanan.
+ */
+async function lewatDekat(lon1, lat1, lon2, lat2, radius) {
+  const rows = await many(
+    `with a as (select st_setsrid(st_makepoint($1,$2),4326)::geography g),
+          b as (select st_setsrid(st_makepoint($3,$4),4326)::geography g)
+     select distinct on (lower(l.name))
+            l.name as lin, l.mode as moda, l.colour as warna, l.operator, l.ref,
+            round(st_distance(l.geom, a.g))::int as jarak_awal_m,
+            round(st_distance(l.geom, b.g))::int as jarak_tujuan_m
+       from transit_lines l, a, b
+      where l.geom is not null
+        and st_dwithin(l.geom, a.g, $5)
+        and st_dwithin(l.geom, b.g, $5)
+      -- distinct on nama: OSM memetakan tiap arah sebagai relasi terpisah dengan
+      -- nama yang sama, dan dua baris kembar terbaca seperti dua pilihan berbeda
+      order by lower(l.name), st_distance(l.geom, a.g) + st_distance(l.geom, b.g)`,
+    [lon1, lat1, lon2, lat2, radius],
+  );
+  return rows
+    .sort((x, y) => (x.jarak_awal_m + x.jarak_tujuan_m) - (y.jarak_awal_m + y.jarak_tujuan_m))
+    .slice(0, 3)
+    .map((r) => ({ ...r, jenis: 'lewat' }));
+}
+
+/**
+ * Lin yang menghubungkan dua titik, dicari dari yang paling pasti ke yang paling longgar:
+ * perjalanan langsung antar-perhentian, lalu satu kali ganti, lalu lin yang jalurnya
+ * sekadar melewati kedua titik. Yang terakhir memberi jawaban paling sedikit janji,
+ * tapi untuk perjalanan dalam kota justru itu yang biasanya benar.
  */
 export async function linPenghubung(from, to, { radius = RADIUS_M } = {}) {
   const params = [from[0], from[1], radius, to[0], to[1]];
-  const hasil = await langsung(params);
-  return unik(hasil.length ? hasil : await satuGanti(params));
+  const hasil = unik(await langsung(params));
+  if (hasil.length) return hasil;
+  const ganti = unik(await satuGanti(params));
+  if (ganti.length) return ganti;
+  return lewatDekat(from[0], from[1], to[0], to[1], RADIUS_JALUR_M);
 }
 
 // OSM memecah satu lin jadi beberapa relasi varian ("full racket", "half racket",

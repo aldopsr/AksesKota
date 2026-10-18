@@ -179,3 +179,13 @@ create index if not exists transit_stops_geom_idx on transit_stops using gist (l
 -- Pencarian transit antar-lin mencocokkan pemberhentian lewat nama, bukan jarak:
 -- peron KRL dan peron MRT di stasiun yang sama bisa berjauhan 200 m.
 create index if not exists transit_stops_name_idx on transit_stops (lower(name));
+
+-- Jalur yang dilalui sebuah lin, bukan daftar perhentiannya.
+--
+-- Perlu karena angkot — tulang punggung angkutan dalam kota — hampir tidak pernah
+-- punya perhentian tetap yang dipetakan: 41 dari 42 trayek Kota Bogor di OSM tidak
+-- memiliki satu pun node perhentian bernama, tetapi SEMUANYA punya jalur. Tanpa ini,
+-- pencarian berbasis urutan perhentian selalu nihil untuk perjalanan dalam kota dan
+-- pengguna hanya diberi tahu bahwa tidak ada yang menghubungkan.
+alter table transit_lines add column if not exists geom geography(multilinestring,4326);
+create index if not exists transit_lines_geom_idx on transit_lines using gist (geom);
