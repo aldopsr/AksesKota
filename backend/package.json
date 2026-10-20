@@ -11,7 +11,8 @@
     "test:api": "node --env-file-if-exists=.env test/api.js",
     "import:osm": "node --env-file-if-exists=.env db/import-osm.js",
     "import:ways": "node --env-file-if-exists=.env db/import-ways.js",
-    "import:transit": "node --env-file-if-exists=.env db/import-transit.js"
+    "import:transit": "node --env-file-if-exists=.env db/import-transit.js",
+    "seed:demo": "node --env-file-if-exists=.env db/seed-demo.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

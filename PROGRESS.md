@@ -311,3 +311,38 @@ Label moda ikut dibetulkan: "bus" tidak lagi berarti Transjakarta.
 Terverifikasi di peramban: Stasiun Bogor -> Botani Square memunculkan Angkot TPK-2
 (87 m / 45 m), Angkot 10, dan Angkot 01. Bogor -> Monas tetap KRL Lin Bogor.
 Bogor -> Bandung tetap nol opsi. Uji aturannya ditambahkan ke `test/smoke.js`.
+
+## Data demo untuk penjurian + dua temuan (20 Okt 2026)
+
+**`npm run seed:demo`** (`db/seed-demo.js`) mengisi antrean verifikasi: 4 akun demo
+(1 admin, 3 kontributor) dan 5 usulan — 3 menunggu dengan umur berbeda (5 hari, 1 hari,
+3 jam), 1 disetujui, 1 ditolak beserta catatan admin. Idempoten; `--bersihkan`
+menghapus semuanya lewat penanda domain email `@demo.akseskota.test`. Kata sandinya
+ada di dalam berkas skripnya.
+
+Catatan autentikasi: ternyata auth backend ini **lokal** (bcrypt + JWT di `src/auth.js`),
+bukan Supabase Auth seperti yang sempat dicatat. Akun demo sepenuhnya milik database
+sendiri.
+
+**Yang sengaja TIDAK di-seed: foto bukti.** Menempelkan gambar entah dari mana pada
+fasilitas yang benar-benar ada sama dengan mengarang bukti, dan justru data yang bisa
+dipercaya itu nilai jual AksesKota. Layar verifikasi menulis "Tidak ada foto" — itu
+memang keadaan sebenarnya.
+
+Alur setujui/tolak tidak diklik manual karena `test:api` sudah mencakupnya (termasuk
+422 untuk tolak tanpa catatan dan 409 untuk putusan ganda), jadi tidak perlu mengubah
+data fasilitas sungguhan hanya demi melihatnya jalan.
+
+**Dua bug yang ketemu saat memverifikasi:**
+1. Halaman detail verifikasi bisa digeser menyamping di 375 px. Tabel diff
+   `min-w-[30rem]` melebarkan kolom grid induknya sampai 482 px — item grid defaultnya
+   `min-width: auto`, jadi pembungkus `overflow-x-auto`-nya tidak pernah terpakai
+   karena tidak pernah kehabisan ruang. Diperbaiki dengan `min-w-0` pada item gridnya.
+2. Asisten AI tidak pernah menyebut transportasi umum meski datanya sampai ke model.
+   Instruksinya berbunyi "jarak ini terlalu jauh untuk berjalan kaki" — itu penilaian,
+   dan untuk 2,8 km model memilih tidak sependapat lalu diam. Sekarang ambangnya
+   dinyatakan sudah diputuskan di server dan model hanya diminta menyampaikan isinya.
+   Sesudahnya: "...kamu juga bisa naik angkutan umum seperti nomor 10 lin Mawar Sukasari."
+
+`[gemini] status 500` yang muncul di `test:api` ternyata galat sesaat dari Google;
+panggilan langsung dan lewat `/api/ai/chat` keduanya 200.

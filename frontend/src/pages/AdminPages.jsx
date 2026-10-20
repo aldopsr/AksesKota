@@ -263,7 +263,11 @@ export function AdminDetailPage() {
   return (
     <PageShell title={c.facility_name} subtitle={contributionKind(c)} breadcrumb={crumbs} width="max-w-6xl">
       <div className="grid gap-6 lg:grid-cols-[1fr_21rem] lg:items-start">
-        <div className="space-y-6">
+        {/* min-w-0: item grid defaultnya min-width:auto, jadi tabel diff yang
+            min-w-[30rem] melebarkan kolomnya sampai 482 px dan seluruh HALAMAN bisa
+            digeser menyamping di ponsel — pembungkus overflow-x-auto-nya tidak pernah
+            terpakai karena tidak pernah kehabisan ruang. */}
+        <div className="min-w-0 space-y-6">
           <div className="rounded-card border border-border bg-surface p-4">
             <p className="flex flex-wrap items-center gap-2"><ContributionBadge status={c.status} label={st.label} cls={st.cls} /></p>
             <dl className="font-sub mt-3 grid gap-1 text-sm sm:grid-cols-2">

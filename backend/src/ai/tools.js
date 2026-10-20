@@ -196,7 +196,13 @@ export function createExecutors(ctx) {
             ? 'Data aksesibilitas jalur pada rute ini belum cukup untuk dinilai; sampaikan apa adanya.'
             : null,
           s.hambatan.ruas_tangga ? `Terdeteksi ${s.hambatan.ruas_tangga} ruas tangga di sepanjang jalur.` : null,
-          saran ? 'Jarak ini terlalu jauh untuk berjalan kaki: sebutkan lamanya, lalu sampaikan fasilitas transportasi di saran_transportasi beserta aksesibilitas yang diketahui. Jangan mengarang rute atau jadwal transportasi umum.' : null,
+          // "Terlalu jauh" adalah penilaian, dan model bisa tidak sependapat untuk
+          // 2,8 km lalu diam soal transportasi umum — itu yang terjadi. Instruksinya
+          // dibuat tidak bisa ditafsir: ambangnya sudah diputuskan di sini, tugas model
+          // hanya menyampaikan isinya.
+          saran
+            ? `WAJIB disebutkan: jarak ini melewati ambang jalan kaki AksesKota, jadi sampaikan ${saran.lin.length} pilihan transportasi umum pada saran_transportasi — sebut nama linnya. Jangan menilai ulang apakah jaraknya masih bisa dijalani, dan jangan mengarang jadwal, tarif, atau waktu tempuh.`
+            : null,
         ].filter(Boolean).join(' '),
       };
     } catch {
