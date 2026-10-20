@@ -50,7 +50,7 @@ export default function AjakanMasuk({ aktif }) {
   return (
     <section
       aria-label="Manfaat membuat akun"
-      className="ak-muncul pointer-events-auto absolute bottom-4 right-3 z-30 w-[min(20rem,calc(100vw-1.5rem))] origin-bottom-right rounded-panel border border-border bg-surface p-4 shadow-popover max-lg:bottom-auto max-lg:left-3 max-lg:right-3 max-lg:top-[7.5rem] max-lg:w-auto max-lg:origin-top"
+      className="ak-muncul pointer-events-auto absolute bottom-4 right-3 z-30 w-[min(20rem,calc(100vw-1.5rem))] origin-bottom-right rounded-panel border border-border bg-surface p-4 shadow-popover max-lg:bottom-auto max-lg:left-3 max-lg:right-[4.25rem] max-lg:top-[7.5rem] max-lg:w-auto max-lg:origin-top"
     >
       {/* size-11 (44 px), bukan size-9. Sebelumnya tombol ini 35x35 px — di bawah
           ambang target sentuh, jadi di ponsel ia praktis selalu meleset dan popup-nya

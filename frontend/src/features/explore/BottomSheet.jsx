@@ -25,9 +25,9 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useSta
 const SENTAKAN = 0.4; // px/ms — di atas ini dianggap sentakan, bukan seretan
 const REDAM = 0.35; // seberapa jauh panel masih bergerak setelah melewati batas atas
 
-const BottomSheet = forwardRef(function BottomSheet({ titikPeek = 120, label, ringkasan, children }, ref) {
+const BottomSheet = forwardRef(function BottomSheet({ titikPeek = 120, awalIdx = 1, label, ringkasan, children }, ref) {
   const panelRef = useRef(null);
-  const [snapIdx, setSnapIdx] = useState(1); // 0 peek, 1 setengah, 2 penuh
+  const [snapIdx, setSnapIdx] = useState(awalIdx); // 0 peek, 1 setengah, 2 penuh
   const [menarik, setMenarik] = useState(false);
   // Posisi istirahat dipegang state, bukan ditulis langsung ke elemen: `style` di JSX
   // dikelola React, jadi setiap render akan menghapus transform yang ditulis imperatif.
@@ -37,7 +37,7 @@ const BottomSheet = forwardRef(function BottomSheet({ titikPeek = 120, label, ri
   const snaps = useRef([0, 0, 0]);
   // Cermin dari snapIdx. Dua ketukan cepat pada gagang membaca state yang sama dari
   // closure dan menghasilkan posisi yang sama; ref selalu memberi nilai terkini.
-  const snapRef = useRef(1);
+  const snapRef = useRef(awalIdx);
   const geser = useRef({ aktif: false, mulaiY: 0, mulaiOffset: 0, jejak: [] });
 
   // Offset = seberapa jauh panel digeser ke bawah dari posisi penuh.

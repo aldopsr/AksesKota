@@ -303,6 +303,10 @@ export default function ExplorePage() {
     />
   );
 
+  // Gerbang panel hasil di ponsel. needsRaw, bukan required: kebutuhan yang datang
+  // diam-diam dari profil pengguna yang login bukan tindakan mencari.
+  const sheetTerlihat = !!(params.q || params.category || params.needsRaw || id);
+
   const petaShell = (
     <>
       <MapView
@@ -313,6 +317,21 @@ export default function ExplorePage() {
         fitPaddingBottom={isDesktop ? 70 : 150}
         fitPaddingLeft={isDesktop ? 430 : 60}
       />
+
+      {/* Sejak panel hasil di ponsel baru muncul saat mencari, pertanyaan kebutuhan
+          ikut hilang dari layar pertama — padahal tanpa kebutuhan terpilih semua marker
+          berwarna sama dan aplikasi ini tidak punya apa pun untuk dikatakan. Jadi di
+          ponsel ia naik ke atas peta sebagai kartu mengambang di tepi bawah, bukan
+          baris pertama sebuah daftar yang belum ada. */}
+      {!isDesktop && !sheetTerlihat && required.length === 0 && (
+        <div className="absolute inset-x-3 bottom-4 z-30">
+          <NeedsPrompt
+            sisakanTombol={false}
+            onApply={(codes) => { goExplore(needsPatch(codes), { keepDetail: true }); toast.show(`${codes.length} kebutuhan diterapkan.`, 'info'); }}
+            onOpenFilter={() => setFilterOpen(true)}
+          />
+        </div>
+      )}
 
       {/* Dipicu oleh bukti ketertarikan, bukan oleh waktu: satu fasilitas dibuka, atau
           kebutuhan dipilih. Tombol masuk di navbar halaman peta sengaja dihapus. */}
@@ -355,8 +374,17 @@ export default function ExplorePage() {
           </FloatingCard>
         )
       ) : (
+        /* Seperti Gmaps: di ponsel peta yang pertama terlihat, bukan daftarnya. Panel
+           hasil baru ada begitu pengguna benar-benar mencari sesuatu — kata kunci,
+           kategori, kebutuhan yang dipilih sendiri, atau satu tempat yang dibuka.
+           Tanpa gerbang ini panel setengah layar menutupi peta sejak detik pertama,
+           dan hero di beranda praktis jadi daftar, bukan peta. */
+        sheetTerlihat && (
         <BottomSheet
           ref={sheetRef}
+          // Daftar hasil dibuka setengah layar; panel yang hanya mengikuti kebutuhan
+          // tersimpan cukup mengintip supaya peta tetap jadi isi utamanya.
+          awalIdx={params.q || params.category || id ? 1 : 0}
           label={id ? 'Detail fasilitas' : 'Hasil pencarian'}
           ringkasan={
             <p role="status" className="truncate text-center text-sm font-semibold">
@@ -366,6 +394,7 @@ export default function ExplorePage() {
         >
           {id ? detail : listContent}
         </BottomSheet>
+        )
       )}
     </>
   );

@@ -20,7 +20,7 @@ const sudahDitutup = () => {
   try { return localStorage.getItem(KUNCI) === '1'; } catch { return false; }
 };
 
-export default function NeedsPrompt({ onApply, onOpenFilter }) {
+export default function NeedsPrompt({ onApply, onOpenFilter, sisakanTombol = true }) {
   const [tertutup, setTertutup] = useState(sudahDitutup);
 
   const tutup = () => {
@@ -29,7 +29,10 @@ export default function NeedsPrompt({ onApply, onOpenFilter }) {
   };
 
   // Sudah pernah ditutup: sisakan satu tombol tenang, jangan bertanya lagi setiap kunjungan.
+  // Kecuali saat ia dipakai sebagai kartu mengambang di atas peta — di sana tombol sisa
+  // itu jadi perabot yang menutupi peta selamanya, dan pintunya sudah ada di menu cari.
   if (tertutup) {
+    if (!sisakanTombol) return null;
     return (
       <button
         type="button"
