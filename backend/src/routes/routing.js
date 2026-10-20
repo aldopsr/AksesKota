@@ -111,7 +111,19 @@ async function transportTerdekat(lon, lat) {
      select f.id, f.name, f.address,
             round(st_distance(f.location, t.g))::int as jarak_m,
             coalesce(array_agg(a.name order by a.sort) filter (where af.status = 'available'), '{}') as tersedia,
-            count(*) filter (where af.status <> 'unknown')::int as atribut_diketahui
+            count(*) filter (where af.status <> 'unknown')::int as atribut_diketahui,
+            -- Lin yang lewat di titik ini. Tanpa ini, saat tidak ada lin yang
+            -- menghubungkan kedua titik, aplikasi hanya menyuruh "pertimbangkan
+            -- transportasi umum" tanpa pernah menyebut naik apa — persis keluhan yang
+            -- membuat sarannya terasa kosong.
+            -- limit ada di subkueri DALAM, bukan di sebelah array_agg: di sana ia
+            -- membatasi baris hasil agregat (selalu satu), bukan baris yang diagregasi,
+            -- sehingga seluruh 13 lin tetap ikut terkumpul.
+            (select coalesce(array_agg(nm), '{}')
+               from (select distinct l.name as nm
+                       from transit_lines l
+                      where l.geom is not null and st_dwithin(l.geom, f.location, 300)
+                      order by nm limit 4) x) as dilewati
        from facilities f
        join categories c on c.id = f.category_id and c.code = 'transportasi'
        left join accessibility_facilities af on af.facility_id = f.id

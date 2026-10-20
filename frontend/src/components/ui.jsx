@@ -264,7 +264,10 @@ export function Tabs({ group, label, tabs, value, onChange, className = '' }) {
 }
 
 /* ============ Menu popover (disclosure) ============ */
-export function Menu({ label, icon: Icon, children, align = 'right', buttonClassName = '' }) {
+// chevron: popup pencarian memakai mesin yang sama (klik di luar, Escape, fokus balik)
+// tapi tidak boleh memakai panah bawah — pada pil pencarian itu membacanya seperti
+// daftar pilihan, bukan kolom isian.
+export function Menu({ label, icon: Icon, children, align = 'right', buttonClassName = '', chevron = true, lebar = 'min-w-56' }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const btn = useRef(null);
@@ -280,13 +283,14 @@ export function Menu({ label, icon: Icon, children, align = 'right', buttonClass
   return (
     <div ref={ref} className="relative">
       <button ref={btn} type="button" aria-expanded={open} aria-controls={id} onClick={() => setOpen((v) => !v)} className={buttonClassName || buttonClass('ghost')}>
-        {Icon && <Icon aria-hidden="true" size={18} />}{label}<ChevronDown aria-hidden="true" size={16} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+        {Icon && <Icon aria-hidden="true" size={18} />}{label}
+        {chevron && <ChevronDown aria-hidden="true" size={16} className={`transition-transform ${open ? 'rotate-180' : ''}`} />}
       </button>
       {open && (
         <m.div
           id={id} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.14 }}
           onClick={(e) => { if (e.target.closest('a,[data-close]')) setOpen(false); }}
-          className={`absolute z-40 mt-1 min-w-56 rounded-card border border-border bg-surface p-1.5 shadow-popover ${align === 'right' ? 'right-0' : 'left-0'}`}
+          className={`absolute z-40 mt-1 rounded-card border border-border bg-surface p-1.5 shadow-popover ${lebar} ${align === 'right' ? 'right-0' : 'left-0'}`}
         >
           {children}
         </m.div>

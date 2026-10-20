@@ -36,7 +36,7 @@ function KartuKebutuhan({ code, dipilih, onToggle, j }) {
       <input type="checkbox" checked={dipilih} onChange={onToggle} className="sr-only" />
       <span
         aria-hidden="true"
-        className={`mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
+        className={`mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-control border-2 transition-colors ${
           dipilih ? 'border-brand-700 bg-brand-700 text-white' : 'border-border-strong'
         }`}
       >
@@ -190,7 +190,7 @@ export default function ProfilePage() {
             <Pratinjau codes={selected} />
           </div>
 
-          <div className="sticky bottom-0 z-10 -mx-4 mt-6 border-t border-border bg-canvas/95 px-4 py-3 backdrop-blur lg:col-span-2 lg:mx-0 lg:rounded-card lg:border">
+          <div className="sticky bottom-16 z-10 md:bottom-0 -mx-4 mt-6 border-t border-border bg-canvas/95 px-4 py-3 backdrop-blur lg:col-span-2 lg:mx-0 lg:rounded-card lg:border">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <p role="status" className="font-sub text-sm text-ink-secondary">
                 <strong className="font-semibold text-ink">{selected.length}</strong> kebutuhan dipilih

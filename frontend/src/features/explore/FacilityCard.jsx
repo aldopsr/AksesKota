@@ -3,10 +3,8 @@ import { m } from 'motion/react';
 import { MapPin, Navigation } from 'lucide-react';
 import { ATTRIBUTE_LABEL, CATEGORY_LABEL, STATUS } from '../accessibility/constants';
 import { categoryIcon } from '../accessibility/icons';
-import { MatchBadge, Stars } from '../../components/status';
-import { Button } from '../../components/ui';
+import { MatchBadge } from '../../components/status';
 import { formatDistance } from '../../lib/geo';
-import { formatDate } from '../../lib/format';
 
 /**
  * Chip satu atribut: simbol + nama. Simbol dibaca lebih dulu daripada warna, jadi tetap
@@ -32,10 +30,11 @@ function AttributeChip({ code, status, urutan = 0 }) {
  * atas dan kecocokan di bawah, sehingga angka yang menjadi seluruh alasan produk ini
  * ada justru terbaca paling akhir.
  */
-export default function FacilityCard({ facility: f, level, distance, selected, to, onRoute, compact = false }) {
+// onOpen: kait opsional yang ikut jalan saat kartunya dibuka — bukan pengganti navigasi.
+// Dipakai panel asisten, yang harus menutup dirinya sendiri di layar sempit.
+export default function FacilityCard({ facility: f, level, distance, selected, to, onRoute, onOpen }) {
   const Icon = categoryIcon(f.category);
   const jarak = distance !== null && distance !== undefined ? formatDistance(distance) : null;
-  const diverifikasi = f.last_verified_at ? formatDate(f.last_verified_at) : null;
   const kebutuhan = Object.entries(f.needs_status ?? {});
 
   return (
@@ -55,24 +54,45 @@ export default function FacilityCard({ facility: f, level, distance, selected, t
         </div>
       )}
 
-      <div className="flex items-start gap-3">
+      <div className="flex items-center gap-3">
         {/* Ikon kategori dibuat netral: di dalam kartu, satu-satunya yang boleh berwarna
             adalah hal yang membawa makna — lencana kecocokan dan chip atribut. Ikon ungu
             di sebelahnya hanya bersaing menarik mata tanpa mengatakan apa pun. */}
         <span aria-hidden="true" className="inline-flex size-10 shrink-0 items-center justify-center rounded-control bg-surface-subtle text-ink-secondary"><Icon size={20} /></span>
         <div className="min-w-0 flex-1">
-          <m.h3 layoutId={`nama-${f.id}`} className="text-base font-semibold leading-snug">
-            <Link to={to} aria-current={selected ? 'true' : undefined} className="after:absolute after:inset-0 focus-visible:outline-none">{f.name}</Link>
+          {/* Dibatasi dua baris: diuji dengan "Rumah Sakit Umum Daerah Dokter Soekardjo
+              Kecamatan Bogor Tengah Provinsi Jawa Barat", namanya memanjat jadi empat
+              baris dan kartunya hampir dua kali tinggi kartu lain. Nama utuhnya tetap
+              ada di atribut title dan di halaman detail. */}
+          <m.h3 layoutId={`nama-${f.id}`} title={f.name} className="line-clamp-2 text-base font-semibold leading-snug">
+            <Link to={to} onClick={onOpen} aria-current={selected ? 'true' : undefined} className="after:absolute after:inset-0 focus-visible:outline-none">{f.name}</Link>
           </m.h3>
-          <p className="font-sub text-sm text-ink-secondary">
-            {CATEGORY_LABEL[f.category] ?? f.category_name}
-            {!f.label && jarak && <> · <strong className="font-semibold text-ink">{jarak}</strong></>}
-          </p>
-          <p className="font-sub mt-0.5 flex items-start gap-1 text-sm text-ink-secondary">
-            <MapPin aria-hidden="true" className="mt-0.5 shrink-0" size={14} />
-            <span>{f.address}</span>
+          {/* Satu baris keterangan, bukan tiga. Kategori sudah dikatakan ikon di
+              sebelahnya, jadi menuliskannya lagi hanya menambah baris; alamat dipotong
+              satu baris karena saat memindai daftar yang dicari nama, bukan alamat
+              lengkap — alamat utuhnya ada di halaman detail.
+              Kategori tetap dibacakan pembaca layar lewat teks tersembunyi, karena di
+              sana ikon tidak mengatakan apa-apa. */}
+          <p className="font-sub flex items-center gap-1 text-sm text-ink-secondary">
+            <span className="sr-only">{CATEGORY_LABEL[f.category] ?? f.category_name}. </span>
+            <MapPin aria-hidden="true" className="shrink-0" size={14} />
+            <span className="truncate">{f.address}</span>
+            {!f.label && jarak && <strong className="shrink-0 font-semibold text-ink"> · {jarak}</strong>}
           </p>
         </div>
+
+        {/* Tombol bundar berikon, bukan tombol berteks di barisnya sendiri: ia menghemat
+            satu baris penuh pada setiap kartu, dan bentuk ini sudah dipakai di halaman
+            depan sehingga terbaca sebagai "buka/lanjutkan" tanpa perlu dibaca. */}
+        {onRoute && (
+          <button
+            type="button" onClick={onRoute}
+            className="ak-pil relative z-10 inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-border-strong bg-surface text-ink hover:bg-surface-subtle"
+          >
+            <Navigation aria-hidden="true" size={16} />
+            <span className="sr-only">Rute ke {f.name}</span>
+          </button>
+        )}
       </div>
 
       {/* MANA yang terpenuhi, bukan sekadar "3 dari 4". Bagi pengguna kursi roda,
@@ -83,20 +103,10 @@ export default function FacilityCard({ facility: f, level, distance, selected, t
         </ul>
       )}
 
-      {/* Baris ini hanya muncul kalau memang ada isinya. Sebelumnya selalu tampil dan
-          menuliskan "Diverifikasi -" untuk fasilitas yang belum pernah diverifikasi. */}
-      {!compact && (diverifikasi || f.rating_count > 0) && (
-        <p className="font-sub mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-secondary">
-          {diverifikasi && <span>Diverifikasi {diverifikasi}</span>}
-          {f.rating_count > 0 && <span className="inline-flex items-center gap-1"><Stars value={f.rating_avg} /> {f.rating_avg} ({f.rating_count})</span>}
-        </p>
-      )}
-
-      {onRoute && (
-        <div className="relative z-10 mt-3">
-          <Button variant="secondary" size="sm" onClick={onRoute}><Navigation aria-hidden="true" size={15} /> Rute<span className="sr-only"> ke {f.name}</span></Button>
-        </div>
-      )}
+      {/* Tanggal verifikasi dan rating dipindah ke halaman detail. Di dalam daftar
+          keduanya menambah satu baris pada setiap kartu untuk informasi yang tidak
+          dipakai saat memindai — keputusan "bisa saya masuki atau tidak" sudah dijawab
+          lencana kecocokan dan chip atribut di atas. */}
     </article>
   );
 }

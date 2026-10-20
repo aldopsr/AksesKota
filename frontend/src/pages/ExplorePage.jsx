@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { Bot, LocateFixed, SlidersHorizontal, SearchX } from 'lucide-react';
+import { LocateFixed, SearchX } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { useAssistant, useLocationState, useToast } from '../context/AppContexts';
@@ -11,14 +11,17 @@ import { buildExplore, readExplore } from '../lib/url';
 import { levelFor, normalizeFacility } from '../features/accessibility/match';
 import { ATTRIBUTE_LABEL, CATEGORIES, COVERAGE_NOTE } from '../features/accessibility/constants';
 import MapView from '../features/map/MapView';
-import { AssistantFab, MapControls, MapLegend } from '../features/map/MapChrome';
+import { MapControls } from '../features/map/MapChrome';
 import FacilityCard from '../features/explore/FacilityCard';
 import FilterSheet from '../features/explore/FilterSheet';
 import NeedsPrompt from '../features/accessibility/NeedsPrompt';
 import FacilityDetailPanel from '../features/explore/FacilityDetailPanel';
 import RouteSummary from '../features/explore/RouteSummary';
 import BottomSheet from '../features/explore/BottomSheet';
-import { Alert, Button, Chip, EmptyState, IconButton, LinkButton, RemovableChip, SearchInput, Skeleton } from '../components/ui';
+import FloatingCard from '../features/explore/FloatingCard';
+import AjakanMasuk from '../features/explore/AjakanMasuk';
+import { LandingSections } from './HomePage';
+import { Alert, Button, EmptyState, LinkButton, RemovableChip, Skeleton } from '../components/ui';
 
 const PAGE = 20;
 const INITIAL_ROUTE = { facilityId: null, origin: null, picking: false, loading: false, error: null, data: null };
@@ -36,12 +39,36 @@ export default function ExplorePage() {
   const assistant = useAssistant();
   const toast = useToast();
   const isDesktop = useMediaQuery('(min-width: 1024px)');
+
+  // Di "/" peta hanya hero setinggi satu layar dan halaman berlanjut ke bawah.
+  // Di /map dan /facilities/:id ia kerangka aplikasi penuh tanpa bagian landing.
+  const halamanDepan = location.pathname === '/';
+  const heroRef = useRef(null);
+  const [heroTerlihat, setHeroTerlihat] = useState(true);
+  useEffect(() => {
+    if (!halamanDepan || !heroRef.current) { setHeroTerlihat(true); return undefined; }
+    // Kartu mengambang memakai position: fixed, jadi tanpa ini ia tetap melayang di
+    // atas bagian "Cara kerja" saat halaman digulir — menutupi isi yang tidak ada
+    // hubungannya dengan peta.
+    //
+    // rootMargin, bukan threshold: kartu memanjang sampai dekat dasar layar, jadi yang
+    // menentukan bukan "berapa persen hero terlihat" melainkan "apakah hero masih
+    // menutupi sampai dasar layar". Ambang persen (0.15) sempat dipakai dan kartunya
+    // tetap menimpa isi di bawah, karena 15% hero yang tersisa itu ada di ATAS layar
+    // sementara kartunya menjulur ke bawah.
+    const io = new IntersectionObserver(
+      ([e]) => setHeroTerlihat(e.isIntersecting),
+      { rootMargin: '-95% 0px 0px 0px', threshold: 0 },
+    );
+    io.observe(heroRef.current);
+    return () => io.disconnect();
+  }, [halamanDepan]);
+
   useDocumentTitle(id ? null : 'Jelajahi fasilitas');
 
   const mapRef = useRef(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const sheetRef = useRef(null);
-  const [qInput, setQInput] = useState(params.q);
   const [limit, setLimit] = useState(PAGE);
   const [previewId, setPreviewId] = useState(null);
   const [focus, setFocus] = useState(null);
@@ -66,8 +93,17 @@ export default function ExplorePage() {
     });
   }, [navigate, params, id, location.pathname]);
   const needsPatch = (codes) => ({ needsRaw: codes.length ? codes.join(',') : 'none' });
+  // Panel kebutuhan bisa dibuka dari navbar lewat URL (?filter=1), pola yang sama
+  // dengan asisten. Parameternya langsung dibersihkan supaya tombol Back tidak
+  // membukanya lagi.
+  useEffect(() => {
+    if (!sp.get('filter')) return;
+    setFilterOpen(true);
+    const bersih = new URLSearchParams(sp);
+    bersih.delete('filter');
+    navigate({ pathname: location.pathname, search: bersih.toString() ? `?${bersih}` : '' }, { replace: true });
+  }, [sp]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { setQInput(params.q); }, [params.q]);
   useEffect(() => { if (params.assistant) { assistant.openAssistant(); navigate({ pathname: location.pathname, search: buildExplore({ ...params }) }, { replace: true }); } }, [params.assistant]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---------- data: pencocokan dan urutan dihitung backend ---------- */
@@ -142,46 +178,24 @@ export default function ExplorePage() {
   }, [id, navigate, location.search, isDesktop]);
   const onDetailLoaded = useCallback((f) => { setLoaded(f); setFocus({ lng: f.lon, lat: f.lat, zoom: 15, key: `sel-${f.id}` }); }, []);
   const openDetail = (fid) => { navigate({ pathname: `/facilities/${fid}`, search: location.search }); };
-  const previewFacility = results.find((f) => String(f.id) === String(previewId)) ?? null;
 
   /* ---------- ringkasan ---------- */
   const catLabel = CATEGORIES.find((c) => c.code === params.category)?.label;
   const sortText = required.length ? (geo.location ? 'kecocokan kebutuhan, lalu jarak' : 'kecocokan kebutuhan, lalu nama') : (geo.location ? 'jarak terdekat' : 'nama');
   const hasFilters = !!(params.q || params.category || required.length || params.radius);
 
-  const topBar = (
-    <div className="space-y-2.5 border-b border-border bg-surface p-3">
-      <div className="flex items-center gap-2">
-        <SearchInput
-          className="min-w-0 flex-1" id="explore-search" value={qInput} onChange={setQInput} placeholder="Cari nama, kategori, atau lokasi"
-          onSubmit={(v) => goExplore({ q: v.trim() })} onClear={() => params.q && goExplore({ q: '' })}
-        />
-        <IconButton label={`Filter kebutuhan${required.length ? `, ${required.length} aktif` : ''}`} onClick={() => setFilterOpen(true)} className="relative">
-          <SlidersHorizontal aria-hidden="true" size={20} />
-          {required.length > 0 && <span aria-hidden="true" className="absolute -right-1.5 -top-1.5 inline-flex size-5 items-center justify-center rounded-full bg-brand-700 text-xs font-bold text-white">{required.length}</span>}
-        </IconButton>
-        <IconButton label="Tanya asisten" onClick={assistant.openAssistant} className="lg:hidden"><Bot aria-hidden="true" size={20} /></IconButton>
-      </div>
-      <div role="group" aria-label="Kategori" className={`no-scrollbar -mx-3 gap-2 overflow-x-auto px-3 pb-0.5 flex`}>
-        <Chip pressed={!params.category} onClick={() => goExplore({ category: '' })}>Semua</Chip>
-        {CATEGORIES.map((c) => <Chip key={c.code} pressed={params.category === c.code} onClick={() => goExplore({ category: c.code })}>{c.label}</Chip>)}
-      </div>
-      {/* Satu baris yang bisa digeser, bukan membungkus jadi dua-tiga baris. Dengan empat
-          kebutuhan aktif, chip yang membungkus mendorong hasil pertama turun hampir
-          setinggi layar di HP — pengguna menggulir jauh hanya untuk melihat satu fasilitas. */}
-      {(required.length > 0 || params.radius) && (
-        <ul aria-label="Filter aktif" className="no-scrollbar -mx-3 flex gap-2 overflow-x-auto px-3 pb-0.5 sm:flex-wrap sm:overflow-visible [&>li]:shrink-0">
-          {usingProfile && <li><RemovableChip label="Profil saya" onRemove={() => goExplore({ needsRaw: 'none' })} /></li>}
-          {!usingProfile && required.map((c) => <li key={c}><RemovableChip label={ATTRIBUTE_LABEL[c]} onRemove={() => goExplore(needsPatch(required.filter((x) => x !== c)))} /></li>)}
-          {params.radius && <li><RemovableChip label={`Radius ${params.radius >= 1000 ? `${params.radius / 1000} km` : `${params.radius} m`}`} onRemove={() => goExplore({ radius: null })} /></li>}
-        </ul>
-      )}
-    </div>
+  const filterAktif = (required.length > 0 || params.radius) && (
+    <ul aria-label="Filter aktif" className="flex flex-wrap gap-2">
+      {usingProfile && <li><RemovableChip label="Profil saya" onRemove={() => goExplore({ needsRaw: 'none' })} /></li>}
+      {!usingProfile && required.map((c) => <li key={c}><RemovableChip label={ATTRIBUTE_LABEL[c]} onRemove={() => goExplore(needsPatch(required.filter((x) => x !== c)))} /></li>)}
+      {params.radius && <li><RemovableChip label={`Radius ${params.radius >= 1000 ? `${params.radius / 1000} km` : `${params.radius} m`}`} onRemove={() => goExplore({ radius: null })} /></li>}
+    </ul>
   );
 
   const listContent = (
     <div className="space-y-3 p-3">
       <h2 className="sr-only">Hasil pencarian</h2>
+      {filterAktif}
       {params.intent === 'update' && (
         <Alert tone="info" title="Perbarui data fasilitas" actions={<Button size="sm" variant="secondary" onClick={() => goExplore({ intent: '' })}>Mengerti</Button>}>
           Pilih fasilitas di daftar, lalu tekan <strong>Usulkan pembaruan</strong> di halaman detailnya.
@@ -237,7 +251,10 @@ export default function ExplorePage() {
           actions={(
             <>
               {hasFilters && <Button variant="secondary" onClick={() => navigate('/map')}>Hapus semua filter</Button>}
-              <Button variant="secondary" onClick={() => document.getElementById('explore-search')?.focus()}>Ubah pencarian</Button>
+              {/* Dulu tombol ini memfokuskan #explore-search. Kolom itu pindah ke navbar
+                  bersama CommandBar, jadi tombolnya diam saja saat diklik. Diganti aksi
+                  yang memang bisa dikerjakan dari sini. */}
+              {params.category && <Button variant="secondary" onClick={() => goExplore({ category: '' })}>Lihat semua kategori</Button>}
               <LinkButton to="/facilities/new">Usulkan fasilitas</LinkButton>
             </>
           )}
@@ -286,60 +303,106 @@ export default function ExplorePage() {
     />
   );
 
-  return (
-    <div className="flex h-full flex-col lg:flex-row">
-      <h1 className="sr-only">Jelajahi fasilitas aksesibel</h1>
+  const petaShell = (
+    <>
+      <MapView
+        ref={mapRef} items={items} selectedId={id ?? previewId} onSelect={onMarkerSelect}
+        userLocation={geo.location} origin={routeHere ? route.origin : null} routeGeometry={routeHere ? route.data?.geometry ?? null : null}
+        pickingOrigin={routeHere && route.picking} onPickOrigin={routePicked} focus={focus}
+        onError={(e) => { if ([401, 403].includes(e?.error?.status)) setMapProblem(true); }}
+        fitPaddingBottom={isDesktop ? 70 : 150}
+        fitPaddingLeft={isDesktop ? 430 : 60}
+      />
 
-      {/* Mobile: kolom ini menyusut jadi bilah pencarian saja — hasilnya pindah ke panel
-          bawah di atas peta. Desktop: tetap kolom samping seperti semula. */}
-      <div className="flex min-h-0 flex-none flex-col bg-surface lg:w-[24rem] lg:flex-none lg:border-r lg:border-border xl:w-[25rem]">
-        {!id && topBar}
-        <section aria-label={id ? 'Detail fasilitas' : 'Hasil pencarian'} className="panel-scroll hidden min-h-0 flex-1 overflow-y-auto bg-canvas lg:block">
-          {id ? detail : listContent}
-        </section>
-      </div>
+      {/* Dipicu oleh bukti ketertarikan, bukan oleh waktu: satu fasilitas dibuka, atau
+          kebutuhan dipilih. Tombol masuk di navbar halaman peta sengaja dihapus. */}
+      {!session && <AjakanMasuk aktif={!!id || required.length > 0} />}
 
-      <div className="relative min-h-0 flex-1">
-        <MapView
-          ref={mapRef} items={items} selectedId={id ?? previewId} onSelect={onMarkerSelect}
-          userLocation={geo.location} origin={routeHere ? route.origin : null} routeGeometry={routeHere ? route.data?.geometry ?? null : null}
-          pickingOrigin={routeHere && route.picking} onPickOrigin={routePicked} focus={focus}
-          onError={(e) => { if ([401, 403].includes(e?.error?.status)) setMapProblem(true); }}
-          fitPaddingBottom={isDesktop ? 70 : 150}
-        />
-        <MapLegend />
-        <MapControls onZoomIn={() => mapRef.current?.zoomIn()} onZoomOut={() => mapRef.current?.zoomOut()} onLocate={locateMe} locating={geo.status === 'loading'} />
-        <AssistantFab onClick={assistant.openAssistant} />
-        {mapProblem && <div className="absolute inset-x-3 top-20 z-30 mx-auto max-w-md"><Alert tone="danger">Peta tidak dapat dimuat (token tidak valid). Daftar hasil tetap bisa dipakai.</Alert></div>}
-        {routeHere && route.picking && (
-          <div role="status" className="absolute left-1/2 top-3 z-30 flex -translate-x-1/2 items-center gap-2 rounded-control bg-ink px-4 py-2 font-semibold text-white shadow-popover">
-            Klik peta untuk menentukan titik awal
-            <button type="button" onClick={routeStartPick} className="min-h-11 px-2 underline">Batal</button>
-          </div>
-        )}
+      <MapControls
+        onZoomIn={() => mapRef.current?.zoomIn()} onZoomOut={() => mapRef.current?.zoomOut()}
+        onLocate={locateMe} locating={geo.status === 'loading'}
+      />
 
-        {/* Peta dan hasil kini terlihat bersamaan di HP. Memilih tempat butuh keduanya:
-            dengan tombol Daftar/Peta, pengguna harus bolak-balik dan kehilangan konteks. */}
-        {!isDesktop && (
-          <BottomSheet
-            ref={sheetRef}
-            label={id ? 'Detail fasilitas' : 'Hasil pencarian'}
-            ringkasan={
-              <p role="status" className="truncate text-center text-sm font-semibold">
-                {id ? (loaded?.name ?? 'Detail fasilitas') : `${results.length} fasilitas${required.length ? ` · ${required.length} kebutuhan` : ''}`}
-              </p>
-            }
+      {mapProblem && (
+        <div className="absolute inset-x-3 top-32 z-30 mx-auto max-w-md">
+          <Alert tone="danger">Peta tidak dapat dimuat (token tidak valid). Daftar hasil tetap bisa dipakai.</Alert>
+        </div>
+      )}
+      {routeHere && route.picking && (
+        <div role="status" className="absolute left-1/2 top-32 z-30 flex -translate-x-1/2 items-center gap-2 rounded-control bg-ink px-4 py-2 font-semibold text-white shadow-popover">
+          Klik peta untuk menentukan titik awal
+          <button type="button" onClick={routeStartPick} className="min-h-11 px-2 underline">Batal</button>
+        </div>
+      )}
+
+      {/* Layar lebar: kartu mengambang. HP: panel bawah yang bisa ditarik — kartu yang
+          bisa digeser-geser tidak masuk akal di layar selebar telapak tangan, dan panel
+          bawah sudah jadi pola yang dikenal di sana. Keduanya menampilkan isi yang sama. */}
+      {isDesktop ? (
+        heroTerlihat && (
+          <FloatingCard
+            key={id ? 'detail' : 'hasil'}
+            id={id ? 'detail' : 'hasil'}
+            label={id ? (loaded?.name ?? 'Detail fasilitas') : `${loadingList ? 'Memuat' : results.length} fasilitas${required.length ? ` · ${usingProfile ? 'profil Anda' : `${required.length} kebutuhan`}` : ''}`}
+            // 88 px: tepat di bawah navbar. Dulu 184 px karena ada bilah perintah dan
+            // baris kategori di atasnya; keduanya sudah pindah ke navbar, jadi angka
+            // lama menyisakan satu jalur kosong selebar kartu.
+            posisiAwal={{ x: 12, y: 88 }}
+            lebar={id ? 25 : 24}
+            onClose={id ? () => navigate({ pathname: '/map', search: location.search }) : null}
           >
             {id ? detail : listContent}
-          </BottomSheet>
-        )}
+          </FloatingCard>
+        )
+      ) : (
+        <BottomSheet
+          ref={sheetRef}
+          label={id ? 'Detail fasilitas' : 'Hasil pencarian'}
+          ringkasan={
+            <p role="status" className="truncate text-center text-sm font-semibold">
+              {id ? (loaded?.name ?? 'Detail fasilitas') : `${results.length} fasilitas${required.length ? ` · ${required.length} kebutuhan` : ''}`}
+            </p>
+          }
+        >
+          {id ? detail : listContent}
+        </BottomSheet>
+      )}
+    </>
+  );
+
+  const filterSheet = (
+    <FilterSheet
+      open={filterOpen} onClose={() => setFilterOpen(false)} required={required} session={session} profile={profile}
+      onApply={(codes) => { goExplore(needsPatch(codes), { keepDetail: true }); toast.show(codes.length ? `${codes.length} kebutuhan diterapkan.` : 'Filter kebutuhan dihapus.', 'info'); }}
+    />
+  );
+
+  // /map dan /facilities/:id: kerangka aplikasi penuh, tidak menggulir.
+  if (!halamanDepan) {
+    return (
+      <div className="relative h-full">
+        <h1 className="sr-only">Jelajahi fasilitas aksesibel</h1>
+        {petaShell}
+        {filterSheet}
+      </div>
+    );
+  }
+
+  // "/": peta jadi hero setinggi satu layar, lalu halaman berlanjut ke penjelasannya.
+  return (
+    <>
+      {/* Peta dimasukkan ke dalam kotak bersudut besar dengan margin halaman, persis
+          seperti foto hero pada acuan — bukan dibiarkan menempel ke keempat tepi layar.
+          Navbar mengambang di atasnya. */}
+      <div ref={heroRef} className="h-[100dvh] p-3">
+        <div className="relative h-full overflow-hidden rounded-[1.75rem]">
+          <h1 className="sr-only">Jelajahi fasilitas aksesibel</h1>
+          {petaShell}
+        </div>
       </div>
 
-      <FilterSheet
-        open={filterOpen} onClose={() => setFilterOpen(false)} required={required} session={session} profile={profile}
-        onApply={(codes) => { goExplore(needsPatch(codes), { keepDetail: true }); toast.show(codes.length ? `${codes.length} kebutuhan diterapkan.` : 'Filter kebutuhan dihapus.', 'info'); }}
-      />
-    </div>
+      <LandingSections />
+      {filterSheet}
+    </>
   );
 }
-

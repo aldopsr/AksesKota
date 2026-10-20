@@ -1,156 +1,263 @@
 import { Link } from 'react-router-dom';
-import { BadgeCheck, Route as RouteIcon, Search, Users } from 'lucide-react';
-import { ATTRIBUTE_LABEL, COVERAGE_NOTE, STATUS } from '../features/accessibility/constants';
-import { LEVELS, breakdown } from '../features/accessibility/match';
-import { AttributeRow, ContributionBadge, MatchBadge } from '../components/status';
-import { Alert, LinkButton } from '../components/ui';
+import { ArrowUpRight } from 'lucide-react';
+import { COVERAGE_NOTE, NEEDS_PRESETS } from '../features/accessibility/constants';
 import Reveal from '../components/Reveal';
-import { useDocumentTitle } from '../hooks/useDocumentTitle';
+
+/**
+ * Isi halaman depan di bawah hero peta.
+ *
+ * Ditiru DEKAT dari acuan landing page yang diberikan (Rallyo Club), bukan diadaptasi:
+ * baris chip dengan satu chip gelap sebagai yang aktif tepat di atas judul besar, lalu
+ * grid kartu campur — kartu foto bersudut besar dengan teks menumpang di atasnya dan
+ * tombol panah bundar di pojok, berdampingan dengan blok warna padat.
+ *
+ * Tiga hal sengaja TIDAK disalin bulat-bulat, dan alasannya penting:
+ *  1. Warna. Di acuan hijau dan oranye dipakai sebagai warna hias. Di sini hijau,
+ *     kuning, dan merah SUDAH punya arti — tingkat kecocokan aksesibilitas. Memakainya
+ *     untuk hiasan membuat satu-satunya sistem warna yang wajib dibaca benar berhenti
+ *     berarti. Slot warna acuan diisi warna merek: indigo pekat dan cyan.
+ *  2. Foto. Acuan hidup dari foto orang bermain tenis. Slot fotonya diisi foto arsip
+ *     jalanan Bogor dari Rijksmuseum dan KITLV — dunia di sekitar subjek, bukan milik
+ *     kami, kredit lengkap di footer.
+ *  3. Panjang teks. Jumlah kata kita berbeda; yang diikuti geometri bloknya, bukan
+ *     jumlah katanya.
+ */
 
 
-// Contoh hasil: skor dihitung dari atribut yang ditampilkan, sehingga selalu konsisten dengan datanya.
-const EXAMPLE_NEEDS = ['ramp', 'lift', 'accessible_toilet', 'braille'];
-const EXAMPLE_ATTRS = [
-  { code: 'ramp', status: 'available', notes: 'Di pintu utama, kemiringan landai.' },
-  { code: 'lift', status: 'available' },
-  { code: 'accessible_toilet', status: 'not_available' },
-  { code: 'braille', status: 'unknown' },
+/* ---------- 2. how-it-works — tahapan sebagai satu bilah ---------- */
+
+const TAHAP = [
+  { lama: 'Sekali ketuk', klausa: 'Pilih kebutuhan Anda, atau pakai preset kursi roda dan low vision.', bg: 'bg-brand-900', teks: 'text-white' },
+  { lama: 'Langsung', klausa: 'Setiap tempat dinilai ulang terhadap kebutuhan itu, termasuk yang belum diketahui.', bg: 'bg-accent-cyan', teks: 'text-ink' },
+  { lama: 'Beberapa detik', klausa: 'Rute dibuat, lengkap dengan hambatan yang terdeteksi di jalurnya.', bg: 'bg-brand-700', teks: 'text-white' },
 ];
 
-function HeroCard() {
-  const parts = breakdown(EXAMPLE_ATTRS, EXAMPLE_NEEDS);
-  const percent = Math.round((parts.met.length / EXAMPLE_NEEDS.length) * 100);
-  const byCode = Object.fromEntries(EXAMPLE_ATTRS.map((a) => [a.code, a]));
+function CaraKerja() {
   return (
-    <article aria-label="Contoh tampilan hasil" className="rounded-panel border border-border bg-surface p-5 shadow-panel">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xl font-bold leading-snug">Klinik Contoh Sehat</p>
-          <p className="font-sub text-sm text-ink-secondary">Kesehatan · Jl. Contoh No. 1, Bogor</p>
-        </div>
-        <span className="shrink-0 rounded-md bg-surface-subtle px-2 py-0.5 text-xs font-bold uppercase text-ink-secondary">Contoh</span>
+    <section id="cara-kerja" aria-labelledby="cara-title" className="mx-auto max-w-7xl px-4 py-16 sm:py-24">
+      <Reveal>
+        <h2 id="cara-title" className="max-w-[12ch] text-display font-extrabold leading-[0.95] tracking-[-0.03em]">
+          Cara kerja
+        </h2>
+      </Reveal>
+
+      {/* Satu bilah melintang, bukan tiga kartu berjajar: bilahnya sendiri yang jadi
+          diagramnya. Lebar segmen dibuat SAMA, bukan proporsional terhadap durasi —
+          ketiganya nyaris seketika, jadi lebar yang berbeda-beda hanya akan terlihat
+          seperti data padahal bukan. */}
+      <div className="mt-14 flex flex-col gap-1.5 sm:h-[22vh] sm:min-h-44 sm:flex-row">
+        {TAHAP.map(({ lama, klausa, bg, teks }, i) => (
+          <Reveal
+            key={lama}
+            delay={i * 0.06}
+            className={`flex min-h-[4.5rem] flex-1 flex-col justify-between rounded-card p-5 ${bg} ${teks} ${teks === 'text-white' ? 'on-dark' : ''}`}
+          >
+            <p className="text-lead font-bold leading-tight">{lama}</p>
+            {/* opacity-90 menurunkan kontras klausa di atas brand-500 jadi 3.6:1,
+                di bawah ambang AA 4.5:1. Warna penuh, tanpa transparansi. */}
+            <p className="font-sub mt-3 max-w-[24ch] text-sm sm:text-base">{klausa}</p>
+          </Reveal>
+        ))}
       </div>
-      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-        <MatchBadge level={LEVELS.partial} percent={percent} />
-        <span className="font-sub text-sm text-ink-secondary">
-          {parts.met.length} dari {EXAMPLE_NEEDS.length} terpenuhi, {parts.unknown.length} belum diketahui
-        </span>
-      </div>
-      <ul className="mt-3 divide-y divide-border rounded-card border border-border px-3">
-        {EXAMPLE_NEEDS.map((c) => <AttributeRow key={c} code={c} status={byCode[c].status} note={byCode[c].notes} required />)}
-      </ul>
-      <p className="font-sub mt-3 text-sm text-ink-secondary">
-        Yang belum kami ketahui ditulis apa adanya sebagai <strong className="font-semibold text-ink">?</strong>, tidak pernah dihitung sebagai tersedia.
-      </p>
-    </article>
+    </section>
   );
 }
 
-function Hero() {
+/* ---------- 3. proof — cakupan sebagai tabel ---------- */
+
+// Per wilayah, dari database 20 Okt 2026. "Belum diketahui" sengaja jadi kolom
+// tersendiri, bukan sisa hitungan: itu satu-satunya angka yang membedakan kami.
+const BARIS_CAKUPAN = [
+  ['Kota Bogor', 51, 33],
+  ['DKI Jakarta', 43, 32],
+  ['Kota Bandung', 43, 34],
+];
+
+function Cakupan() {
   return (
-    <section className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:py-12 lg:grid lg:grid-cols-[1fr_27rem] lg:items-start lg:gap-x-14 lg:py-16">
-      <div>
-        <h1 className="max-w-[16ch] text-4xl font-extrabold sm:text-5xl lg:text-[3.4rem]">
-          Cek akses tempatnya sebelum berangkat.
-        </h1>
-        <p className="font-sub mt-4 max-w-xl text-lg text-ink-secondary">
-          Dicocokkan dengan kebutuhan Anda, bukan satu angka untuk semua orang.
+    <section aria-labelledby="cakupan-title" className="mx-auto max-w-7xl px-4 py-16 sm:py-24">
+      <Reveal>
+        <h2 id="cakupan-title" className="text-title font-extrabold leading-[1.02] tracking-[-0.02em]">
+          Cakupan data
+          <span className="block pl-[8%]">apa adanya</span>
+        </h2>
+      </Reveal>
+
+      <Reveal delay={0.05} className="mt-12 overflow-x-auto">
+        <table className="w-full min-w-[32rem] border-collapse text-left">
+          <caption className="sr-only">Jumlah fasilitas terdata dan yang sudah punya atribut aksesibilitas, per wilayah</caption>
+          <thead>
+            <tr className="text-sm text-ink-secondary">
+              <th scope="col" className="py-3.5 pr-4 font-semibold">Wilayah</th>
+              <th scope="col" className="py-3.5 pr-4 font-semibold">Fasilitas terdata</th>
+              <th scope="col" className="py-3.5 pr-4 font-semibold">Punya atribut</th>
+              <th scope="col" className="py-3.5 text-right font-semibold">Belum diketahui</th>
+            </tr>
+          </thead>
+          <tbody>
+            {BARIS_CAKUPAN.map(([wilayah, total, beratribut]) => (
+              // Nada latar berselang-seling menggantikan garis — lembar arah melarang
+              // garis rambut di mana pun kecuali di dalam tabel, dan di sini pun nada
+              // lebih tenang daripada garis.
+              <tr key={wilayah} className="odd:bg-surface-subtle">
+                <th scope="row" className="py-3.5 pl-3 pr-4 font-semibold">{wilayah}</th>
+                <td className="py-3.5 pr-4 tabular-nums">{total}</td>
+                <td className="py-3.5 pr-4 tabular-nums">{beratribut}</td>
+                <td className="py-3.5 pr-3 text-right font-semibold tabular-nums">
+                  <span aria-hidden="true" className="mr-1 text-ink-secondary">?</span>{total - beratribut}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Reveal>
+
+      <p className="font-sub mt-6 max-w-[62ch] text-sm text-ink-secondary">{COVERAGE_NOTE}</p>
+    </section>
+  );
+}
+
+/* ---------- 4. cta — ide yang sama, dibalik ---------- */
+
+function Penutup() {
+  return (
+    <section
+      aria-labelledby="penutup-title"
+      className="on-dark flex min-h-[80svh] flex-col justify-between bg-ink px-4 py-16 text-white sm:min-h-[90svh] sm:py-20"
+    >
+      <div className="mx-auto w-full max-w-7xl">
+        <Reveal>
+          <h2 id="penutup-title" className="max-w-[14ch] text-display font-extrabold leading-[0.9] tracking-[-0.035em]">
+            Datanya belum lengkap
+          </h2>
+        </Reveal>
+      </div>
+
+      <div className="mx-auto mt-16 grid w-full max-w-7xl gap-6 sm:grid-cols-12 sm:items-end">
+        <p className="font-sub text-lg leading-relaxed text-brand-100 sm:col-span-5">
+          Bantu lengkapi: tambahkan fasilitas atau perbarui datanya dengan foto bukti.
+          Setiap kiriman ditinjau admin sebelum data resmi berubah.
         </p>
-        <div className="mt-6">
-          <LinkButton to="/" size="lg">Buka peta</LinkButton>
+        <div className="sm:col-span-3 sm:col-start-10">
+          <Link
+            to="/facilities/new"
+            className="ak-pil flex h-14 w-full items-center justify-center rounded-control bg-accent-cyan px-6 text-base font-bold text-ink hover:brightness-95"
+          >
+            Tambah fasilitas
+          </Link>
         </div>
-      </div>
-      <div className="lg:pt-2"><HeroCard /></div>
-    </section>
-  );
-}
-/* Tiap langkah memperlihatkan potongan antarmuka aslinya, bukan menjelaskannya dengan
-   paragraf. Menunjukkan lebih cepat ditangkap daripada menerangkan. */
-const STEPS = [
-  {
-    Icon: Search,
-    title: 'Pilih kebutuhan Anda',
-    text: 'Sekali ketuk, bukan satu per satu.',
-    contoh: ['ramp', 'lift', 'accessible_toilet'].map((c) => ({ label: ATTRIBUTE_LABEL[c] })),
-  },
-  {
-    Icon: BadgeCheck,
-    title: 'Lihat kecocokannya',
-    text: 'Termasuk yang belum diketahui.',
-    contoh: [['ramp', 'available'], ['lift', 'available'], ['accessible_toilet', 'unknown']]
-      .map(([c, st]) => ({ label: ATTRIBUTE_LABEL[c], simbol: STATUS[st].symbol, status: STATUS[st].label })),
-  },
-  {
-    Icon: RouteIcon,
-    title: 'Buat rute ke sana',
-    text: 'Dengan hambatan yang diketahui.',
-    contoh: [{ label: '1,2 km · 15 menit · 2 ruas tangga' }],
-  },
-];
-function HowItWorks() {
-  return (
-    <section id="cara-kerja" aria-labelledby="how-title" className="mx-auto max-w-7xl px-4 py-6">
-      <div className="on-dark rounded-panel bg-brand-900 p-6 text-white sm:p-10">
-        <Reveal><h2 id="how-title" className="text-3xl font-bold sm:text-4xl">Cara kerja</h2></Reveal>
-        <ol className="mt-7 grid gap-6 md:grid-cols-3">
-          {STEPS.map(({ Icon, title, text, contoh }, i) => (
-            <Reveal as="li" key={title} delay={i * 0.04}>
-              <span aria-hidden="true" className="inline-flex size-11 items-center justify-center rounded-control bg-accent-cyan text-brand-900"><Icon size={22} /></span>
-              <h3 className="mt-3 text-xl font-semibold"><span className="mr-1.5 text-accent-cyan">{i + 1}.</span>{title}</h3>
-              <p className="font-sub mt-1 text-brand-100">{text}</p>
-              <ul className="ak-chips mt-3 flex flex-wrap gap-1.5">
-                {contoh.map((c, j) => (
-                  <li key={c.label} style={{ '--j': j }} className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-xs font-semibold">
-                    {c.simbol && <span aria-hidden="true">{c.simbol}</span>}{c.label}
-                    {c.status && <span className="sr-only">: {c.status}</span>}
-                  </li>
-                ))}
-              </ul>
-            </Reveal>
-          ))}
-        </ol>
       </div>
     </section>
   );
 }
 
-function Community() {
+/* ---------- pitch: contoh hasil yang sesungguhnya ---------- */
+
+/**
+ * Kepala halaman: baris chip di atas, judul besar di bawahnya.
+ *
+ * Ditiru dari acuan: di sana baris chip (Competition / Training / Friendly match)
+ * berada tepat di atas judul besar, dengan satu chip gelap sebagai yang aktif. Di sini
+ * chip-nya bukan hiasan — tiap satu membuka peta dengan kebutuhan itu sudah terpasang.
+ */
+function Pitch() {
   return (
-    <section aria-labelledby="community-title" className="mx-auto max-w-7xl px-4 py-10 sm:py-14">
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Reveal className="rounded-panel bg-accent-cyan p-6 sm:p-8">
-          <Users aria-hidden="true" className="text-brand-900" size={28} />
-          <h2 id="community-title" className="mt-3 text-3xl font-bold">Data belum ada atau sudah berubah? Bantu perbarui.</h2>
-          <p className="font-sub mt-2 text-lg text-ink">Tambahkan fasilitas atau perbarui datanya, dengan foto bukti.</p>
-          <div className="mt-5 flex flex-wrap gap-2">
-            <LinkButton to="/facilities/new">Tambah fasilitas</LinkButton>
-            <LinkButton to="/map?intent=update" variant="secondary">Perbarui data fasilitas</LinkButton>
+    <section aria-labelledby="pitch-title" className="mx-auto max-w-7xl px-4 pb-10 pt-16 sm:pt-24">
+      <ul aria-label="Mulai dari kebutuhan Anda" className="ak-chips flex flex-wrap gap-2">
+        {NEEDS_PRESETS.map((p, j) => (
+          <li key={p.key} style={{ '--j': j }}>
+            <Link to={`/?needs=${p.codes.join(',')}`} className="inline-flex min-h-10 items-center rounded-full border border-border-strong bg-surface px-4 text-sm font-semibold hover:bg-surface-subtle">
+              {p.label}
+            </Link>
+          </li>
+        ))}
+        <li style={{ '--j': NEEDS_PRESETS.length }}>
+          <Link to="/" className="inline-flex min-h-10 items-center rounded-full bg-ink px-4 text-sm font-semibold text-white hover:bg-brand-900">
+            Lihat semua fasilitas
+          </Link>
+        </li>
+      </ul>
+
+      <h2 id="pitch-title" className="mt-7 max-w-[20ch] text-title font-extrabold leading-[0.95] tracking-[-0.035em]">
+        Cek akses sebelum berangkat
+      </h2>
+      <p className="font-sub mt-5 max-w-[48ch] text-lead text-ink-secondary">
+        Setiap tempat dicocokkan dengan kebutuhan Anda, bukan satu angka untuk semua orang.
+      </p>
+    </section>
+  );
+}
+
+/**
+ * Grid kartu campur, bahasa acuan: kartu foto bersudut besar dengan teks menumpang di
+ * atasnya dan tombol panah bundar di pojok, berdampingan dengan blok warna padat.
+ */
+function KartuFoto({ src, alt, judul, keterangan, to, besar }) {
+  return (
+    <Reveal className={`group relative overflow-hidden rounded-[1.75rem] ${besar ? 'sm:col-span-2 sm:row-span-2' : ''}`}>
+      <img src={src} alt={alt} loading="lazy" width="1920" height="1310" className={`${besar ? 'aspect-[4/3]' : 'aspect-[4/3] sm:aspect-[3/2]'} w-full scale-110 object-cover [filter:grayscale(1)_contrast(1.05)]`} />
+      {/* Scrim: satu-satunya gradien yang diizinkan, dan hanya supaya teks di atas foto
+          tetap terbaca. Tanpa ini kontrasnya bergantung pada kebetulan isi fotonya. */}
+      <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/75 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 p-5 sm:p-6">
+        <div className="min-w-0 text-white">
+          <p className={`font-extrabold leading-tight ${besar ? 'text-lead' : 'text-lg'}`}>{judul}</p>
+          <p className="font-sub mt-1 max-w-[34ch] text-sm text-white/85">{keterangan}</p>
+        </div>
+        {to && (
+          <Link to={to} aria-label={judul} className="ak-pil inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-white text-ink hover:bg-surface-subtle">
+            <ArrowUpRight aria-hidden="true" size={19} />
+          </Link>
+        )}
+      </div>
+    </Reveal>
+  );
+}
+
+function Sorotan() {
+  return (
+    <section aria-labelledby="sorotan-title" className="mx-auto max-w-7xl px-4 pb-10">
+      <h2 id="sorotan-title" className="sr-only">Tentang AksesKota</h2>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <KartuFoto
+          besar
+          src="/img/straat-inbij-buitenzorg-huidige-bogor-west-java.jpg"
+          alt="Jalan berpohon di Buitenzorg — kini Bogor — dengan sebuah kereta kuda, sekitar awal 1900-an."
+          judul="Jalan yang sama, seratus tahun kemudian"
+          keterangan="Sekarang yang kami ukur bukan pemandangannya, melainkan siapa yang bisa melewatinya."
+          to="/"
+        />
+
+        {/* Blok warna padat di samping foto — pasangan yang persis dipakai acuan. */}
+        <Reveal delay={0.05} className="on-dark flex flex-col justify-between rounded-[1.75rem] bg-brand-900 p-6 text-white">
+          <span className="w-fit rounded-full bg-white/15 px-3 py-1 text-xs font-bold uppercase tracking-wide">Aturan kami</span>
+          <div className="mt-8">
+            <p className="text-lead font-extrabold leading-tight">Yang belum diketahui ditulis apa adanya</p>
+            <p className="font-sub mt-2 text-sm text-brand-100">
+              Tidak pernah dihitung sebagai tersedia. Salah menebak satu ramp berarti perjalanan yang gagal.
+            </p>
           </div>
         </Reveal>
-        <Reveal delay={0.05} className="rounded-panel border border-border bg-surface p-6 sm:p-8">
-          <h3 className="text-xl font-semibold">Setiap kontribusi ditinjau admin</h3>
-          <p className="font-sub mt-1 text-ink-secondary">Data resmi baru berubah setelah disetujui admin.</p>
-          <ol className="mt-4 space-y-3">
-            <li className="flex items-center gap-3"><span className="w-28 shrink-0 text-sm font-semibold text-ink-secondary">1. Anda kirim</span><span className="font-sub text-ink-secondary">Data dan foto bukti</span></li>
-            <li className="flex items-center gap-3"><span className="w-28 shrink-0 text-sm font-semibold text-ink-secondary">2. Ditinjau</span><ContributionBadge status="pending" label="Menunggu verifikasi" cls="bg-warning-bg text-warning" /></li>
-            <li className="flex flex-wrap items-center gap-3"><span className="w-28 shrink-0 text-sm font-semibold text-ink-secondary">3. Keputusan</span><ContributionBadge status="approved" label="Disetujui" cls="bg-success-bg text-success" /><ContributionBadge status="rejected" label="Ditolak" cls="bg-danger-bg text-danger" /></li>
-          </ol>
-        </Reveal>
+
+        <KartuFoto
+          src="/img/eetstalletjes-aan-de-roode-brug-te-buitenzorg.jpg"
+          alt="Deretan warung makan di dekat Jembatan Merah, Buitenzorg."
+          judul="138 fasilitas terdata"
+          keterangan="Bogor, Jakarta, dan Bandung."
+        />
       </div>
     </section>
   );
 }
 
-export default function HomePage() {
-  useDocumentTitle('Cek akses fasilitas sebelum berkunjung');
+export function LandingSections() {
   return (
     <>
-      <Hero />
-      <HowItWorks />
-      <Community />
-      <section aria-label="Cakupan data" className="mx-auto max-w-7xl px-4 pb-4">
-        <Alert tone="info" title="Tentang cakupan data">{COVERAGE_NOTE}</Alert>
-      </section>
+      <Pitch />
+      <Sorotan />
+      <CaraKerja />
+      <Cakupan />
+      <Penutup />
     </>
   );
 }

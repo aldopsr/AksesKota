@@ -24,7 +24,10 @@
   --color-brand-800: #332dba;
   --color-brand-900: #272293;
 
-  --color-canvas: #f8f9fc;
+  /* Off-white netral, bukan putih dan bukan biru muda. Kartu putih di atasnya jadi
+     benar-benar terbaca sebagai lapisan terpisah — itu dasar tampilan editorial yang
+     jadi acuan: permukaan mengambang di atas kertas, bukan kotak bergaris di atas putih. */
+  --color-canvas: #f4f4f6;
   --color-surface: #ffffff;
   --color-surface-subtle: #f0f2fa;
   --color-ink: #111827;
@@ -59,9 +62,32 @@
   --color-match-limited: #334155;
   --color-match-limited-bg: #e2e8f0;
 
-  --radius-control: 0.625rem;
-  --radius-card: 0.875rem;
-  --radius-panel: 1rem;
+  /* Sudut dibuat jauh lebih bulat. Angka lama (10/14/16 px) menghasilkan kotak yang
+     sopan tapi datar; acuan editorial memakai lengkung besar yang membuat kartu terbaca
+     sebagai objek, bukan sekadar pembatas. Kontrol kecil sengaja tidak ikut sebulat
+     kartu — tombol 44 px dengan sudut 20 px berubah jadi kapsul dan kehilangan bentuknya. */
+  /* Skala huruf dinaikkan di TOKEN, bukan dengan menyunting 143 kelas satu per satu.
+     text-sm dipakai di 118 tempat sebagai teks badan dan text-xs di 25 tempat — pada
+     14 px dan 12 px keduanya di bawah yang pantas untuk aplikasi yang penggunanya
+     termasuk low vision dan lansia. Menaikkan artinya di sini memperbaiki semuanya
+     sekaligus, tanpa satu pun markup berubah.
+     ponytail: 15 px, bukan 16 px. Pada 16 px text-sm jadi sama dengan text-base dan
+     skalanya runtuh jadi satu langkah; naikkan lagi kalau memang terbukti kurang. */
+  --text-xs: 0.8125rem;   /* 13 px — ambang bawah, tidak boleh turun lagi */
+  --text-sm: 0.9375rem;   /* 15 px */
+
+  /* Tiga langkah display, diberi nama supaya bisa dipakai ulang.
+     Sebelumnya ada ENAM clamp berbeda yang ditulis langsung di markup, plus
+     text-[0.95rem] di lima tempat yang praktis sama dengan text-sm. Halaman jadi
+     punya 12 ukuran huruf yang dirender — itu bukan skala, itu kebetulan.
+     Bersama xs/sm/base/lg, ini menutup skalanya pada lima langkah yang bisa dihafal. */
+  --text-display: clamp(2.75rem, 8vw, 7rem);
+  --text-title: clamp(2.25rem, 5vw, 4rem);
+  --text-lead: clamp(1.25rem, 2vw, 1.75rem);
+
+  --radius-control: 0.75rem;
+  --radius-card: 1.25rem;
+  --radius-panel: 1.75rem;
   --shadow-panel: 0 1px 2px rgb(17 24 39 / 0.06), 0 8px 24px rgb(17 24 39 / 0.06);
   --shadow-popover: 0 8px 28px rgb(17 24 39 / 0.14);
   --shadow-dialog: 0 18px 48px rgb(17 24 39 / 0.2);
@@ -208,11 +234,40 @@
 }
 .ak-menajam { animation: ak-menajam 220ms cubic-bezier(0.23, 1, 0.32, 1) backwards; }
 
+/* Panel yang menumpang di atas peta muncul dari sudut pemicunya, bukan dari tengah.
+   Mulai dari 0.96, bukan 0: tidak ada benda nyata yang muncul dari ketiadaan. */
+@keyframes ak-muncul {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.ak-muncul { animation: ak-muncul 170ms cubic-bezier(0.23, 1, 0.32, 1) backwards; }
+
+/* Kartu mengambang di atas peta. Posisinya dipegang transform dari JavaScript, jadi
+   kemunculannya hanya boleh menganimasikan opacity — menganimasikan transform di sini
+   akan bertabrakan dengan koordinat kartunya dan membuatnya melompat. */
+@keyframes ak-kartu-masuk {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.ak-kartu-apung { animation: ak-kartu-masuk 180ms cubic-bezier(0.23, 1, 0.32, 1) backwards; }
+
+/* Pil yang bisa ditekan. Umpan balik tekan dan kurva transisinya sempat ditulis ulang
+   di lima tempat (CTA asisten, ajakan masuk, tombol panah beranda, tombol rute kartu,
+   kontrol peta) — satu tempat saja supaya rasanya persis sama di semuanya. */
+.ak-pil {
+  transition: transform 160ms var(--ease-out), background-color 160ms ease, border-color 160ms ease;
+}
+.ak-pil:active { transform: scale(0.97); }
+@media (prefers-reduced-motion: reduce) {
+  .ak-pil:active { transform: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ak-marker--pop, .ak-stagger > li, .ak-chips > li { animation: none; }
   /* Pada mode ini kemunculan tetap dilunakkan dengan opacity saja — yang dihindari
      adalah gerak dan blur, bukan semua perubahan. */
   .ak-menajam { animation: none; }
+  .ak-muncul { animation-name: ak-kartu-masuk; }
 }
 .ak-marker[data-selected="true"] {
   width: 46px; height: 46px; font-size: 19px; z-index: 5;

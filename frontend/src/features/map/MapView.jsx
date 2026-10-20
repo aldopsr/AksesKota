@@ -41,7 +41,10 @@ function markerElement(facility, level, onSelect) {
 }
 
 const MapCanvas = forwardRef(function MapCanvas({
-  items, selectedId, onSelect, userLocation, origin, routeGeometry, pickingOrigin, onPickOrigin, focus, onError, fitPaddingBottom = 70,
+  items, selectedId, onSelect, userLocation, origin, routeGeometry, pickingOrigin, onPickOrigin, focus, onError,
+  // Sisi yang tertutup panel: penanda yang pas di tengah viewport tetap tersembunyi
+  // kalau separuh kiri layar ditempati kartu mengambang.
+  fitPaddingBottom = 70, fitPaddingLeft = 60,
 }, ref) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
@@ -60,7 +63,15 @@ const MapCanvas = forwardRef(function MapCanvas({
   }));
 
   useEffect(() => {
-    const map = new mapboxgl.Map({ container: containerRef.current, style: 'mapbox://styles/mapbox/streets-v12', center: [118, -2.5], zoom: 3.6 });
+    // scrollZoom SENGAJA menyala, dan itu berarti roda mouse di atas peta melakukan
+    // zoom, bukan menggulir halaman. Keputusannya begitu: peta adalah antarmuka utama,
+    // jadi pengguna harus tetap berada di peta selama kursornya ada di peta.
+    // Konsekuensinya jalan turun ke bagian penjelasan hanya lewat navigasi — dan karena
+    // itu tautan "Cara kerja" di navbar tidak boleh pernah hilang di ukuran layar mana pun.
+    const map = new mapboxgl.Map({
+      container: containerRef.current, style: 'mapbox://styles/mapbox/streets-v12',
+      center: [118, -2.5], zoom: 3.6,
+    });
     map.on('load', () => setReady(true));
     map.on('error', (e) => live.current.onError?.(e));
     map.on('click', (e) => { if (live.current.pickingOrigin) live.current.onPickOrigin?.({ lng: e.lngLat.lng, lat: e.lngLat.lat }); });
@@ -106,7 +117,7 @@ const MapCanvas = forwardRef(function MapCanvas({
     if (!map || !items.length || live.current.selectedId) return;
     const b = new mapboxgl.LngLatBounds();
     items.forEach((i) => b.extend([i.facility.lon, i.facility.lat]));
-    map.fitBounds(b, { padding: { top: 70, left: 60, right: 60, bottom: fitPaddingBottom }, maxZoom: 13, duration: 500 });
+    map.fitBounds(b, { padding: { top: 140, left: fitPaddingLeft, right: 60, bottom: fitPaddingBottom }, maxZoom: 13, duration: 500 });
   }, [fitKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -145,7 +156,7 @@ const MapCanvas = forwardRef(function MapCanvas({
     drawRoute(map, routeGeometry);
     const b = new mapboxgl.LngLatBounds();
     routeGeometry.coordinates.forEach((c) => b.extend(c));
-    map.fitBounds(b, { padding: { top: 80, left: 60, right: 60, bottom: 140 }, duration: 600 });
+    map.fitBounds(b, { padding: { top: 140, left: fitPaddingLeft, right: 60, bottom: 140 }, duration: 600 });
   }, [routeGeometry, ready]);
 
   useEffect(() => { const map = mapRef.current; if (map) map.getCanvas().style.cursor = pickingOrigin ? 'crosshair' : ''; }, [pickingOrigin]);

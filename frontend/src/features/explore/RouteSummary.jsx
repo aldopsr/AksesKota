@@ -11,19 +11,31 @@ function DaftarTransport({ judul, daftar, radius }) {
       <p className="text-sm font-semibold">{judul}</p>
       {daftar.length === 0 ? (
         <p className="font-sub mt-0.5 text-sm text-ink-secondary">
-          Belum ada fasilitas transportasi terdata dalam {Math.round(radius / 1000)} km dari titik ini.
+          {/* Math.round(2500/1000) menghasilkan "3 km" untuk radius 2,5 km — angka yang
+              salah di layar. formatDistance sudah menangani pembulatan ini dengan benar. */}
+          Belum ada fasilitas transportasi terdata dalam {formatDistance(radius)} dari titik ini.
         </p>
       ) : (
         <ul className="mt-1 space-y-1.5">
           {daftar.map((t) => (
             <li key={t.id} className="text-sm">
-              <span className="font-semibold">{t.name}</span>{' '}
-              <span className="font-sub text-ink-secondary tabular-nums">{t.jarak_m} m</span>
+              <span className="flex items-baseline justify-between gap-2">
+                <span className="font-semibold">{t.name}</span>
+                <span className="font-sub shrink-0 text-ink-secondary tabular-nums">{formatDistance(t.jarak_m)}</span>
+              </span>
               <span className="font-sub block text-ink-secondary">
                 {t.tersedia.length
                   ? `✓ ${t.tersedia.join(', ')}`
                   : 'Data aksesibilitas tempat ini belum ada.'}
               </span>
+              {/* Menyuruh "pertimbangkan transportasi umum" tanpa menyebut naik apa
+                  membuat sarannya tidak bisa dikerjakan. Ini jawaban yang memang kami
+                  punya datanya: lin yang jalurnya lewat titik ini. */}
+              {t.dilewati?.length > 0 && (
+                <span className="font-sub mt-0.5 block text-ink-secondary">
+                  <span className="font-semibold text-ink">Dilewati:</span> {t.dilewati.join(' · ')}
+                </span>
+              )}
             </li>
           ))}
         </ul>
@@ -95,7 +107,7 @@ function LencanaLin({ opsi }) {
   const warna = opsi.warna ?? MODA_WARNA[opsi.moda] ?? '#312e81';
   return (
     <span
-      className="rounded-md px-1.5 py-0.5 text-xs font-bold uppercase tracking-wide"
+      className="rounded-full px-2 py-0.5 text-xs font-bold uppercase tracking-wide"
       style={{ backgroundColor: warna, color: teksDiAtas(warna) }}
     >
       {namaModa(opsi)}
@@ -184,7 +196,11 @@ function SaranTransportasi({ saran }) {
           ))}
         </ul>
       ) : (
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        // Dulu dua kolom dari lebar sm ke atas. Tapi kartu ini tidak pernah hidup di
+        // halaman selebar itu — ia selalu di dalam panel 24rem atau panel bawah HP, jadi
+        // "sm:grid-cols-2" membelah ruang 170 px per kolom dan tiap nama stasiun pecah
+        // jadi empat baris. Satu kolom, selalu.
+        <div className="mt-3 space-y-3">
           <DaftarTransport judul="Terdekat dari Anda" daftar={saran.dekat_anda ?? []} radius={saran.radius_cari_m} />
           <DaftarTransport judul="Terdekat dari tujuan" daftar={saran.dekat_tujuan ?? []} radius={saran.radius_cari_m} />
         </div>

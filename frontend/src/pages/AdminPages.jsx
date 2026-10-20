@@ -322,7 +322,7 @@ export function AdminDetailPage() {
 
         <aside className="lg:sticky lg:top-20">
           {c.status === 'pending' ? (
-            <section aria-labelledby="dec-title" className="space-y-3 rounded-panel border border-border bg-surface p-4 shadow-panel">
+            <section aria-labelledby="dec-title" className="space-y-3 rounded-panel border border-border bg-surface p-4">
               <h2 id="dec-title" className="text-xl font-semibold">Keputusan</h2>
               <TextArea label="Catatan untuk kontributor" rows={4} hint="Wajib diisi saat menolak. Opsional saat menyetujui." value={notes} onChange={(e) => setNotes(e.target.value)} />
               {localError && <Alert tone="danger">{localError}</Alert>}

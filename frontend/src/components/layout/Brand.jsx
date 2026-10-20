@@ -8,7 +8,9 @@ import { Link } from 'react-router-dom';
  * latarnya benar-benar transparan (JPEG membawa kotak lavender yang akan terlihat di
  * atas permukaan putih), dan warnanya bisa ikut tema.
  */
-export function LogoMark({ size = 36 }) {
+// light: dipakai di atas permukaan gelap. Hanya kepalanya yang perlu ditukar —
+// tiga goresan lainnya memang sudah terang dan terbaca di atas tinta.
+export function LogoMark({ size = 36, light = false }) {
   return (
     <svg aria-hidden="true" width={size} height={size} viewBox="0 0 40 40" fill="none">
       {/* kaki kiri huruf A */}
@@ -18,7 +20,7 @@ export function LogoMark({ size = 36 }) {
       {/* sayap aqua sebagai kaki kanan */}
       <path d="M16.8 21.2 C22.4 18.6 27.4 21.4 29.6 29" stroke="#A5D8DE" strokeWidth="5.4" strokeLinecap="round" />
       {/* kepala */}
-      <circle cx="24.6" cy="16.4" r="3.1" fill="#3B35D1" />
+      <circle cx="24.6" cy="16.4" r="3.1" fill={light ? '#FFFFFF' : '#3B35D1'} />
     </svg>
   );
 }

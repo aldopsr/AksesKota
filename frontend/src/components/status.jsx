@@ -35,7 +35,7 @@ export function AttributeRow({ code, status, note, required }) {
       <div className="min-w-0">
         <p className="font-semibold">
           {ATTRIBUTE_LABEL[code]}
-          {required && <span className="ml-2 rounded-md bg-brand-100 px-1.5 py-0.5 text-xs font-semibold text-brand-900">Dibutuhkan</span>}
+          {required && <span className="ml-2 rounded-full bg-brand-100 px-1.5 py-0.5 text-xs font-semibold text-brand-900">Dibutuhkan</span>}
         </p>
         {note
           ? <p className="font-sub text-sm text-ink-secondary">{note}</p>

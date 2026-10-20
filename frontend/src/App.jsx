@@ -4,7 +4,6 @@ import PublicLayout from './components/layout/PublicLayout';
 import AdminLayout from './components/layout/AdminLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import { LoadingBlock } from './components/ui';
-import HomePage from './pages/HomePage';
 import { LoginPage, RegisterPage } from './pages/AuthPages';
 import ProfilePage from './pages/ProfilePage';
 import MyContributionsPage from './pages/MyContributionsPage';
@@ -28,15 +27,18 @@ export default function App() {
         <Route element={<PublicLayout />}>
           {/* PRD §13: "Peta adalah antarmuka utama AksesKota". Halaman depan dulu berisi
               penjelasan setinggi 4,3 layar HP sebelum ada yang bisa disentuh — itu melawan
-              dokumennya sendiri. Sekarang alamat utama langsung peta, dan penjelasannya
-              pindah ke /tentang bagi yang memang ingin membaca.
-              Satu komponen untuk /, /map, dan /facilities/:id supaya peta tidak dimuat ulang. */}
+              dokumennya sendiri. Sekarang "/" membuka langsung dengan peta setinggi satu
+              layar, dan penjelasannya menyusul di bawahnya dalam satu halaman yang digulir.
+              Satu komponen untuk /, /map, dan /facilities/:id supaya peta tidak dimuat ulang
+              saat berpindah di antara ketiganya. */}
           <Route element={<ExplorePage />}>
             <Route index element={null} />
             <Route path="map" element={null} />
             <Route path="facilities/:id" element={null} />
           </Route>
-          <Route path="tentang" element={<HomePage />} />
+          {/* Penjelasan tidak lagi punya halaman sendiri — ia bagian bawah dari "/".
+              Alamat lama tetap dilayani supaya tautan yang terlanjur dibagikan tidak mati. */}
+          <Route path="tentang" element={<Navigate to="/#cara-kerja" replace />} />
           <Route path="login" element={<LoginPage />} />
           <Route path="register" element={<RegisterPage />} />
 

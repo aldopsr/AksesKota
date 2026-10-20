@@ -81,7 +81,7 @@ function BarisAtribut({ code, register, nilai, adaCatatan, error, sebelumnya }) 
           <p className="font-semibold leading-snug">
             {ATTRIBUTE_LABEL[code]}
             {CORE_CODES.has(code) && (
-              <span className="ml-2 inline-block rounded-md bg-brand-100 px-1.5 py-0.5 align-middle text-xs font-semibold text-brand-900">
+              <span className="ml-2 inline-block rounded-full bg-brand-100 px-1.5 py-0.5 align-middle text-xs font-semibold text-brand-900">
                 Butuh foto
               </span>
             )}
@@ -256,7 +256,7 @@ function Wizard({ mode, facility }) {
   /* ---------- layar sukses ---------- */
   if (submitted) {
     return (
-      <div className="mx-auto max-w-xl rounded-panel border border-border bg-surface p-6 text-center shadow-panel sm:p-8">
+      <div className="mx-auto max-w-xl rounded-panel border border-border bg-surface p-6 text-center sm:p-8">
         <CheckCircle2 aria-hidden="true" className="mx-auto text-success" size={44} />
         <h2 ref={headingRef} tabIndex={-1} className="mt-3 text-2xl font-bold outline-none">Kontribusi terkirim</h2>
         <p className="font-sub mt-2 text-ink-secondary">Usulan <strong className="text-ink">#{submitted.id}</strong> berstatus <strong className="text-ink">Menunggu verifikasi</strong>. Admin akan memeriksanya, dan data di peta berubah setelah disetujui.</p>

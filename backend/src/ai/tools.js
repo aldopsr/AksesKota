@@ -16,9 +16,21 @@ export const declarations = [
     parameters: {
       type: 'OBJECT',
       properties: {
-        category: { type: 'STRING', enum: CATEGORIES, description: 'Jenis tempat.' },
+        // Isi tiap kategori disebutkan apa adanya. Tanpa ini model memilih "komersial"
+        // untuk permintaan "mall" dan hasilnya memuat taman serta tempat wisata — bukan
+        // halusinasi, memang begitu isi kategorinya. Yang kurang adalah model tidak
+        // tahu kategorinya lebih luas daripada yang diminta.
+        category: {
+          type: 'STRING', enum: CATEGORIES,
+          description: 'Jenis tempat. Isi tiap kategori: kesehatan = rumah sakit, puskesmas, klinik. '
+            + 'pendidikan = sekolah, kampus. layanan_publik = kantor pemerintahan dan layanan publik. '
+            + 'transportasi = stasiun, halte, terminal. komersial = mal, TAMAN, dan TEMPAT WISATA sekaligus. '
+            + 'Kalau pengguna meminta jenis yang lebih sempit daripada kategorinya (misalnya "mall", '
+            + 'bukan taman), isi juga query dengan kata itu, lalu katakan apa adanya bahwa kategori '
+            + 'kami menggabungkan mal dengan taman dan tempat wisata.',
+        },
         needs: { type: 'ARRAY', items: { type: 'STRING', enum: NEEDS }, description: 'Kebutuhan aksesibilitas yang disebut pengguna. Kosongkan bila tidak disebut, maka profil tersimpan dipakai.' },
-        query: { type: 'STRING', description: 'Nama fasilitas YANG DICARI pengguna, bila ia menyebut namanya (mis. "cari Botani Square" -> "Botani Square"). JANGAN isi dengan tempat yang hanya dipakai sebagai patokan lokasi — itu milik near_place.' },
+        query: { type: 'STRING', description: 'Nama fasilitas YANG DICARI pengguna, bila ia menyebut namanya (mis. "cari Botani Square" -> "Botani Square"), ATAU kata jenis tempat yang lebih sempit daripada kategorinya (mis. "mall", "plaza", "taman"). JANGAN isi dengan tempat yang hanya dipakai sebagai patokan lokasi — itu milik near_place.' },
         near_place: { type: 'STRING', description: 'Tempat yang dipakai pengguna sebagai PATOKAN LOKASI, bukan yang dicari (mis. "rumah sakit di dekat Stasiun Bogor" -> "Stasiun Bogor"). Pencarian akan dipusatkan ke titik itu.' },
         radius_m: { type: 'INTEGER', description: 'Radius dalam meter dari titik pusat pencarian ("dekat saya" = 2000).' },
         limit: { type: 'INTEGER', description: 'Jumlah hasil, 1 sampai 8. Default 5.' },

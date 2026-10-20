@@ -38,7 +38,7 @@ export function LoginPage() {
         <TextField label="Email" type="email" autoComplete="email" requiredMark error={errors.email?.message} {...register('email')} />
         <PasswordField label="Kata sandi" autoComplete="current-password" requiredMark error={errors.password?.message} {...register('password')} />
         {error && <Alert tone="danger">{error}</Alert>}
-        <Button type="submit" size="lg" loading={isSubmitting} className="w-full">Masuk</Button>
+        <Button type="submit" size="lg" loading={isSubmitting} className="ak-pil w-full rounded-full">Masuk</Button>
       </form>
     </AuthShell>
   );
@@ -78,7 +78,7 @@ export function RegisterPage() {
         <PasswordField label="Kata sandi" autoComplete="new-password" hint="Minimal 8 karakter." requiredMark error={errors.password?.message} {...register('password')} />
         <PasswordField label="Ulangi kata sandi" autoComplete="new-password" requiredMark error={errors.confirm?.message} {...register('confirm')} />
         {error && <Alert tone="danger">{error}</Alert>}
-        <Button type="submit" size="lg" loading={isSubmitting} className="w-full">Buat akun</Button>
+        <Button type="submit" size="lg" loading={isSubmitting} className="ak-pil w-full rounded-full">Buat akun</Button>
       </form>
     </AuthShell>
   );
