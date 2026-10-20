@@ -84,13 +84,13 @@ function Cakupan() {
       </Reveal>
 
       <Reveal delay={0.05} className="mt-12 overflow-x-auto">
-        <table className="w-full min-w-[32rem] border-collapse text-left">
+        <table className="w-full border-collapse text-left sm:min-w-[32rem]">
           <caption className="sr-only">Jumlah fasilitas terdata dan yang sudah punya atribut aksesibilitas, per wilayah</caption>
           <thead>
             <tr className="text-sm text-ink-secondary">
-              <th scope="col" className="py-3.5 pr-4 font-semibold">Wilayah</th>
-              <th scope="col" className="py-3.5 pr-4 font-semibold">Fasilitas terdata</th>
-              <th scope="col" className="py-3.5 pr-4 font-semibold">Punya atribut</th>
+              <th scope="col" className="py-3.5 pr-2 font-semibold sm:pr-4">Wilayah</th>
+              <th scope="col" className="py-3.5 pr-2 font-semibold sm:pr-4">Fasilitas terdata</th>
+              <th scope="col" className="py-3.5 pr-2 font-semibold sm:pr-4">Punya atribut</th>
               <th scope="col" className="py-3.5 text-right font-semibold">Belum diketahui</th>
             </tr>
           </thead>
@@ -100,10 +100,10 @@ function Cakupan() {
               // garis rambut di mana pun kecuali di dalam tabel, dan di sini pun nada
               // lebih tenang daripada garis.
               <tr key={wilayah} className="odd:bg-surface-subtle">
-                <th scope="row" className="py-3.5 pl-3 pr-4 font-semibold">{wilayah}</th>
-                <td className="py-3.5 pr-4 tabular-nums">{total}</td>
-                <td className="py-3.5 pr-4 tabular-nums">{beratribut}</td>
-                <td className="py-3.5 pr-3 text-right font-semibold tabular-nums">
+                <th scope="row" className="py-3.5 pl-2 pr-2 font-semibold sm:pl-3 sm:pr-4">{wilayah}</th>
+                <td className="py-3.5 pr-2 tabular-nums sm:pr-4">{total}</td>
+                <td className="py-3.5 pr-2 tabular-nums sm:pr-4">{beratribut}</td>
+                <td className="py-3.5 pr-2 text-right font-semibold tabular-nums sm:pr-3">
                   <span aria-hidden="true" className="mr-1 text-ink-secondary">?</span>{total - beratribut}
                 </td>
               </tr>
@@ -123,7 +123,7 @@ function Penutup() {
   return (
     <section
       aria-labelledby="penutup-title"
-      className="on-dark flex min-h-[80svh] flex-col justify-between bg-ink px-4 py-16 text-white sm:min-h-[90svh] sm:py-20"
+      className="on-dark flex flex-col bg-ink px-4 py-16 text-white sm:min-h-[90svh] sm:justify-between sm:py-20"
     >
       <div className="mx-auto w-full max-w-7xl">
         <Reveal>
@@ -133,7 +133,7 @@ function Penutup() {
         </Reveal>
       </div>
 
-      <div className="mx-auto mt-16 grid w-full max-w-7xl gap-6 sm:grid-cols-12 sm:items-end">
+      <div className="mx-auto mt-8 grid w-full max-w-7xl gap-6 sm:mt-16 sm:grid-cols-12 sm:items-end">
         <p className="font-sub text-lg leading-relaxed text-brand-100 sm:col-span-5">
           Bantu lengkapi: tambahkan fasilitas atau perbarui datanya dengan foto bukti.
           Setiap kiriman ditinjau admin sebelum data resmi berubah.

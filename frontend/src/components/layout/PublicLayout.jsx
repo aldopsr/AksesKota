@@ -330,7 +330,7 @@ function BottomNav() {
 
 function Footer() {
   return (
-    <footer className="mt-12 border-t border-border bg-surface">
+    <footer className="mt-12 border-t border-border bg-surface pb-16 md:pb-0">
       <div className="mx-auto grid max-w-7xl gap-6 px-4 py-8 md:grid-cols-[1fr_auto_1.3fr]">
         <div>
           <BrandLink size={30} />
