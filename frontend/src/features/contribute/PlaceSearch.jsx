@@ -24,7 +24,9 @@ export default function PlaceSearch({ onPick }) {
         <label htmlFor="place-q" className="mb-1 block font-semibold">Cari alamat atau nama tempat</label>
         <div className="flex gap-2">
           <input id="place-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Contoh: Stasiun Bogor" className={inputClass(false)} autoComplete="off" />
-          <Button type="submit" variant="secondary" loading={loading}><Search aria-hidden="true" size={16} /> Cari lokasi</Button>
+          <Button type="submit" variant="secondary" loading={loading} className="shrink-0">
+            <Search aria-hidden="true" size={16} /> Cari<span className="max-sm:sr-only"> lokasi</span>
+          </Button>
         </div>
       </form>
       {error && <Alert tone="danger" className="text-sm">{error}</Alert>}
