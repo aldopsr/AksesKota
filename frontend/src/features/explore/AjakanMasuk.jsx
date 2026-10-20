@@ -64,7 +64,14 @@ export default function AjakanMasuk({ aktif }) {
       </button>
 
       <p className="pr-12 font-bold leading-snug">Simpan kebutuhan Anda</p>
-      <ul className="ak-chips mt-2.5 space-y-1.5">
+      {/* Daftar manfaat hanya di layar lebar. Di ponsel kartu ini muncul tepat ketika
+          panel hasil sudah memakan separuh layar, dan dengan tiga baris ini tidak ada
+          sejengkal pun peta yang tersisa di antara keduanya — padahal peta itulah yang
+          sedang dilihat pengguna saat ajakan ini datang. */}
+      <p className="font-sub mt-1 text-sm text-ink-secondary lg:hidden">
+        Kebutuhan tersimpan, kirim data fasilitas, dan rute lewat percakapan.
+      </p>
+      <ul className="ak-chips mt-2.5 space-y-1.5 max-lg:hidden">
         {MANFAAT.map(({ Icon, teks }, j) => (
           <li key={teks} style={{ '--j': j }} className="font-sub flex items-start gap-2 text-sm text-ink-secondary">
             <Icon aria-hidden="true" size={15} className="mt-0.5 shrink-0 text-brand-700" />

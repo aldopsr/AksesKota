@@ -168,7 +168,14 @@ const BottomSheet = forwardRef(function BottomSheet({ titikPeek = 120, awalIdx =
       </div>
 
       {/* overscroll contain: saat daftar mentok, peta di belakang tidak ikut tergeser. */}
-      <div className="panel-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      {/* Tambahan padding bawah sebesar offset panel. Tinggi panel tetap, yang bergeser
+          posisinya — jadi pada posisi setengah dan mengintip, bagian bawah wadah gulir
+          ini berada DI LUAR layar, dan isi terakhirnya (tombol "Usulkan pembaruan",
+          "Laporkan informasi") tidak pernah bisa digulir sampai terlihat. */}
+      <div
+        className="panel-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-[max(1rem,env(safe-area-inset-bottom))]"
+        style={offset ? { paddingBottom: offset + 16 } : undefined}
+      >
         {children}
       </div>
     </div>

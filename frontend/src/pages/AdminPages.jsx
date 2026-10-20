@@ -54,9 +54,13 @@ function ContributionsTab() {
                     tautan lebih tepat, dan muat di lebar berapa pun. */}
                 <Link
                   to={`/admin/contributions/${c.id}`}
-                  className="flex items-center gap-3 rounded-card border border-border bg-surface p-3 transition-colors hover:border-brand-400 hover:bg-surface-subtle"
+                  className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-card border border-border bg-surface p-3 transition-colors hover:border-brand-400 hover:bg-surface-subtle sm:flex-nowrap"
                 >
-                  <span className="min-w-0 flex-1">
+                  {/* basis-full di ponsel: lencana status tidak bisa mengecil, jadi di
+                      lebar 375 px ia menyisakan sembilan karakter untuk nama fasilitas
+                      dan barisnya tumbuh jadi kolom sempit setinggi lima baris. Ia
+                      turun ke baris kedua, dan mulai sm kembali sebaris seperti semula. */}
+                  <span className="min-w-0 flex-1 basis-full sm:basis-auto">
                     <span className="block truncate font-semibold">{c.facility_name}</span>
                     {/* Lama menunggu ikut baris keterangan, bukan kolom tersendiri di
                         kanan: sebagai kolom ia harus disembunyikan di layar sempit,
@@ -76,7 +80,7 @@ function ContributionsTab() {
                   </span>
 
                   <ContributionBadge status={c.status} label={CONTRIBUTION_STATUS[c.status].label} cls={CONTRIBUTION_STATUS[c.status].cls} />
-                  <ChevronRight aria-hidden="true" size={18} className="shrink-0 text-ink-secondary" />
+                  <ChevronRight aria-hidden="true" size={18} className="ml-auto shrink-0 text-ink-secondary sm:ml-0" />
                 </Link>
               </li>
             );

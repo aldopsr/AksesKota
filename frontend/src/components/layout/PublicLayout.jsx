@@ -45,8 +45,8 @@ function AccountMenu() {
   const initial = (me?.name ?? 'A').trim().charAt(0).toUpperCase();
   return (
     <Menu
-      label={<span className="max-w-28 truncate sm:max-w-40">{me?.name ?? 'Akun'}</span>}
-      buttonClassName={`${buttonClass('secondary')} pl-1.5`}
+      label={<span className="max-sm:sr-only sm:max-w-40 sm:truncate">{me?.name ?? 'Akun'}</span>}
+      buttonClassName={`${buttonClass('secondary')} pl-1.5 max-sm:px-1.5`}
       icon={() => <span aria-hidden="true" className="inline-flex size-8 items-center justify-center rounded-full bg-brand-700 text-sm font-bold text-white">{initial}</span>}
     >
       <Link to="/accessibility-profile" className={menuItemClass}><UserRound aria-hidden="true" size={18} /> Profil aksesibilitas</Link>
