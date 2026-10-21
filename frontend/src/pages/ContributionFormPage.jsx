@@ -157,7 +157,7 @@ function LangkahAtribut({ register, errors, attrs, notes, isUpdate, was }) {
                 nilai={attrs?.[code]}
                 adaCatatan={!!notes?.[code]}
                 error={errors.notes?.[code]?.message}
-                sebelumnya={isUpdate ? was(code) : null}
+                sebelumnya={isUpdate ? was(code, attrs?.[code]) : null}
               />
             ))}
           </ul>
@@ -270,7 +270,30 @@ function Wizard({ mode, facility }) {
   }
 
   const lat = values.lat; const lng = values.lng;
-  const was = (code) => STATUS[(facility?.attributes ?? []).find((a) => a.code === code)?.status ?? 'unknown'].label;
+  // Status tersimpan satu atribut, sebagai label — dan hanya bila pilihan sekarang
+  // sudah menyimpang darinya. Alasannya sama dengan petunjukLama di bawah: kendali
+  // tiga-keadaan tepat di bawah baris ini SUDAH menyorot keadaan yang berlaku, jadi
+  // selama belum diubah "Saat ini: Tersedia" cuma mengulang tombol hijau di bawahnya.
+  const was = (code, pilihanSekarang) => {
+    const lama = (facility?.attributes ?? []).find((a) => a.code === code)?.status ?? 'unknown';
+    // undefined = nilai bawaan belum sempat terpasang; jangan berkedip saat itu.
+    if (pilihanSekarang === undefined || pilihanSekarang === lama) return null;
+    return STATUS[lama].label;
+  };
+
+  /**
+   * "Saat ini: X" — hanya setelah kolomnya benar-benar diubah.
+   *
+   * Kolom pada mode pembaruan SUDAH terisi data sekarang, jadi petunjuk yang selalu
+   * tampil cuma mengulang isi kotak tepat di bawahnya: tiga baris untuk satu kolom di
+   * layar ponsel, dan dua tulisan sama yang membuat orang menebak mana nilai barunya.
+   * Begitu diubah, barulah ia punya pekerjaan — menunjukkan nilai yang sedang Anda
+   * tinggalkan.
+   */
+  const petunjukLama = (kolom, nilai, label) => {
+    if (!isUpdate || values[kolom] === nilai) return undefined;
+    return `Saat ini: ${label ?? nilai}`;
+  };
 
   return (
     <div className="space-y-6">
@@ -282,13 +305,13 @@ function Wizard({ mode, facility }) {
 
       {step === 0 && (
         <div className="space-y-4">
-          {isUpdate && <p className="font-sub text-ink-secondary">Ubah hanya bagian yang perlu diperbarui. Data saat ini ditampilkan sebagai petunjuk di bawah tiap kolom.</p>}
-          <TextField label="Nama fasilitas" requiredMark hint={isUpdate ? `Saat ini: ${facility.name}` : undefined} error={errors.name?.message} {...register('name')} />
-          <SelectField label="Kategori" requiredMark hint={isUpdate ? `Saat ini: ${CATEGORY_LABEL[facility.category]}` : undefined} error={errors.category?.message} {...register('category')}>
+          {isUpdate && <p className="font-sub text-ink-secondary">Kolom di bawah sudah terisi data sekarang. Ubah hanya bagian yang perlu diperbarui — yang Anda ubah ditandai beserta nilai lamanya.</p>}
+          <TextField label="Nama fasilitas" requiredMark hint={petunjukLama('name', facility.name)} error={errors.name?.message} {...register('name')} />
+          <SelectField label="Kategori" requiredMark hint={petunjukLama('category', facility.category, CATEGORY_LABEL[facility.category])} error={errors.category?.message} {...register('category')}>
             <option value="">Pilih kategori</option>
             {CATEGORIES.map((c) => <option key={c.code} value={c.code}>{c.label} ({c.hint})</option>)}
           </SelectField>
-          <TextField label="Alamat" requiredMark hint={isUpdate ? `Saat ini: ${facility.address}` : undefined} error={errors.address?.message} {...register('address')} />
+          <TextField label="Alamat" requiredMark hint={petunjukLama('address', facility.address)} error={errors.address?.message} {...register('address')} />
           <TextArea label="Deskripsi singkat" rows={3} error={errors.description?.message} {...register('description')} />
         </div>
       )}

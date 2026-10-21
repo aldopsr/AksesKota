@@ -408,7 +408,14 @@ export default function PublicLayout() {
           {/* Tinggi dipegang kerangka ini, bukan dihitung ulang tiap halaman dengan
               calc(100dvh - tinggi header - tinggi nav). Angka ajaib seperti itu yang
               bikin peta meleset 64 px begitu bilah nav bawah muncul. */}
-          <div className={`flex flex-col ${workspace ? 'h-dvh overflow-hidden' : 'min-h-dvh'}`}>
+          {/* overflow-clip, BUKAN overflow-hidden. Keduanya memotong isi yang meluber,
+              tapi hidden membuat kotaknya BISA digulir secara programatik — dan panel
+              bawah di ponsel digeser dengan transform, yang memperlebar area gulir
+              cangkang ini sampai ~1340 px. Akibatnya browser menggulir seluruh aplikasi
+              258 px ke atas begitu tombol di bagian panel yang di luar layar menerima
+              fokus: peta, navbar, dan banner "Klik peta untuk menentukan titik awal"
+              ikut terbawa keluar layar. overflow-clip tidak pernah jadi wadah gulir. */}
+          <div className={`flex flex-col ${workspace ? 'h-dvh overflow-clip' : 'min-h-dvh'}`}>
             <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[70] focus:rounded-control focus:bg-brand-900 focus:px-4 focus:py-3 focus:font-semibold focus:text-white">
               Lewati ke konten utama
             </a>

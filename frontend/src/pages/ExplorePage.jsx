@@ -342,7 +342,13 @@ export default function ExplorePage() {
     </div>
   );
 
-  const routeSummary = routeHere && route.facilityId === id ? (
+  // facilityId masih null sampai buildRoute jalan pertama kali. Dulu syaratnya
+  // `route.facilityId === id` saja, jadi membuka ?route=1 langsung (yang dilakukan
+  // asisten AI) tidak menampilkan apa pun ketika izin lokasi ditolak — rute tidak
+  // pernah terhitung, kartunya tidak pernah ada, dan tombolnya tampak rusak.
+  // Null tetap dibedakan dari id lain supaya satu frame data rute fasilitas
+  // sebelumnya tidak sempat tampil di bawah nama fasilitas yang baru.
+  const routeSummary = routeHere && (route.facilityId === null || route.facilityId === id) ? (
     <RouteSummary
       route={route} facilityName={loaded?.name ?? 'fasilitas ini'} otherFacilities={results.filter((f) => String(f.id) !== id)}
       geoStatus={geo.status} geoError={geo.error} compact={false}

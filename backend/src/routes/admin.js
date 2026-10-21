@@ -59,8 +59,10 @@ async function applyContribution(client, c, adminId) {
   if (c.change_type === 'create') {
     const f = p.facility;
     const row = (await client.query(
-      `insert into facilities (name, category_id, address, description, location, last_verified_at)
-       values ($1, (select id from categories where code = $2), $3, $4, st_setsrid(st_makepoint($6,$5),4326)::geography, now())
+      // last_verified_at sengaja tidak diisi di sini: fasilitas yang baru lahir belum
+      // ada apa pun yang diverifikasi. Nilainya diturunkan di akhir fungsi ini.
+      `insert into facilities (name, category_id, address, description, location)
+       values ($1, (select id from categories where code = $2), $3, $4, st_setsrid(st_makepoint($6,$5),4326)::geography)
        returning id`,
       [f.name, f.category, f.address, f.description ?? '', f.lat, f.lon],
     )).rows[0];
@@ -82,7 +84,7 @@ async function applyContribution(client, c, adminId) {
          description = coalesce($5, description),
          location = case when $6::float8 is not null and $7::float8 is not null
                          then st_setsrid(st_makepoint($7,$6),4326)::geography else location end,
-         last_verified_at = now(), updated_at = now()
+         updated_at = now()
        where id = $1`,
       [facilityId, f.name ?? null, f.category ?? null, f.address ?? null, f.description ?? null, f.lat ?? null, f.lon ?? null],
     );
@@ -104,7 +106,26 @@ async function applyContribution(client, c, adminId) {
       [facilityId, c.submitted_by, url, 'Foto kontribusi'],
     );
   }
-  await client.query('update facilities set last_verified_at = now(), updated_at = now() where id = $1', [facilityId]);
+  // Diturunkan dari atribut, BUKAN dicap now() begitu saja.
+  //
+  // Dulu setiap persetujuan menandai fasilitasnya "terverifikasi hari ini", apa pun
+  // isinya. Akibatnya fasilitas yang kesepuluh atributnya "Belum diketahui" tetap
+  // menulis "Terakhir diverifikasi: hari ini" dan masuk kelas verified_recently —
+  // persis kebalikan dari yang ingin dikatakan aplikasi ini. Insert per-atribut di
+  // atas sudah hati-hati (verified_at null untuk status unknown); baris inilah yang
+  // membuang kehati-hatian itu di tingkat fasilitas.
+  //
+  // max(verified_at) juga benar untuk pengubahan alamat atau nama: keduanya tidak
+  // memverifikasi apa pun, jadi capnya tidak bergerak. Diperiksa terhadap data yang
+  // ada: 17 dari 18 fasilitas bertanda terverifikasi memang punya atribut
+  // terverifikasi, jadi aturan ini tidak mengubah satu pun baris yang sudah benar.
+  await client.query(
+    `update facilities set
+       last_verified_at = (select max(verified_at) from accessibility_facilities where facility_id = $1),
+       updated_at = now()
+     where id = $1`,
+    [facilityId],
+  );
 }
 
 router.patch('/admin/contributions/:id', async (req, res) => {

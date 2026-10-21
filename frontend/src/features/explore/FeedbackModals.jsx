@@ -11,11 +11,22 @@ import { Alert, Button, Modal, SelectField, TextArea } from '../../components/ui
 import { REPORT_TYPES } from '../accessibility/constants';
 
 function LoginNeeded({ onClose, action }) {
+  // `reason` ikut dikirim, bukan hanya `from`: halaman masuk memakainya untuk
+  // menuliskan alasannya sekaligus menjanjikan "Setelah masuk, Anda akan kembali ke
+  // halaman ini" — dan janji itulah yang membuat orang mau masuk di tengah jalan,
+  // alih-alih menutup dialognya karena mengira akan kehilangan tempatnya. Rute yang
+  // dijaga ProtectedRoute sudah mengirim keduanya; dialog ini sebelumnya tidak.
   return (
     <div className="space-y-4">
       <p className="font-sub">Anda perlu masuk untuk {action}.</p>
       <div className="flex gap-2">
-        <Link to="/login" state={{ from: window.location.pathname + window.location.search }} className="inline-flex min-h-11 items-center rounded-control bg-action-primary px-4 font-semibold text-white">Masuk</Link>
+        <Link
+          to="/login"
+          state={{ from: window.location.pathname + window.location.search, reason: `Masuk untuk ${action}.` }}
+          className="inline-flex min-h-11 items-center rounded-control bg-action-primary px-4 font-semibold text-white"
+        >
+          Masuk
+        </Link>
         <Button variant="secondary" onClick={onClose}>Batal</Button>
       </div>
     </div>

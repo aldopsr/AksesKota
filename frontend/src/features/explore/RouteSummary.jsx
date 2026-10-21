@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Bus, Crosshair, LocateFixed, MapPin, Route as RouteIcon, X } from 'lucide-react';
 import { Alert, Button, IconButton, SelectField, Skeleton } from '../../components/ui';
 import { formatDistance, formatDuration } from '../../lib/geo';
@@ -217,6 +217,12 @@ export default function RouteSummary({
 }) {
   const { origin, picking, loading, error, data } = route;
   const [editing, setEditing] = useState(false);
+  // "Pilih di peta" selesai di peta, bukan di kartu ini — kartu tidak pernah tahu
+  // ketukannya terjadi, dan satu-satunya tandanya adalah origin yang berganti.
+  // Tanpa baris ini pemilih tetap terbuka setelah titik dipilih: rutenya tergambar
+  // di peta, tapi jarak dan perkiraan waktunya tidak pernah muncul. Dua jalur lain
+  // ("Gunakan lokasi saya" dan daftar fasilitas) menutup pemilihnya sendiri.
+  useEffect(() => { setEditing(false); }, [origin]);
   const chooser = !origin || editing;
   // Berapa penggal rute yang jatuh di tiap kelas — dihitung dari data yang sama yang
   // digambar di peta, jadi kalimat di kartu tidak pernah berbeda dari garisnya.

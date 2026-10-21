@@ -66,7 +66,16 @@ export function Stars({ value }) {
 export function FreshnessNote({ iso, freshness }) {
   return (
     <p className="font-sub flex flex-wrap items-center gap-2 text-sm text-ink-secondary">
-      Terakhir diverifikasi: <strong className="font-semibold text-ink">{formatDate(iso)}</strong>
+      {/* Belum pernah = kalimatnya sendiri, bukan "Terakhir diverifikasi: -".
+          Sejak cap verifikasi diturunkan dari atribut, fasilitas yang seluruh
+          atributnya masih "Belum diketahui" memang tidak punya tanggal — dan tanda
+          hubung membuat keadaan itu terbaca seperti data yang hilang, bukan seperti
+          fakta yang memang begitu. */}
+      {iso ? (
+        <>Terakhir diverifikasi: <strong className="font-semibold text-ink">{formatDate(iso)}</strong></>
+      ) : (
+        <strong className="font-semibold text-ink">Belum pernah diverifikasi</strong>
+      )}
       {freshness !== 'verified_recently' && <Badge className="bg-warning-bg text-warning">Perlu verifikasi ulang</Badge>}
     </p>
   );
