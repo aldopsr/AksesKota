@@ -18,6 +18,7 @@ import NeedsPrompt from '../features/accessibility/NeedsPrompt';
 import FacilityDetailPanel from '../features/explore/FacilityDetailPanel';
 import RouteSummary from '../features/explore/RouteSummary';
 import BottomSheet from '../features/explore/BottomSheet';
+import PanelJangkauan from '../features/explore/PanelJangkauan';
 import FloatingCard from '../features/explore/FloatingCard';
 import AjakanMasuk from '../features/explore/AjakanMasuk';
 import { LandingSections } from './HomePage';
@@ -87,6 +88,29 @@ export default function ExplorePage() {
   });
   const [jalurTerlaluJauh, setJalurTerlaluJauh] = useState(false);
   const [ringkasJalur, setRingkasJalur] = useState(null);
+
+  // Mode jangkauan: ketuk satu titik, lalu dua perjalanan dihitung di atas jaringan
+  // yang sama — satu tanpa larangan, satu dengan tangga dibuang. Selisihnya yang
+  // jadi jawabannya.
+  const [modeJangkauan, setModeJangkauan] = useState(false);
+  const [menitJangkauan, setMenitJangkauan] = useState(15);
+  const [titikJangkauan, setTitikJangkauan] = useState(null);
+  const jangkauanQ = useQuery({
+    queryKey: ['jangkauan', titikJangkauan?.lng, titikJangkauan?.lat, menitJangkauan],
+    queryFn: ({ signal }) => api('/jangkauan', {
+      signal,
+      params: { lon: titikJangkauan.lng, lat: titikJangkauan.lat, menit: menitJangkauan },
+    }),
+    enabled: !!titikJangkauan,
+  });
+  const tutupJangkauan = () => { setModeJangkauan(false); setTitikJangkauan(null); };
+  const gantiModeJangkauan = (v) => {
+    setModeJangkauan(v);
+    if (!v) setTitikJangkauan(null);
+    // Panel bawah turun supaya ada peta untuk diketuk — alasan yang sama dengan
+    // mode pilih titik awal rute.
+    if (v && !isDesktop) sheetRef.current?.mengintip();
+  };
   const gantiJalur = (v) => {
     setJalurTerlihat(v);
     try { localStorage.setItem('ak_lapisan_jalur', v ? '1' : '0'); } catch { /* mode privat */ }
@@ -351,6 +375,7 @@ export default function ExplorePage() {
         onError={(e) => { if ([401, 403].includes(e?.error?.status)) setMapProblem(true); }}
         gaya={gayaPeta}
         jalurTerlihat={jalurTerlihat} onJalurTerlaluJauh={setJalurTerlaluJauh} onJalurRingkas={setRingkasJalur}
+        jangkauan={jangkauanQ.data ?? null} modeJangkauan={modeJangkauan} onPickJangkauan={setTitikJangkauan}
         fitPaddingBottom={isDesktop ? 70 : (sheetTerlihat ? 380 : 90)}
         fitPaddingLeft={isDesktop ? 430 : 60}
       />
@@ -379,7 +404,26 @@ export default function ExplorePage() {
         onLocate={locateMe} locating={geo.status === 'loading'}
         gaya={gayaPeta} onGantiGaya={gantiGayaPeta}
         jalur={jalurTerlihat} onGantiJalur={gantiJalur} ringkasJalur={ringkasJalur}
+        modeJangkauan={modeJangkauan} onGantiJangkauan={gantiModeJangkauan}
       />
+
+      {modeJangkauan && !titikJangkauan && (
+        <div role="status" className="absolute left-3 right-[4.25rem] top-[7.5rem] z-30 flex items-center justify-between gap-2 rounded-control bg-ink px-4 py-2 font-semibold text-white shadow-popover lg:left-1/2 lg:right-auto lg:top-32 lg:-translate-x-1/2">
+          Ketuk peta untuk menghitung jangkauan
+          <button type="button" onClick={() => gantiModeJangkauan(false)} className="min-h-11 px-2 underline">Batal</button>
+        </div>
+      )}
+
+      {modeJangkauan && titikJangkauan && (
+        <PanelJangkauan
+          data={jangkauanQ.data}
+          memuat={jangkauanQ.isFetching}
+          galat={jangkauanQ.error?.message ?? null}
+          menit={menitJangkauan}
+          onGantiMenit={setMenitJangkauan}
+          onTutup={tutupJangkauan}
+        />
+      )}
 
       {/* Lapisannya menyala tapi petanya terlalu jauh untuk menggambar apa pun —
           tanpa pesan ini tombolnya tampak rusak. */}

@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { CircleQuestionMark, Footprints, Layers, LocateFixed, Minus, Plus } from 'lucide-react';
+import { CircleQuestionMark, Footprints, Layers, LocateFixed, Minus, Plus, Radar } from 'lucide-react';
 import { LEVELS } from '../accessibility/match';
 import { WARNA_JALUR } from './jalur';
 import { Spinner } from '../../components/ui';
@@ -30,7 +30,7 @@ function Tombol({ label, onClick, children, className = '' }) {
   );
 }
 
-export function MapControls({ onZoomIn, onZoomOut, onLocate, locating, gaya = 'jalan', onGantiGaya, jalur = false, onGantiJalur, ringkasJalur }) {
+export function MapControls({ onZoomIn, onZoomOut, onLocate, locating, gaya = 'jalan', onGantiGaya, jalur = false, onGantiJalur, ringkasJalur, modeJangkauan = false, onGantiJangkauan }) {
   const [legenda, setLegenda] = useState(false);
   const id = useId();
   const bungkus = useRef(null);
@@ -66,6 +66,20 @@ export function MapControls({ onZoomIn, onZoomOut, onLocate, locating, gaya = 'j
           {locating ? <Spinner size={19} /> : <LocateFixed aria-hidden="true" size={19} />}
         </Tombol>
         <span aria-hidden="true" className="h-px bg-border" />
+        {/* Jangkauan nyata. Satu-satunya kontrol di kolom ini yang meminta ketukan
+            lanjutan di peta, jadi ia menyala terang selama modenya aktif. */}
+        <button
+          type="button"
+          aria-pressed={modeJangkauan}
+          aria-label={modeJangkauan ? 'Keluar dari mode jangkauan' : 'Hitung jangkauan dari sebuah titik'}
+          onClick={() => onGantiJangkauan?.(!modeJangkauan)}
+          className={`${kelasTombol} ${modeJangkauan ? 'bg-brand-700 text-white hover:bg-brand-800' : ''}`}
+          style={{ transition: 'transform 160ms var(--ease-out), background-color 160ms ease' }}
+        >
+          <Radar aria-hidden="true" size={19} />
+        </button>
+        <span aria-hidden="true" className="h-px bg-border" />
+
         {/* Lapisan jaringan pejalan kaki: tangga, jalur ber-guiding block, dan ruas
             yang belum terdata. Ditaruh satu kelompok dengan sakelar satelit karena
             keduanya menjawab pertanyaan yang sama — "peta ini menampilkan apa". */}

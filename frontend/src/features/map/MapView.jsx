@@ -4,6 +4,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { KeyRound } from 'lucide-react';
 import { clearRoute, drawRoute } from './route';
 import { ambilJalur, isiJalur, lepasJalur, pasangJalur } from './jalur';
+import { isiJangkauan, lepasJangkauan, pasangJangkauan } from './jangkauan';
 
 const TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 if (TOKEN) mapboxgl.accessToken = TOKEN;
@@ -50,7 +51,7 @@ export const GAYA_PETA = {
 
 const MapCanvas = forwardRef(function MapCanvas({
   items, selectedId, onSelect, userLocation, origin, routeGeometry, routeSegmen, pickingOrigin, onPickOrigin, focus, onError,
-  gaya = 'jalan', jalurTerlihat = false, onJalurTerlaluJauh, onJalurRingkas,
+  gaya = 'jalan', jalurTerlihat = false, onJalurTerlaluJauh, onJalurRingkas, jangkauan = null, modeJangkauan = false, onPickJangkauan,
   // Sisi yang tertutup panel: penanda yang pas di tengah viewport tetap tersembunyi
   // kalau separuh kiri layar ditempati kartu mengambang.
   fitPaddingBottom = 70, fitPaddingLeft = 60,
@@ -70,7 +71,7 @@ const MapCanvas = forwardRef(function MapCanvas({
   jalurRef.current = jalurTerlihat;
 
   const live = useRef({});
-  live.current = { onSelect, onPickOrigin, pickingOrigin, selectedId, onError };
+  live.current = { onSelect, onPickOrigin, pickingOrigin, selectedId, onError, modeJangkauan, onPickJangkauan };
 
   useImperativeHandle(ref, () => ({
     zoomIn: () => mapRef.current?.zoomIn({ duration: 200 }),
@@ -90,7 +91,11 @@ const MapCanvas = forwardRef(function MapCanvas({
     });
     map.on('load', () => setReady(true));
     map.on('error', (e) => live.current.onError?.(e));
-    map.on('click', (e) => { if (live.current.pickingOrigin) live.current.onPickOrigin?.({ lng: e.lngLat.lng, lat: e.lngLat.lat }); });
+    map.on('click', (e) => {
+      const t = { lng: e.lngLat.lng, lat: e.lngLat.lat };
+      if (live.current.pickingOrigin) live.current.onPickOrigin?.(t);
+      else if (live.current.modeJangkauan) live.current.onPickJangkauan?.(t);
+    });
     const ro = new ResizeObserver(() => map.resize());
     ro.observe(containerRef.current);
     mapRef.current = map;
@@ -235,7 +240,22 @@ const MapCanvas = forwardRef(function MapCanvas({
     };
   }, [jalurTerlihat, ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { const map = mapRef.current; if (map) map.getCanvas().style.cursor = pickingOrigin ? 'crosshair' : ''; }, [pickingOrigin]);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return undefined;
+    if (!jangkauan) { lepasJangkauan(map); return undefined; }
+    const gambar = () => { if (pasangJangkauan(map)) isiJangkauan(map, jangkauan); };
+    gambar();
+    // Gaya bisa sedang dimuat ulang (mis. baru berganti ke satelit); coba lagi saat siap.
+    map.on('styledata', gambar);
+    return () => map.off('styledata', gambar);
+  }, [jangkauan, ready]);
+
+  // Kursor silang berlaku untuk dua mode yang sama-sama meminta ketukan di peta.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (map) map.getCanvas().style.cursor = (pickingOrigin || modeJangkauan) ? 'crosshair' : '';
+  }, [pickingOrigin, modeJangkauan]);
   useEffect(() => { const map = mapRef.current; if (map && focus) map.flyTo({ center: [focus.lng, focus.lat], zoom: focus.zoom ?? 14, duration: 600 }); }, [focus?.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return <div ref={containerRef} role="region" aria-label="Peta fasilitas. Daftar hasil menyediakan informasi yang sama untuk pengguna keyboard dan pembaca layar." className="size-full" />;
