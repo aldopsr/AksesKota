@@ -244,7 +244,7 @@ export function Tabs({ group, label, tabs, value, onChange, className = '' }) {
     refs.current[next.key]?.focus();
   }
   return (
-    <div role="tablist" aria-label={label} className={`flex gap-1 overflow-x-auto border-b border-border no-scrollbar ${className}`}>
+    <div role="tablist" aria-label={label} className={`flex flex-wrap gap-1 border-b border-border no-scrollbar sm:flex-nowrap sm:overflow-x-auto ${className}`}>
       {tabs.map((t, i) => {
         const on = t.key === value;
         return (
