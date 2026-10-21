@@ -3,7 +3,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { KeyRound } from 'lucide-react';
 import { clearRoute, drawRoute } from './route';
-import { ambilJalur, isiJalur, lepasJalur, pasangJalur } from './jalur';
+import { ambilJalur, isiJalur, lepasJalur, pasangJalur, perluMuatUlang } from './jalur';
 import { isiJangkauan, lepasJangkauan, pasangJangkauan } from './jangkauan';
 
 const TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -66,6 +66,7 @@ const MapCanvas = forwardRef(function MapCanvas({
   // jadi garis rutenya harus digambar ulang dari sesuatu yang bertahan.
   const routeGeomRef = useRef(null);
   const routeSegmenRef = useRef(null);
+  const ubahRute = useRef(null);
   const gayaRef = useRef(gaya);
   const jalurRef = useRef(jalurTerlihat);
   jalurRef.current = jalurTerlihat;
@@ -181,37 +182,60 @@ const MapCanvas = forwardRef(function MapCanvas({
     gayaRef.current = gaya;
     map.setStyle(GAYA_PETA[gaya] ?? GAYA_PETA.jalan);
     // Penanda dibuat sebagai elemen DOM (mapboxgl.Marker), jadi ia selamat dari
-    // pergantian gaya. Yang hilang hanya source/layer rute.
-    map.once('style.load', () => {
-      if (routeGeomRef.current) drawRoute(map, routeGeomRef.current, routeSegmenRef.current);
-      if (jalurRef.current) { pasangJalur(map); ambilJalur(map).then(({ data }) => isiJalur(map, data)).catch(() => {}); }
-    });
+    // pergantian gaya. Source dan layer tidak — rute dan lapisan jalur dipasang
+    // ulang oleh efeknya masing-masing, yang ikut bergantung pada `gaya`.
   }, [gaya, ready]);
 
+  // Garis rute. `gaya` ikut jadi dependensi dan `styledata` ikut didengarkan, dengan
+  // alasan yang sama seperti lapisan jalur: setStyle membuang source kita, dan satu
+  // handler style.load ternyata tidak selalu kebagian — terukur, layer rute hilang
+  // seluruhnya setelah berganti ke satelit. Menggambar ulang itu murah dan idempoten,
+  // jadi lebih baik dipanggil terlalu sering daripada terlewat sekali.
   useEffect(() => {
     const map = mapRef.current;
     routeGeomRef.current = routeGeometry ?? null;
     routeSegmenRef.current = routeSegmen ?? null;
-    if (!map || !ready) return;
-    if (!routeGeometry) { clearRoute(map); return; }
-    drawRoute(map, routeGeometry, routeSegmen);
-    const b = new mapboxgl.LngLatBounds();
-    routeGeometry.coordinates.forEach((c) => b.extend(c));
-    map.fitBounds(b, { padding: { top: 140, left: fitPaddingLeft, right: 60, bottom: fitPaddingBottom }, duration: 600 });
-  }, [routeGeometry, routeSegmen, ready]);
+    if (!map || !ready) return undefined;
+    if (!routeGeometry) { clearRoute(map); return undefined; }
 
-  // Lapisan jaringan pejalan kaki. Datanya diambil per kotak yang terlihat, bukan
-  // sekaligus se-Bogor: 24.180 ruas sebagai satu GeoJSON membuat peta tersendat
-  // beberapa detik setiap kali dibuka.
+    const gambar = () => drawRoute(map, routeGeometry, routeSegmen);
+    gambar();
+    map.on('styledata', gambar);
+
+    // Pemaskan hanya saat rutenya BERUBAH, bukan tiap kali gaya diganti: memaksa
+    // kamera kembali ke rute saat pengguna baru saja menggeser peta itu menyebalkan.
+    if (ubahRute.current !== routeGeometry) {
+      ubahRute.current = routeGeometry;
+      const b = new mapboxgl.LngLatBounds();
+      routeGeometry.coordinates.forEach((c) => b.extend(c));
+      map.fitBounds(b, { padding: { top: 140, left: fitPaddingLeft, right: 60, bottom: fitPaddingBottom }, duration: 600 });
+    }
+    return () => map.off('styledata', gambar);
+  }, [routeGeometry, routeSegmen, ready, gaya]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Lapisan jaringan pejalan kaki.
+  //
+  // SATU jalur pemulihan untuk semua keadaan, bukan penanganan khusus per kejadian.
+  // Sebelumnya pemasangan layer dititipkan ke `style.load` sementara pengambilan data
+  // menumpang `moveend`; begitu gaya peta diganti, keduanya bisa sama-sama tidak
+  // kebagian dan lapisan hilang tanpa pernah kembali. Sekarang `sinkron()` memastikan
+  // keadaan yang benar — layer terpasang, data sesuai kotak tampilan — dan ia dipanggil
+  // dari setiap kejadian yang mungkin merusaknya.
+  //
+  // Datanya diambil per kotak yang terlihat, bukan sekaligus se-Bogor: 24.180 ruas
+  // sebagai satu GeoJSON membuat peta tersendat beberapa detik setiap kali dibuka.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return undefined;
     if (!jalurTerlihat) { lepasJalur(map); return undefined; }
 
-    pasangJalur(map);
     let batal = null;
     let tunda = null;
+
     const muat = async () => {
+      // perluMuatUlang menolak kotak yang sama dua kali, dan lupa ingatannya begitu
+      // source dibuat ulang — itu yang membuat pemanggilan berulang di sini murah.
+      if (!perluMuatUlang(map)) return;
       batal?.abort();
       batal = new AbortController();
       try {
@@ -227,18 +251,30 @@ const MapCanvas = forwardRef(function MapCanvas({
         if (e.name !== 'AbortError') isiJalur(map, null);
       }
     };
-    // Ditunda sesaat: menggeser peta memicu belasan moveend beruntun, dan tanpa jeda
+
+    const sinkron = () => {
+      if (!map.isStyleLoaded()) return; // styledata berikutnya yang akan memanggil lagi
+      pasangJalur(map, gaya);
+      muat();
+    };
+    // Ditunda sesaat: menggeser peta memicu belasan kejadian beruntun, dan tanpa jeda
     // ini setiap satu di antaranya jadi satu permintaan ke server.
-    const jadwalkan = () => { clearTimeout(tunda); tunda = setTimeout(muat, 350); };
-    muat();
+    const jadwalkan = () => { clearTimeout(tunda); tunda = setTimeout(sinkron, 350); };
+
+    sinkron();
     map.on('moveend', jadwalkan);
+    map.on('idle', jadwalkan);
+    map.on('styledata', jadwalkan);
     return () => {
       clearTimeout(tunda);
       batal?.abort();
       map.off('moveend', jadwalkan);
-      if (map.getStyle()) lepasJalur(map);
+      map.off('idle', jadwalkan);
+      map.off('styledata', jadwalkan);
+      lepasJalur(map); // penjaga gaya-siap ada di dalamnya
     };
-  }, [jalurTerlihat, ready]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [jalurTerlihat, ready, gaya]); // eslint-disable-line react-hooks/exhaustive-deps
+
 
   useEffect(() => {
     const map = mapRef.current;

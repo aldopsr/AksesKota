@@ -71,7 +71,14 @@ export function drawRoute(map, geometry, segmen) {
 }
 
 export function clearRoute(map) {
-  if (!map.getStyle()) return;
+  // isStyleLoaded(), BUKAN getStyle(). getStyle() MELEMPAR ("Style is not done
+  // loading") selagi gaya peta dimuat ulang — jadi penjaga yang dimaksudkan untuk
+  // mengamankan pembersihan justru merobohkan seluruh komponen peta, dan bersamanya
+  // rute serta semua lapisan ikut hilang. Inilah sebab sebenarnya dari "layer hilang
+  // setelah ganti ke satelit"; tiga teori sebelumnya meleset.
+  // Lagi pula tidak ada yang perlu dibersihkan saat gaya diganti: setStyle sudah
+  // membuang semua source dan layer kita.
+  if (!map.isStyleLoaded()) return;
   LAYERS.forEach((id) => { if (map.getLayer(id)) map.removeLayer(id); });
   if (map.getSource(SRC)) map.removeSource(SRC);
 }
