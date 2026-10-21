@@ -40,8 +40,16 @@ function markerElement(facility, level, onSelect) {
   return el;
 }
 
+// Dua gaya saja. satellite-streets, bukan satellite polos: tanpa nama jalan di atas
+// citra, orang tidak bisa mencocokkan apa yang dilihatnya dengan alamat fasilitas.
+export const GAYA_PETA = {
+  jalan: 'mapbox://styles/mapbox/streets-v12',
+  satelit: 'mapbox://styles/mapbox/satellite-streets-v12',
+};
+
 const MapCanvas = forwardRef(function MapCanvas({
   items, selectedId, onSelect, userLocation, origin, routeGeometry, pickingOrigin, onPickOrigin, focus, onError,
+  gaya = 'jalan',
   // Sisi yang tertutup panel: penanda yang pas di tengah viewport tetap tersembunyi
   // kalau separuh kiri layar ditempati kartu mengambang.
   fitPaddingBottom = 70, fitPaddingLeft = 60,
@@ -52,6 +60,10 @@ const MapCanvas = forwardRef(function MapCanvas({
   const userMarker = useRef(null);
   const originMarker = useRef(null);
   const [ready, setReady] = useState(false);
+  // Geometri rute disimpan juga di ref: setStyle membuang semua source dan layer kita,
+  // jadi garis rutenya harus digambar ulang dari sesuatu yang bertahan.
+  const routeGeomRef = useRef(null);
+  const gayaRef = useRef(gaya);
 
   const live = useRef({});
   live.current = { onSelect, onPickOrigin, pickingOrigin, selectedId, onError };
@@ -69,7 +81,7 @@ const MapCanvas = forwardRef(function MapCanvas({
     // Konsekuensinya jalan turun ke bagian penjelasan hanya lewat navigasi — dan karena
     // itu tautan "Cara kerja" di navbar tidak boleh pernah hilang di ukuran layar mana pun.
     const map = new mapboxgl.Map({
-      container: containerRef.current, style: 'mapbox://styles/mapbox/streets-v12',
+      container: containerRef.current, style: GAYA_PETA[gayaRef.current] ?? GAYA_PETA.jalan,
       center: [118, -2.5], zoom: 3.6,
     });
     map.on('load', () => setReady(true));
@@ -151,12 +163,23 @@ const MapCanvas = forwardRef(function MapCanvas({
 
   useEffect(() => {
     const map = mapRef.current;
+    if (!map || !ready || gayaRef.current === gaya) return;
+    gayaRef.current = gaya;
+    map.setStyle(GAYA_PETA[gaya] ?? GAYA_PETA.jalan);
+    // Penanda dibuat sebagai elemen DOM (mapboxgl.Marker), jadi ia selamat dari
+    // pergantian gaya. Yang hilang hanya source/layer rute.
+    map.once('style.load', () => { if (routeGeomRef.current) drawRoute(map, routeGeomRef.current); });
+  }, [gaya, ready]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    routeGeomRef.current = routeGeometry ?? null;
     if (!map || !ready) return;
     if (!routeGeometry) { clearRoute(map); return; }
     drawRoute(map, routeGeometry);
     const b = new mapboxgl.LngLatBounds();
     routeGeometry.coordinates.forEach((c) => b.extend(c));
-    map.fitBounds(b, { padding: { top: 140, left: fitPaddingLeft, right: 60, bottom: 140 }, duration: 600 });
+    map.fitBounds(b, { padding: { top: 140, left: fitPaddingLeft, right: 60, bottom: fitPaddingBottom }, duration: 600 });
   }, [routeGeometry, ready]);
 
   useEffect(() => { const map = mapRef.current; if (map) map.getCanvas().style.cursor = pickingOrigin ? 'crosshair' : ''; }, [pickingOrigin]);

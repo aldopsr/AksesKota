@@ -74,6 +74,15 @@ export default function ExplorePage() {
   const [focus, setFocus] = useState(null);
   const [loaded, setLoaded] = useState(null); // fasilitas yang sedang dibuka (untuk sheet mobile)
   const [mapProblem, setMapProblem] = useState(false);
+  // Pilihan gaya peta diingat: orang yang memilih satelit biasanya memilihnya karena
+  // cara mereka mengenali tempat, bukan untuk sekali lihat.
+  const [gayaPeta, setGayaPeta] = useState(() => {
+    try { return localStorage.getItem('ak_gaya_peta') === 'satelit' ? 'satelit' : 'jalan'; } catch { return 'jalan'; }
+  });
+  const gantiGayaPeta = (g) => {
+    setGayaPeta(g);
+    try { localStorage.setItem('ak_gaya_peta', g); } catch { /* mode privat */ }
+  };
   const [route, setRoute] = useState(INITIAL_ROUTE);
   const autoTried = useRef(null);
 
@@ -328,6 +337,7 @@ export default function ExplorePage() {
         userLocation={geo.location} origin={routeHere ? route.origin : null} routeGeometry={routeHere ? route.data?.geometry ?? null : null}
         pickingOrigin={routeHere && route.picking} onPickOrigin={routePicked} focus={focus}
         onError={(e) => { if ([401, 403].includes(e?.error?.status)) setMapProblem(true); }}
+        gaya={gayaPeta}
         fitPaddingBottom={isDesktop ? 70 : (sheetTerlihat ? 380 : 90)}
         fitPaddingLeft={isDesktop ? 430 : 60}
       />
@@ -354,6 +364,7 @@ export default function ExplorePage() {
       <MapControls
         onZoomIn={() => mapRef.current?.zoomIn()} onZoomOut={() => mapRef.current?.zoomOut()}
         onLocate={locateMe} locating={geo.status === 'loading'}
+        gaya={gayaPeta} onGantiGaya={gantiGayaPeta}
       />
 
       {mapProblem && (

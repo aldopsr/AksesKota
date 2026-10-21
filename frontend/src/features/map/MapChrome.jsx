@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { CircleQuestionMark, LocateFixed, Minus, Plus } from 'lucide-react';
+import { CircleQuestionMark, Layers, LocateFixed, Minus, Plus } from 'lucide-react';
 import { LEVELS } from '../accessibility/match';
 import { Spinner } from '../../components/ui';
 
@@ -29,7 +29,7 @@ function Tombol({ label, onClick, children, className = '' }) {
   );
 }
 
-export function MapControls({ onZoomIn, onZoomOut, onLocate, locating }) {
+export function MapControls({ onZoomIn, onZoomOut, onLocate, locating, gaya = 'jalan', onGantiGaya }) {
   const [legenda, setLegenda] = useState(false);
   const id = useId();
   const bungkus = useRef(null);
@@ -64,6 +64,20 @@ export function MapControls({ onZoomIn, onZoomOut, onLocate, locating }) {
         <Tombol label="Gunakan lokasi saya" onClick={onLocate}>
           {locating ? <Spinner size={19} /> : <LocateFixed aria-hidden="true" size={19} />}
         </Tombol>
+        <span aria-hidden="true" className="h-px bg-border" />
+        {/* Ikon tumpukan lembaran akhirnya dipakai untuk hal yang memang dijanjikannya.
+            Label berubah mengikuti keadaan, karena tombol sakelar yang namanya tetap
+            tidak pernah jelas sedang menyalakan atau mematikan apa. */}
+        <button
+          type="button"
+          aria-pressed={gaya === 'satelit'}
+          aria-label={gaya === 'satelit' ? 'Tampilkan peta jalan' : 'Tampilkan citra satelit'}
+          onClick={() => onGantiGaya?.(gaya === 'satelit' ? 'jalan' : 'satelit')}
+          className={`${kelasTombol} ${gaya === 'satelit' ? 'bg-brand-100 text-brand-900' : ''}`}
+          style={{ transition: 'transform 160ms var(--ease-out), background-color 160ms ease' }}
+        >
+          <Layers aria-hidden="true" size={19} />
+        </button>
         <span aria-hidden="true" className="h-px bg-border" />
         <button
           type="button"
