@@ -319,7 +319,7 @@ export default function ExplorePage() {
         userLocation={geo.location} origin={routeHere ? route.origin : null} routeGeometry={routeHere ? route.data?.geometry ?? null : null}
         pickingOrigin={routeHere && route.picking} onPickOrigin={routePicked} focus={focus}
         onError={(e) => { if ([401, 403].includes(e?.error?.status)) setMapProblem(true); }}
-        fitPaddingBottom={isDesktop ? 70 : 150}
+        fitPaddingBottom={isDesktop ? 70 : (sheetTerlihat ? 380 : 90)}
         fitPaddingLeft={isDesktop ? 430 : 60}
       />
 
@@ -340,7 +340,7 @@ export default function ExplorePage() {
 
       {/* Dipicu oleh bukti ketertarikan, bukan oleh waktu: satu fasilitas dibuka, atau
           kebutuhan dipilih. Tombol masuk di navbar halaman peta sengaja dihapus. */}
-      {!session && <AjakanMasuk aktif={!!id || required.length > 0} />}
+      {!session && <AjakanMasuk aktif={(!!id || required.length > 0) && (isDesktop || !routeHere)} />}
 
       <MapControls
         onZoomIn={() => mapRef.current?.zoomIn()} onZoomOut={() => mapRef.current?.zoomOut()}

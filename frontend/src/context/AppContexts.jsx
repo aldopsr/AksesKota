@@ -43,7 +43,7 @@ export function ToastProvider({ children }) {
   return (
     <ToastCtx.Provider value={value}>
       {children}
-      <div role="status" aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-4 z-[60] flex flex-col items-center gap-2 px-4">
+      <div role="status" aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-[60] flex flex-col items-center gap-2 px-4 md:bottom-4">
         <AnimatePresence>
           {items.map(({ id: tid, message, tone }) => {
             const { cls, Icon } = TONES[tone];
@@ -55,7 +55,7 @@ export function ToastProvider({ children }) {
               >
                 <Icon aria-hidden="true" className="mt-0.5 shrink-0" size={18} />
                 <p className="font-medium">{message}</p>
-                <button type="button" onClick={() => dismiss(tid)} aria-label="Tutup pesan" className="-mr-2 -mt-1 inline-flex size-9 shrink-0 items-center justify-center rounded-control hover:bg-black/5"><X aria-hidden="true" size={16} /></button>
+                <button type="button" onClick={() => dismiss(tid)} aria-label="Tutup pesan" className="-mr-2 -mt-1 inline-flex size-11 shrink-0 items-center justify-center rounded-control hover:bg-black/5"><X aria-hidden="true" size={16} /></button>
               </m.div>
             );
           })}

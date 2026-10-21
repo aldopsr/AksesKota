@@ -33,7 +33,8 @@ export default function AjakanMasuk({ aktif }) {
   const [tampil, setTampil] = useState(false);
 
   useEffect(() => {
-    if (!aktif || !bolehTampil()) return undefined;
+    if (!aktif) { setTampil(false); return undefined; }
+    if (!bolehTampil()) return undefined;
     // Jeda pendek setelah pemicunya: muncul di detik yang sama dengan ketukan pengguna
     // membuatnya terbaca seperti akibat dari ketukan itu, bukan tawaran tersendiri.
     const t = setTimeout(() => setTampil(true), 1200);
