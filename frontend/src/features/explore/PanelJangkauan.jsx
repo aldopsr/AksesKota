@@ -16,6 +16,17 @@ const MENIT = [10, 15, 20];
 const km = (m) => (m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${m} m`);
 
 export default function PanelJangkauan({ data, memuat, galat, menit, onGantiMenit, onTutup }) {
+  // Satu sumber teks untuk dua bentuk di bawah (paragraf di layar lebar, lipatan di
+  // ponsel) supaya keduanya tidak pernah menyimpang.
+  const catatan = data?.ada_jaringan ? (
+    <>
+      Dihitung di atas jaringan pejalan kaki OSM: {data.laju_kmj.jalan} km/jam untuk jalan kaki,{' '}
+      {data.laju_kmj.kursi_roda} km/jam untuk kursi roda, dengan tangga dan ruas bertanda tidak dapat
+      dilalui dibuang dari jaringan. Ruas yang belum terdata dianggap bisa dilalui — angka sebenarnya
+      kemungkinan lebih kecil.
+    </>
+  ) : null;
+
   return (
     <section
       aria-labelledby="jangkauan-judul"
@@ -78,13 +89,18 @@ export default function PanelJangkauan({ data, memuat, galat, menit, onGantiMeni
           </ul>
 
           {/* Asumsinya ditulis, bukan disembunyikan. Selisih ini gabungan dua hal, dan
-              membiarkan orang mengira ia murni soal hambatan itu menyesatkan. */}
-          <p className="font-sub mt-3 text-xs text-ink-secondary">
-            Dihitung di atas jaringan pejalan kaki OSM: {data.laju_kmj.jalan} km/jam untuk jalan kaki,{' '}
-            {data.laju_kmj.kursi_roda} km/jam untuk kursi roda, dengan tangga dan ruas bertanda tidak dapat
-            dilalui dibuang dari jaringan. Ruas yang belum terdata dianggap bisa dilalui — angka sebenarnya
-            kemungkinan lebih kecil.
-          </p>
+              membiarkan orang mengira ia murni soal hambatan itu menyesatkan.
+              Di ponsel ia dilipat: panel ini menempel di atas peta, dan empat baris
+              penjelasan menyisakan pita peta yang terlalu tipis untuk melihat
+              jaringannya sendiri — padahal jaringan itulah jawabannya. Dilipat,
+              bukan dibuang: batas keandalan angka tidak boleh hilang. */}
+          <details className="mt-3 lg:hidden">
+            <summary className="inline-flex min-h-11 cursor-pointer items-center text-xs font-semibold text-ink-secondary">
+              Cara menghitungnya
+            </summary>
+            <p className="font-sub pb-1 text-xs text-ink-secondary">{catatan}</p>
+          </details>
+          <p className="font-sub mt-3 text-xs text-ink-secondary max-lg:hidden">{catatan}</p>
         </>
       )}
     </section>

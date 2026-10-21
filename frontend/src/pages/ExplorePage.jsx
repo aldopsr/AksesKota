@@ -397,7 +397,7 @@ export default function ExplorePage() {
 
       {/* Dipicu oleh bukti ketertarikan, bukan oleh waktu: satu fasilitas dibuka, atau
           kebutuhan dipilih. Tombol masuk di navbar halaman peta sengaja dihapus. */}
-      {!session && <AjakanMasuk aktif={(!!id || required.length > 0) && (isDesktop || !routeHere)} />}
+      {!session && <AjakanMasuk aktif={(!!id || required.length > 0) && (isDesktop || (!routeHere && !modeJangkauan))} />}
 
       <MapControls
         onZoomIn={() => mapRef.current?.zoomIn()} onZoomOut={() => mapRef.current?.zoomOut()}

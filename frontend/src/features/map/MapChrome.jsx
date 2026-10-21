@@ -13,8 +13,15 @@ import { Spinner } from '../../components/ui';
  * tempat yang bisa dihafal.
  */
 
-const kelasTombol =
-  'inline-flex size-11 items-center justify-center bg-surface/95 text-ink backdrop-blur hover:bg-surface-subtle active:scale-[0.97] disabled:opacity-50';
+// Bentuk tombol DIPISAH dari warnanya. Sebelumnya keduanya menyatu dalam satu
+// string, jadi tombol yang ingin berlatar lain menambahkan `bg-brand-700` di samping
+// `bg-surface/95` yang sudah ada — dua utilitas latar yang bertabrakan, dan yang
+// menang ditentukan urutan CSS, bukan urutan penulisan. Akibatnya ikon putih di atas
+// latar putih: tombolnya terlihat kosong. Ini tabrakan utilitas ketiga di proyek ini
+// setelah dua kasus hidden/inline-flex, jadi kali ini diperbaiki pada bentuknya.
+const bentukTombol =
+  'inline-flex size-11 items-center justify-center backdrop-blur active:scale-[0.97] disabled:opacity-50';
+const kelasTombol = `${bentukTombol} bg-surface/95 text-ink hover:bg-surface-subtle`;
 
 function Tombol({ label, onClick, children, className = '' }) {
   return (
@@ -73,7 +80,7 @@ export function MapControls({ onZoomIn, onZoomOut, onLocate, locating, gaya = 'j
           aria-pressed={modeJangkauan}
           aria-label={modeJangkauan ? 'Keluar dari mode jangkauan' : 'Hitung jangkauan dari sebuah titik'}
           onClick={() => onGantiJangkauan?.(!modeJangkauan)}
-          className={`${kelasTombol} ${modeJangkauan ? 'bg-brand-700 text-white hover:bg-brand-800' : ''}`}
+          className={`${bentukTombol} ${modeJangkauan ? 'bg-brand-700 text-white hover:bg-brand-800' : 'bg-surface/95 text-ink hover:bg-surface-subtle'}`}
           style={{ transition: 'transform 160ms var(--ease-out), background-color 160ms ease' }}
         >
           <Radar aria-hidden="true" size={19} />
@@ -88,7 +95,7 @@ export function MapControls({ onZoomIn, onZoomOut, onLocate, locating, gaya = 'j
           aria-pressed={jalur}
           aria-label={jalur ? 'Sembunyikan jalur pejalan kaki' : 'Tampilkan jalur pejalan kaki dan hambatannya'}
           onClick={() => onGantiJalur?.(!jalur)}
-          className={`${kelasTombol} ${jalur ? 'bg-brand-100 text-brand-900' : ''}`}
+          className={`${bentukTombol} ${jalur ? 'bg-brand-100 text-brand-900 hover:bg-brand-200' : 'bg-surface/95 text-ink hover:bg-surface-subtle'}`}
           style={{ transition: 'transform 160ms var(--ease-out), background-color 160ms ease' }}
         >
           <Footprints aria-hidden="true" size={19} />
@@ -103,7 +110,7 @@ export function MapControls({ onZoomIn, onZoomOut, onLocate, locating, gaya = 'j
           aria-pressed={gaya === 'satelit'}
           aria-label={gaya === 'satelit' ? 'Tampilkan peta jalan' : 'Tampilkan citra satelit'}
           onClick={() => onGantiGaya?.(gaya === 'satelit' ? 'jalan' : 'satelit')}
-          className={`${kelasTombol} ${gaya === 'satelit' ? 'bg-brand-100 text-brand-900' : ''}`}
+          className={`${bentukTombol} ${gaya === 'satelit' ? 'bg-brand-100 text-brand-900 hover:bg-brand-200' : 'bg-surface/95 text-ink hover:bg-surface-subtle'}`}
           style={{ transition: 'transform 160ms var(--ease-out), background-color 160ms ease' }}
         >
           <Layers aria-hidden="true" size={19} />
@@ -115,7 +122,7 @@ export function MapControls({ onZoomIn, onZoomOut, onLocate, locating, gaya = 'j
           aria-controls={id}
           aria-label="Keterangan warna penanda peta"
           onClick={() => setLegenda((v) => !v)}
-          className={`${kelasTombol} ${legenda ? 'bg-brand-100 text-brand-900' : ''}`}
+          className={`${bentukTombol} ${legenda ? 'bg-brand-100 text-brand-900 hover:bg-brand-200' : 'bg-surface/95 text-ink hover:bg-surface-subtle'}`}
           style={{ transition: 'transform 160ms var(--ease-out), background-color 160ms ease' }}
         >
           <CircleQuestionMark aria-hidden="true" size={19} />
