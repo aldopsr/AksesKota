@@ -12,7 +12,8 @@
     "import:osm": "node --env-file-if-exists=.env db/import-osm.js",
     "import:ways": "node --env-file-if-exists=.env db/import-ways.js",
     "import:transit": "node --env-file-if-exists=.env db/import-transit.js",
-    "seed:demo": "node --env-file-if-exists=.env db/seed-demo.js"
+    "seed:demo": "node --env-file-if-exists=.env db/seed-demo.js",
+    "eval:ai": "node --env-file-if-exists=.env test/ai-eval.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

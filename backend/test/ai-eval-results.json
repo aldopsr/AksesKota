@@ -1,0 +1,293 @@
+{
+  "Cari rumah sakit yang punya ramp dan toilet disabilitas di dekat saya": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Saya menggunakan kursi roda. Cari mall terdekat yang punya lift, ramp, dan parkir disabilitas": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Cari fasilitas kesehatan yang aksesibel dalam radius dua kilometer dari sini": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Puskesmas terdekat yang ada ramp": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Di sekitar sini ada stasiun yang punya guiding block?": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Cari apotek terdekat": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Taman terdekat yang bisa dilewati kursi roda": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Kantor pemerintahan terdekat yang ada lift": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Cari sekolah dalam radius 1 km dari lokasi saya": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Mall paling dekat dari posisi saya sekarang": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Terminal bus terdekat yang punya toilet disabilitas": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Rumah sakit dalam jarak 5 kilometer dari sini": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Klinik terdekat yang ada parkir khusus disabilitas": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Tempat wisata terdekat yang ramah kursi roda": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Cari halte di sekitar sini yang ada guiding block dan ramp": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Cari taman yang memiliki jalur kursi roda": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Cari fasilitas publik yang punya guiding block dan akses audio": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Rumah sakit mana saja yang punya lift": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Tunjukkan sekolah yang punya ramp": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Mall apa saja yang punya toilet disabilitas": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Daftar fasilitas yang menyediakan informasi braille": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Cari kantor layanan publik yang punya pintu aksesibel": {
+    "intent_benar": true,
+    "param_benar": false,
+    "json_valid": true,
+    "sebab": "kebutuhan tak terbaca: accessible_entrance",
+    "dapat": "{\"intent\":\"search_facility\",\"category\":\"layanan_publik\",\"query\":null,\"origin\":null,\"origin_name\":null,\"radius_m\":null,\"accessibility_require"
+  },
+  "Fasilitas kesehatan dengan handrail di tangganya": {
+    "intent_benar": true,
+    "param_benar": false,
+    "json_valid": true,
+    "sebab": "kebutuhan tak terbaca: handrail",
+    "dapat": "{\"intent\":\"search_facility\",\"category\":\"kesehatan\",\"query\":null,\"origin\":null,\"origin_name\":null,\"radius_m\":null,\"accessibility_requirements"
+  },
+  "Tempat yang punya parkir disabilitas dan lift": {
+    "intent_benar": false,
+    "param_benar": false,
+    "json_valid": true,
+    "sebab": "intent clarify (harusnya search_facility)",
+    "dapat": "{\"intent\":\"clarify\",\"category\":null,\"query\":null,\"origin\":null,\"origin_name\":null,\"radius_m\":null,\"accessibility_requirements\":[\"accessible_"
+  },
+  "Stasiun yang punya akses audio untuk tunanetra": {
+    "intent_benar": true,
+    "param_benar": false,
+    "json_valid": true,
+    "sebab": "kebutuhan tak terbaca: audio_access",
+    "dapat": "{\"intent\":\"search_facility\",\"category\":\"transportasi\",\"query\":\"stasiun\",\"origin\":null,\"origin_name\":null,\"radius_m\":null,\"accessibility_requ"
+  },
+  "Saya tunanetra, cari tempat yang ada guiding block dan braille": {
+    "intent_benar": false,
+    "param_benar": false,
+    "json_valid": true,
+    "sebab": "intent clarify (harusnya search_facility)",
+    "dapat": "{\"intent\":\"clarify\",\"category\":null,\"query\":null,\"origin\":null,\"origin_name\":null,\"radius_m\":null,\"accessibility_requirements\":[\"guiding_blo"
+  },
+  "Perguruan tinggi yang punya lift dan ramp": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Cari puskesmas yang toiletnya bisa dipakai pengguna kursi roda": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Tempat rekreasi yang punya jalur kursi roda dan toilet aksesibel": {
+    "intent_benar": true,
+    "param_benar": false,
+    "json_valid": true,
+    "sebab": "kebutuhan tak terbaca: wheelchair_path,accessible_toilet",
+    "dapat": "{\"intent\":\"search_facility\",\"category\":\"komersial\",\"query\":null,\"origin\":null,\"origin_name\":null,\"radius_m\":null,\"accessibility_requirements"
+  },
+  "Fasilitas transportasi yang punya tactile paving": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Cari rumah sakit di Bandung": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Mall di Jakarta yang punya lift": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Detail Terminal Baranangsiang": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Apakah Taman Sempur bisa diakses kursi roda?": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Ceritakan tentang Mal Pelayanan Publik Bogor": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Tunjukkan rute dari lokasi saya ke tempat yang punya toilet disabilitas": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Antar saya ke rumah sakit terdekat yang ada ramp": {
+    "intent_benar": false,
+    "param_benar": false,
+    "json_valid": true,
+    "sebab": "intent search_nearest_facility (harusnya generate_route)",
+    "dapat": "{\"intent\":\"search_nearest_facility\",\"category\":\"kesehatan\",\"query\":\"rumah sakit\",\"origin\":\"user_location\",\"origin_name\":null,\"radius_m\":null"
+  },
+  "Bagaimana cara ke Stasiun Bogor dari sini": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Buatkan rute jalan kaki ke mall terdekat": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Rute ke puskesmas yang punya jalur kursi roda": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Arahkan saya ke taman yang ada guiding block": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Saya mau ke Kebun Raya Bogor, tunjukkan jalannya": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Cari tempat yang aksesibel": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Ada rekomendasi?": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Tolong carikan sesuatu": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Saya butuh bantuan": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Yang ramah difabel dong": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Ada sekolah luar biasa yang aksesibel?": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Cari museum yang ramah difabel": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Saya butuh tempat dengan ramp, lift, dan toilet disabilitas": {
+    "intent_benar": false,
+    "param_benar": false,
+    "json_valid": true,
+    "sebab": "intent clarify (harusnya search_facility)",
+    "dapat": "{\"intent\":\"clarify\",\"category\":null,\"query\":null,\"origin\":null,\"origin_name\":null,\"radius_m\":null,\"accessibility_requirements\":[\"ramp\",\"lift"
+  },
+  "Tunjukkan detail Stasiun Bogor": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Informasi tentang Botani Square": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Apakah Kebun Raya Bogor punya toilet disabilitas?": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Balai Kota Bogor ada lift tidak?": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  },
+  "Fasilitas apa saja di RS PMI Bogor": {
+    "intent_benar": true,
+    "param_benar": true,
+    "json_valid": true
+  }
+}
