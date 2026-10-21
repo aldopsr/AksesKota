@@ -223,7 +223,7 @@ export function Modal({ open, onClose, title, children, footer, variant = 'dialo
             <IconButton label="Tutup dialog" variant="ghost" onClick={onClose} className="-mr-2 -mt-1"><X aria-hidden="true" size={20} /></IconButton>
           </div>
           <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
-          {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-border bg-surface px-5 py-3">{footer}</div>}
+          {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-border bg-surface px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">{footer}</div>}
         </div>
       )}
     </dialog>
