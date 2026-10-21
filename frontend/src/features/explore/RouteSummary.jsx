@@ -242,7 +242,7 @@ export default function RouteSummary({
               {otherFacilities.slice(0, 40).map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
             </SelectField>
           )}
-          {origin && <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>Batal</Button>}
+          {origin && <Button variant="ghost" onClick={() => setEditing(false)}>Batal</Button>}
         </div>
       )}
 
@@ -296,7 +296,7 @@ export default function RouteSummary({
           <p className="font-sub text-sm text-ink-secondary">
             Kondisi lapangan dapat berubah. Tidak ada jaminan rute sepenuhnya bebas hambatan.
           </p>
-          <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>Ubah titik awal</Button>
+          <Button variant="secondary" onClick={() => setEditing(true)}>Ubah titik awal</Button>
         </div>
       )}
     </section>
