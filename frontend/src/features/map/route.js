@@ -14,7 +14,7 @@ import { saatGayaSiap, WARNA_JALUR } from './jalur';
  */
 
 const SRC = 'route';
-const LAYERS = ['route-hambatan', 'route-lolos', 'route-belum', 'route-casing'];
+const LAYERS = ['route-titik-hambatan', 'route-hambatan', 'route-lolos', 'route-belum', 'route-casing'];
 
 const kelasRute = (id, kelas, lebar) => ({
   id,
@@ -50,6 +50,24 @@ export function drawRoute(map, geometry, segmen) {
   map.addLayer(kelasRute('route-belum', 'belum', 6));
   map.addLayer(kelasRute('route-lolos', 'lolos', 6));
   map.addLayer(kelasRute('route-hambatan', 'hambatan', 7));
+  // Titik penanda di tiap simpul penggal berhambatan.
+  //
+  // Perlu karena panjangnya sebenarnya: satu ruas tangga 20 m hanya 3 piksel di zoom
+  // kota — terukur begitu di layar 375 px. Penggal merahnya ada, tapi tidak akan
+  // pernah tertangkap mata. Lingkaran diukur dalam piksel, jadi ia tetap terlihat di
+  // zoom berapa pun, dan ukurannya tidak berpura-pura menggambarkan panjang tangga.
+  map.addLayer({
+    id: 'route-titik-hambatan',
+    type: 'circle',
+    source: SRC,
+    filter: ['==', ['get', 'kelas'], 'hambatan'],
+    paint: {
+      'circle-color': WARNA_JALUR.hambatan,
+      'circle-stroke-color': '#ffffff',
+      'circle-stroke-width': 2,
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 4, 15, 6, 18, 8],
+    },
+  });
 }
 
 export function clearRoute(map) {
