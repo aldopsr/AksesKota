@@ -75,8 +75,8 @@ export default function FacilityCard({ facility: f, level, distance, selected, t
               sana ikon tidak mengatakan apa-apa. */}
           <p className="font-sub flex items-center gap-1 text-sm text-ink-secondary">
             <span className="sr-only">{CATEGORY_LABEL[f.category] ?? f.category_name}. </span>
-            <MapPin aria-hidden="true" className="shrink-0" size={14} />
-            <span className="truncate">{f.address}</span>
+            {f.address && <MapPin aria-hidden="true" className="shrink-0" size={14} />}
+            <span className="truncate">{f.address || 'Alamat belum terdata'}</span>
             {!f.label && jarak && <strong className="shrink-0 font-semibold text-ink"> · {jarak}</strong>}
           </p>
         </div>

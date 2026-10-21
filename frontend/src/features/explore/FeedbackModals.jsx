@@ -53,9 +53,9 @@ export function ReviewModal({ open, onClose, facilityId }) {
           <p className="font-sub text-sm text-ink-secondary">Rating menggambarkan pengalaman Anda dan tidak memengaruhi nilai kecocokan. Satu ulasan per fasilitas; mengirim ulang akan memperbarui ulasan Anda.</p>
           <fieldset>
             <legend className="mb-1 font-semibold">Rating pengalaman</legend>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-5 gap-1.5 sm:flex sm:flex-wrap sm:gap-2">
               {[1, 2, 3, 4, 5].map((n) => (
-                <label key={n} className="flex min-h-11 min-w-16 cursor-pointer items-center justify-center gap-1 rounded-control border border-border-strong px-3 font-semibold has-[:checked]:border-brand-700 has-[:checked]:bg-brand-100 has-[:focus-visible]:outline has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus">
+                <label key={n} className="flex min-h-11 cursor-pointer items-center justify-center gap-1 rounded-control border border-border-strong px-2 font-semibold sm:min-w-16 sm:px-3 has-[:checked]:border-brand-700 has-[:checked]:bg-brand-100 has-[:focus-visible]:outline has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus">
                   <input type="radio" value={String(n)} className="sr-only" {...register('rating')} />
                   {n} <span aria-hidden="true">★</span>
                 </label>

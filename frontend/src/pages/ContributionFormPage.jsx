@@ -331,7 +331,7 @@ function Wizard({ mode, facility }) {
           <p className="font-sub text-ink-secondary">{isUpdate ? 'Periksa perubahan Anda. Hanya bagian yang berubah yang akan dikirim.' : 'Periksa data sebelum mengirim.'}</p>
           {built.noChange ? <Alert tone="warning">Belum ada perubahan dari data saat ini.</Alert> : (
             <div className="overflow-x-auto rounded-card border border-border bg-surface">
-              <table className={`w-full text-left ${isUpdate ? 'min-w-[26rem]' : ''}`}>
+              <table className={`w-full text-left ${isUpdate ? 'sm:min-w-[26rem]' : ''}`}>
                 <caption className="sr-only">Ringkasan usulan</caption>
                 <thead className="bg-surface-subtle"><tr><th scope="col" className="p-3">Bidang</th>{isUpdate && <th scope="col" className="p-3">Sebelumnya</th>}<th scope="col" className="p-3">Usulan</th></tr></thead>
                 <tbody className="divide-y divide-border">

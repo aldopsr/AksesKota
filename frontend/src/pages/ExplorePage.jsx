@@ -202,8 +202,13 @@ export default function ExplorePage() {
         </Alert>
       )}
       {/* Pertanyaan kebutuhan didahulukan: tanpa itu kartu tampil tanpa kecocokan
-          dan semua marker peta berwarna sama. */}
-      {required.length === 0 && !loadingList && (
+          dan semua marker peta berwarna sama.
+          Tapi TIDAK di ponsel saat ada pencarian: di sana panel ini memang hanya muncul
+          setelah pengguna mencari sesuatu, dan kartu setinggi 430 px di atas hasil
+          pertama berarti orang yang mengetik "bogor" mendapat formulir kebutuhan, bukan
+          jawabannya. Di layar sempit pertanyaan itu sudah punya tempatnya sendiri:
+          kartu mengambang di atas peta, sebelum ada yang dicari. */}
+      {required.length === 0 && !loadingList && (isDesktop || !(params.q || params.category)) && (
         <NeedsPrompt
           onApply={(codes) => { goExplore(needsPatch(codes), { keepDetail: true }); toast.show(`${codes.length} kebutuhan diterapkan.`, 'info'); }}
           onOpenFilter={() => setFilterOpen(true)}
