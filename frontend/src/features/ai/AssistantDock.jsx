@@ -211,6 +211,17 @@ export default function AssistantDock() {
     }),
   });
 
+  // Satu sumber teks untuk dua bentuk di bawah (paragraf di layar lebar, lipatan di
+  // ponsel) supaya keduanya tidak pernah menyimpang.
+  const catatanSuara = (
+    <>
+      {!rec.supported && 'Peramban ini belum mendukung input suara; gunakan teks. '}
+      {tts.supported && !tts.hasIndonesianVoice && 'Suara bahasa Indonesia belum terpasang di perangkat ini, jadi pelafalan bisa kurang pas. '}
+      Pengenalan suara dijalankan peramban Anda; AksesKota tidak menyimpan rekaman.
+      {usage && ` Sisa ${Math.max(0, usage.limit - usage.used)} dari ${usage.limit} pertanyaan hari ini.`}
+    </>
+  );
+
   return (
     <AnimatePresence>
       {open && (
@@ -228,7 +239,7 @@ export default function AssistantDock() {
           onKeyDown={(e) => { if (e.key === 'Escape') closeAssistant(); }}
           style={isDesktop ? { ...kartu.gaya, width: '25rem' } : undefined}
           className={`fixed z-40 flex flex-col border border-border bg-surface shadow-dialog ${
-            isDesktop ? 'left-0 top-0 rounded-panel' : 'inset-x-0 bottom-0 max-h-[78dvh] rounded-t-panel'
+            isDesktop ? 'left-0 top-0 rounded-panel' : 'inset-x-0 bottom-16 md:bottom-0 max-h-[85dvh] rounded-t-panel'
           }`}
         >
           <header className="flex shrink-0 items-center gap-1 border-b border-border px-2 py-2">
@@ -345,12 +356,18 @@ export default function AssistantDock() {
                   )}
                   {tts.speaking && <Button variant="link" className="min-h-11 text-sm text-danger" onClick={tts.cancel}>Hentikan suara</Button>}
                 </div>
-                <p className="font-sub text-xs text-ink-secondary">
-                  {!rec.supported && 'Peramban ini belum mendukung input suara; gunakan teks. '}
-                  {tts.supported && !tts.hasIndonesianVoice && 'Suara bahasa Indonesia belum terpasang di perangkat ini, jadi pelafalan bisa kurang pas. '}
-                  Pengenalan suara dijalankan peramban Anda; AksesKota tidak menyimpan rekaman.
-                  {usage && ` Sisa ${Math.max(0, usage.limit - usage.used)} dari ${usage.limit} pertanyaan hari ini.`}
-                </p>
+                {/* Catatan yang sama, dua bentuk. Di ponsel ia dilipat: utuh, teksnya
+                    empat baris — dan di layar 375 px perabot di bawah kolom isian sudah
+                    menyisakan 190 px saja untuk percakapannya sendiri, kira-kira dua
+                    gelembung. Dilipat, bukan dipotong: ini pernyataan privasi, jadi
+                    kalimatnya harus tetap bisa dibaca utuh oleh yang mencarinya. */}
+                <p className="font-sub text-xs text-ink-secondary max-sm:hidden">{catatanSuara}</p>
+                <details className="sm:hidden">
+                  <summary className="inline-flex min-h-11 cursor-pointer items-center text-xs font-semibold text-ink-secondary">
+                    Tentang suara dan privasi
+                  </summary>
+                  <p className="font-sub pb-1 text-xs text-ink-secondary">{catatanSuara}</p>
+                </details>
               </div>
             </>
           )}
