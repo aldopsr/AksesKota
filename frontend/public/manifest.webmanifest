@@ -1,0 +1,19 @@
+{
+  "name": "AksesKota",
+  "short_name": "AksesKota",
+  "description": "Cek akses fasilitas publik sebelum berkunjung.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "lang": "id",
+  "icons": [
+    {
+      "src": "/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

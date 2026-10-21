@@ -8,7 +8,17 @@
     <meta name="theme-color" content="#ffffff" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>AksesKota</title>
-      <link rel="apple-touch-icon" href="/logo-akseskota.jpg" />
+    <!-- Dipasang ke layar utama ponsel (PWA). Tidak ada service worker: tanpa
+         jaringan aplikasi ini memang tidak bisa apa-apa (peta, rute, dan data
+         semuanya dari server), jadi cache offline cuma menambah risiko versi
+         basi tanpa menambah guna. Manifest saja sudah cukup agar bisa di-install. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <!-- iOS mengabaikan manifest: ikon dan mode layar penuhnya diatur di sini,
+         dan apple-touch-icon tidak menerima SVG, jadi tetap pakai JPG. -->
+    <link rel="apple-touch-icon" href="/logo-akseskota.jpg" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="AksesKota" />
   </head>
   <body>
     <div id="root"></div>
