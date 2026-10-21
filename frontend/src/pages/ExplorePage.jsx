@@ -385,7 +385,7 @@ export default function ExplorePage() {
           berwarna sama dan aplikasi ini tidak punya apa pun untuk dikatakan. Jadi di
           ponsel ia naik ke atas peta sebagai kartu mengambang di tepi bawah, bukan
           baris pertama sebuah daftar yang belum ada. */}
-      {!isDesktop && !sheetTerlihat && !jalurTerlihat && required.length === 0 && (
+      {!isDesktop && !sheetTerlihat && !jalurTerlihat && !modeJangkauan && required.length === 0 && (
         <div className="absolute inset-x-3 bottom-4 z-30">
           <NeedsPrompt
             sisakanTombol={false}
