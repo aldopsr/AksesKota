@@ -26,10 +26,19 @@ export default function AdminLayout() {
                   memasang inline-flex, dan dua utilitas display yang bertabrakan
                   dimenangkan oleh urutan CSS — tombol ini sempat tetap tampil di
                   ponsel dan membuat seluruh halaman bisa digeser menyamping. */}
-              <span className="hidden sm:inline-flex">
-                <Link to="/" className={buttonClass('ghost', 'md')}><ExternalLink aria-hidden="true" size={16} /> Lihat situs</Link>
-              </span>
-              <Button variant="secondary" onClick={() => { signOut(); navigate('/'); }}><LogOut aria-hidden="true" size={16} /> Keluar</Button>
+              {/* Di ponsel tinggal ikonnya. Sebelumnya tautan ini disembunyikan sama
+                  sekali di bawah sm, dan karena bilah nav bawah publik tidak dipasang di
+                  /admin, admin yang membuka dasbor dari ponsel tidak punya jalan kembali
+                  ke situs selain keluar atau mengetik alamat sendiri. Yang dulu bikin
+                  halaman bisa digeser menyamping adalah LEBAR tombolnya, bukan
+                  keberadaannya — teksnya yang pergi, bukan tautannya. */}
+              <Link to="/" className={buttonClass('ghost', 'md')} aria-label="Lihat situs">
+                <ExternalLink aria-hidden="true" size={16} />
+                <span className="max-sm:sr-only">Lihat situs</span>
+              </Link>
+              <Button variant="secondary" onClick={() => { signOut(); navigate('/'); }} aria-label="Keluar">
+                <LogOut aria-hidden="true" size={16} /><span className="max-sm:sr-only">Keluar</span>
+              </Button>
             </div>
           </div>
         </header>

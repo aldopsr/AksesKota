@@ -138,9 +138,16 @@ export default function ProfilePage() {
       {isLoading && <div className="space-y-3" aria-label="Memuat profil" role="status"><Skeleton className="h-40 w-full" /><Skeleton className="h-28 w-full" /></div>}
       {error && <Alert tone="danger">{error.message}</Alert>}
 
+        {/* Tiga anak grid, bukan satu kolom kiri yang utuh: urutannya harus BERBEDA di
+            dua lebar layar. Di ponsel pratinjau duduk tepat di bawah preset — itu satu-
+            satunya tempat ia masih terlihat sedetik setelah pilihan diketuk, dan alasan
+            pratinjau ini ada memang untuk menunjukkan akibatnya. Mulai lg ia pindah ke
+            kolom kanan dan menempel, sementara preset dan daftar atribut kembali menyatu
+            di kolom kiri. Dibuat dengan penempatan baris/kolom, bukan dengan merender
+            komponennya dua kali: salinan kedua berarti permintaan kedua ke server. */}
       {data && (
-        <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="lg:grid lg:grid-cols-[1fr_20rem] lg:items-start lg:gap-8">
-          <div className="space-y-6">
+        <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="grid gap-6 lg:grid-cols-[1fr_20rem] lg:items-start lg:gap-8">
+          <div className="lg:col-start-1 lg:row-start-1">
             {/* Jalur umum dulu: sebagian besar orang terwakili salah satu dari dua preset
                 ini, dan menyusunnya sendiri butuh empat ketukan. */}
             <section aria-labelledby="preset-judul">
@@ -171,7 +178,15 @@ export default function ProfilePage() {
                 })}
               </div>
             </section>
+          </div>
 
+          {/* Di ponsel: tepat setelah preset. Mulai lg: kolom kanan, menempel, menjangkau
+              dua baris kiri supaya ia ikut terlihat selama daftar atribut digulir. */}
+          <div className="lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:sticky lg:top-20 lg:self-start">
+            <Pratinjau codes={selected} />
+          </div>
+
+          <div className="space-y-6 lg:col-start-1 lg:row-start-2">
             {ATTRIBUTE_GROUPS.map((g) => (
               <fieldset key={g.key}>
                 <legend className="mb-2 text-lg font-semibold">{g.label}</legend>
@@ -184,13 +199,7 @@ export default function ProfilePage() {
             ))}
           </div>
 
-          {/* Di layar lebar pratinjau menempel di samping agar perubahan terlihat tanpa
-              menggulir; di mobile ia jatuh ke bawah daftar, tepat sebelum bilah simpan. */}
-          <div className="mt-6 lg:sticky lg:top-20 lg:mt-0">
-            <Pratinjau codes={selected} />
-          </div>
-
-          <div className="sticky bottom-16 z-10 md:bottom-0 -mx-4 mt-6 border-t border-border bg-canvas/95 px-4 py-3 backdrop-blur lg:col-span-2 lg:mx-0 lg:rounded-card lg:border">
+          <div className="sticky bottom-16 z-10 md:bottom-0 -mx-4 lg:row-start-3 border-t border-border bg-canvas/95 px-4 py-3 backdrop-blur lg:col-span-2 lg:mx-0 lg:rounded-card lg:border">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <p role="status" className="font-sub text-sm text-ink-secondary">
                 <strong className="font-semibold text-ink">{selected.length}</strong> kebutuhan dipilih
