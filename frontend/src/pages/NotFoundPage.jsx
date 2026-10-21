@@ -5,10 +5,16 @@ export default function NotFoundPage() {
   useDocumentTitle('Halaman tidak ditemukan');
   return (
     <div className="mx-auto flex min-h-[60dvh] max-w-xl flex-col items-center justify-center px-4 py-16 text-center">
-      <p aria-hidden="true" className="text-8xl font-extrabold text-brand-200">404</p>
-      <h1 className="mt-2 text-3xl font-bold">Halaman tidak ditemukan</h1>
-      <p className="font-sub mt-2 text-lg text-ink-secondary">Alamat yang Anda buka tidak ada atau sudah dipindahkan.</p>
-      <div className="mt-6 flex flex-wrap justify-center gap-3"><LinkButton to="/">Ke beranda</LinkButton><LinkButton to="/map" variant="secondary">Jelajahi fasilitas</LinkButton></div>
+      {/* Satu-satunya halaman yang masih memakai ukuran lepas (text-8xl, text-3xl)
+          setelah skala tipografi dipindah ke token. Dirapikan agar sebangun dengan
+          halaman lain, bukan dirancang ulang: susunannya tetap sama. */}
+      <p aria-hidden="true" className="text-[clamp(5rem,22vw,9rem)] font-extrabold leading-none text-brand-200">404</p>
+      <h1 className="mt-3 text-title font-extrabold leading-[0.95] tracking-[-0.03em]">Halaman tidak ditemukan</h1>
+      <p className="font-sub mt-3 text-lg text-ink-secondary">Alamat yang Anda buka tidak ada atau sudah dipindahkan.</p>
+      <div className="mt-7 flex flex-wrap justify-center gap-2">
+        <LinkButton to="/" className="ak-pil rounded-full">Ke beranda</LinkButton>
+        <LinkButton to="/map" variant="secondary" className="ak-pil rounded-full">Jelajahi fasilitas</LinkButton>
+      </div>
     </div>
   );
 }
