@@ -148,7 +148,7 @@ export const PasswordField = forwardRef(function PasswordField({ label, hint, er
     <Shell id={id} label={label} hint={hint} error={error} requiredMark={requiredMark} className={className}>
       <div className="relative">
         <input ref={ref} id={id} type={show ? 'text' : 'password'} aria-invalid={!!error} aria-describedby={describe(id, hint, error)} className={`${inputClass(error)} pr-12`} {...rest} />
-        <button type="button" onClick={() => setShow((v) => !v)} aria-pressed={show} aria-label={show ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'} className="absolute right-0.5 top-0.5 inline-flex size-10 items-center justify-center rounded-control text-ink-secondary hover:bg-surface-subtle">
+        <button type="button" onClick={() => setShow((v) => !v)} aria-pressed={show} aria-label={show ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'} className="absolute right-0 top-0 inline-flex size-11 items-center justify-center rounded-control text-ink-secondary hover:bg-surface-subtle">
           {show ? <EyeOff aria-hidden="true" size={18} /> : <Eye aria-hidden="true" size={18} />}
         </button>
       </div>
