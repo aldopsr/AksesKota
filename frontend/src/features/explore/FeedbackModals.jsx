@@ -81,7 +81,7 @@ const reportSchema = z.object({
 });
 
 // reviewId diisi bila yang dilaporkan adalah sebuah ulasan
-export function ReportModal({ open, onClose, facilityId, reviewId = null }) {
+export function ReportModal({ open, onClose, facilityId, reviewId = null, reviewNama }) {
   const { session } = useAuth();
   const toast = useToast();
   const [serverError, setServerError] = useState('');
@@ -104,7 +104,16 @@ export function ReportModal({ open, onClose, facilityId, reviewId = null }) {
     <Modal open={open} onClose={onClose} title={reviewId ? 'Laporkan ulasan' : 'Laporkan informasi'} variant="sheet">
       {!session ? <LoginNeeded onClose={onClose} action="mengirim laporan" /> : (
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
-          {reviewId ? <input type="hidden" {...register('report_type')} /> : (
+          {reviewId ? (
+            <>
+              <input type="hidden" {...register('report_type')} />
+              {reviewNama && (
+                <p className="font-sub rounded-card bg-surface-subtle p-3 text-sm">
+                  Yang dilaporkan: ulasan dari <strong className="font-semibold">{reviewNama}</strong>.
+                </p>
+              )}
+            </>
+          ) : (
             <SelectField label="Jenis masalah" requiredMark error={errors.report_type?.message} {...register('report_type')}>
               <option value="">Pilih jenis masalah</option>
               {REPORT_TYPES.filter((r) => r.code !== 'review_bermasalah').map((r) => <option key={r.code} value={r.code}>{r.label}</option>)}

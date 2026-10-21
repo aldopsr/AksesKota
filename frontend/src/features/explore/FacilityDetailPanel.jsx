@@ -161,7 +161,7 @@ export default function FacilityDetailPanel({
                 <p className="flex flex-wrap items-center gap-2"><strong>{r.user_name}</strong> <Stars value={r.rating} /> <span className="text-sm">{r.rating} dari 5</span></p>
                 <p className="font-sub text-sm text-ink-secondary">{formatDate(r.created_at)}</p>
                 {r.content && <p className="mt-1">{r.content}</p>}
-                <Button variant="link" size="sm" className="mt-1 min-h-11 text-ink-secondary" onClick={() => { setReportReview(r.id); setReportOpen(true); }}>Laporkan ulasan<span className="sr-only"> dari {r.user_name}</span></Button>
+                <Button variant="link" size="sm" className="mt-1 min-h-11 text-ink-secondary" onClick={() => { setReportReview({ id: r.id, nama: r.user_name }); setReportOpen(true); }}>Laporkan ulasan<span className="sr-only"> dari {r.user_name}</span></Button>
               </li>
             ))}
           </ul>
@@ -178,7 +178,7 @@ export default function FacilityDetailPanel({
 
         <p role="note" className="font-sub rounded-card bg-surface-subtle p-3 text-sm text-ink-secondary">{DISCLAIMER}</p>
         <ReviewModal open={reviewOpen} onClose={() => setReviewOpen(false)} facilityId={f.id} />
-        <ReportModal open={reportOpen} onClose={() => setReportOpen(false)} facilityId={f.id} reviewId={reportReview} />
+        <ReportModal open={reportOpen} onClose={() => setReportOpen(false)} facilityId={f.id} reviewId={reportReview?.id ?? null} reviewNama={reportReview?.nama} />
       </div>
     </article>
   );
