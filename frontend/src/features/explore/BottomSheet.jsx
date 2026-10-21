@@ -122,6 +122,10 @@ const BottomSheet = forwardRef(function BottomSheet({ titikPeek = 120, awalIdx =
   // indeksnya saja tidak memindahkan apa pun.
   useImperativeHandle(ref, () => ({
     minimalSetengah: () => { if (snapRef.current === 0) keSnap(1); },
+    // Dipakai saat pengguna diminta mengetuk PETA: panel setengah layar menyisakan
+    // 278 px peta di ponsel, dan di ruang sesempit itu menaruh pin dengan tepat
+    // praktis mustahil.
+    mengintip: () => keSnap(0),
   }), [keSnap]);
 
   const namaPosisi = ['sebagian kecil', 'setengah layar', 'satu layar penuh'];

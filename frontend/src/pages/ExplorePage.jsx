@@ -139,6 +139,7 @@ export default function ExplorePage() {
       const fac = known ?? normalizeFacility(await api(`/facilities/${facilityId}`, { params: { needs: 'none' } }));
       const data = await api('/routes/walking', { params: { from: `${origin.lng},${origin.lat}`, to: `${fac.lon},${fac.lat}`, facility_id: facilityId } });
       setRoute((r) => ({ ...r, loading: false, data }));
+      if (!isDesktop) sheetRef.current?.minimalSetengah();
     } catch (e) {
       setRoute((r) => ({ ...r, loading: false, error: e.message }));
     }
@@ -158,7 +159,15 @@ export default function ExplorePage() {
   }, [routeHere, geo.location, route.origin, route.loading, route.data, id]); // eslint-disable-line react-hooks/exhaustive-deps
   const closeRoute = () => navigate({ pathname: location.pathname, search: buildExplore({ ...params, route: false }) });
   const routeUseMyLocation = async () => { const loc = geo.location ?? (await locateMe()); if (loc) buildRoute({ lng: loc.lng, lat: loc.lat, label: 'Lokasi saya' }); };
-  const routeStartPick = () => { setRoute((r) => ({ ...r, picking: !r.picking, facilityId: String(id) })); };
+  const routeStartPick = () => {
+    setRoute((r) => {
+      const picking = !r.picking;
+      // Panel turun ke posisi mengintip begitu mode pilih-titik menyala: perintahnya
+      // "ketuk peta", jadi petanya harus ada.
+      if (picking && !isDesktop) sheetRef.current?.mengintip();
+      return { ...r, picking, facilityId: String(id) };
+    });
+  };
   const routePicked = ({ lng, lat: la }) => buildRoute({ lng, lat: la, label: 'Titik yang dipilih di peta' });
   const routeChooseFacility = (fid) => {
     const f = results.find((x) => String(x.id) === String(fid));
@@ -353,7 +362,7 @@ export default function ExplorePage() {
         </div>
       )}
       {routeHere && route.picking && (
-        <div role="status" className="absolute left-1/2 top-32 z-30 flex -translate-x-1/2 items-center gap-2 rounded-control bg-ink px-4 py-2 font-semibold text-white shadow-popover">
+        <div role="status" className="absolute left-3 right-[4.25rem] top-[7.5rem] z-30 flex items-center justify-between gap-2 rounded-control bg-ink px-4 py-2 font-semibold text-white shadow-popover lg:left-1/2 lg:right-auto lg:top-32 lg:-translate-x-1/2">
           Klik peta untuk menentukan titik awal
           <button type="button" onClick={routeStartPick} className="min-h-11 px-2 underline">Batal</button>
         </div>
