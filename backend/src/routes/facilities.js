@@ -113,11 +113,16 @@ router.get('/facilities/:id', async (req, res) => {
       [id],
     ),
     many('select id, url, caption, created_at from facility_photos where facility_id = $1 order by id desc', [id]),
+    // milik_saya, bukan user_id: form ulasan perlu tahu MANA ulasan pembacanya supaya
+    // bisa mengisinya kembali saat disunting — tapi itu tidak menuntut id pengguna
+    // orang lain ikut terkirim ke setiap pembaca halaman ini. $2 null untuk tamu,
+    // dan perbandingannya jadi null → false.
     many(
-      `select r.id, r.rating, r.content, r.created_at, u.name as user_name
+      `select r.id, r.rating, r.content, r.created_at, u.name as user_name,
+              (r.user_id = $2) as milik_saya
          from reviews r join users u on u.id = r.user_id
         where r.facility_id = $1 order by r.id desc limit 20`,
-      [id],
+      [id, req.user?.id ?? null],
     ),
     one('select round(avg(rating),1)::float as rating_avg, count(*)::int as rating_count from reviews where facility_id = $1', [id]),
   ]);

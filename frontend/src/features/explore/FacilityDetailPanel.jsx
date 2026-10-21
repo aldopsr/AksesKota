@@ -32,6 +32,9 @@ export default function FacilityDetailPanel({
   const { data, isLoading, error, refetch } = useQuery({ queryKey: ['facility', id, needsParam], queryFn: () => api(`/facilities/${id}`, { params: { needs: needsParam } }) });
   const f = useMemo(() => (data ? normalizeFacility(data) : null), [data]);
   const [reviewOpen, setReviewOpen] = useState(false);
+  // Ulasan pembaca sendiri, kalau ada. Backend yang menandai (milik_saya), bukan
+  // dicocokkan dari nama di sini: dua orang bisa bernama sama.
+  const ulasanSaya = f?.reviews?.find((r) => r.milik_saya) ?? null;
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReview, setReportReview] = useState(null);
   useDocumentTitle(f?.name ?? 'Detail fasilitas');
@@ -117,7 +120,9 @@ export default function FacilityDetailPanel({
               </dl>
               {parts.unknown.length > 0 && <p className="font-sub text-sm text-ink-secondary">Kebutuhan yang belum diketahui tidak dihitung terpenuhi.</p>}
               <div className="flex flex-wrap items-center gap-2">
-                <Button variant="secondary" size="sm" onClick={onEditNeeds}><SlidersHorizontal aria-hidden="true" size={14} /> Ubah kebutuhan</Button>
+                {/* size="sm" membuatnya 36 px — di bawah target sentuh 44 px aplikasi ini, dan ini
+                    tombol berdiri sendiri, bukan tautan di dalam kalimat. */}
+                <Button variant="secondary" onClick={onEditNeeds}><SlidersHorizontal aria-hidden="true" size={14} /> Ubah kebutuhan</Button>
               </div>
               <p className="font-sub flex gap-1.5 text-xs text-ink-secondary"><Info aria-hidden="true" className="mt-0.5 shrink-0" size={13} /> Kecocokan dihitung dari data yang tersedia dan bukan sertifikasi aksesibilitas.</p>
             </div>
@@ -165,7 +170,11 @@ export default function FacilityDetailPanel({
               </li>
             ))}
           </ul>
-          <Button variant="secondary" onClick={() => setReviewOpen(true)}><MessageSquarePlus aria-hidden="true" size={16} /> Tulis ulasan</Button>
+          {/* Labelnya mengikuti kenyataan: kalau sudah pernah menulis, menekan ini
+              menyunting ulasan yang ada, bukan menambah yang baru. */}
+          <Button variant="secondary" onClick={() => setReviewOpen(true)}>
+            <MessageSquarePlus aria-hidden="true" size={16} /> {ulasanSaya ? 'Ubah ulasan saya' : 'Tulis ulasan'}
+          </Button>
         </Section>
 
         <Section id="help-title" title="Bantu menjaga data tetap akurat">
@@ -177,7 +186,7 @@ export default function FacilityDetailPanel({
         </Section>
 
         <p role="note" className="font-sub rounded-card bg-surface-subtle p-3 text-sm text-ink-secondary">{DISCLAIMER}</p>
-        <ReviewModal open={reviewOpen} onClose={() => setReviewOpen(false)} facilityId={f.id} />
+        <ReviewModal open={reviewOpen} onClose={() => setReviewOpen(false)} facilityId={f.id} ulasanSaya={ulasanSaya} />
         <ReportModal open={reportOpen} onClose={() => setReportOpen(false)} facilityId={f.id} reviewId={reportReview?.id ?? null} reviewNama={reportReview?.nama} />
       </div>
     </article>

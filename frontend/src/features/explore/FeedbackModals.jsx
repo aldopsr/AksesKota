@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -38,12 +38,25 @@ const reviewSchema = z.object({
   content: z.string().trim().min(5, 'Tulis minimal 5 karakter.').max(500, 'Maksimal 500 karakter.'),
 });
 
-export function ReviewModal({ open, onClose, facilityId }) {
+export function ReviewModal({ open, onClose, facilityId, ulasanSaya = null }) {
   const { session } = useAuth();
   const qc = useQueryClient();
   const toast = useToast();
   const [serverError, setServerError] = useState('');
+  const ratingErrorId = useId();
   const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm({ resolver: zodResolver(reviewSchema), defaultValues: { rating: '', content: '' } });
+
+  // Kirim ulang MEMPERBARUI ulasan yang ada — itu yang dijanjikan teks di bawah, dan
+  // backend memang begitu (diuji: tetap 1 ulasan, isinya terganti). Tapi formnya dulu
+  // terbuka kosong, jadi orang yang cuma ingin menaikkan bintangnya harus mengetik
+  // ulang seluruh tulisannya atau kehilangannya. Diisi saat dibuka, bukan lewat
+  // defaultValues: komponen ini tidak dilepas antar-pembukaan.
+  useEffect(() => {
+    if (!open) return;
+    reset(ulasanSaya
+      ? { rating: String(ulasanSaya.rating), content: ulasanSaya.content ?? '' }
+      : { rating: '', content: '' });
+  }, [open, ulasanSaya, reset]);
 
   async function onSubmit(values) {
     setServerError('');
@@ -53,16 +66,26 @@ export function ReviewModal({ open, onClose, facilityId }) {
       await qc.invalidateQueries({ queryKey: ['facilities'] });
       reset();
       onClose();
-      toast.show('Ulasan Anda tersimpan.');
+      toast.show(ulasanSaya ? 'Ulasan Anda diperbarui.' : 'Ulasan Anda tersimpan.');
     } catch (e) { setServerError(e.message); }
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Tulis ulasan" variant="sheet">
+    <Modal open={open} onClose={onClose} title={ulasanSaya ? 'Ubah ulasan saya' : 'Tulis ulasan'} variant="sheet">
       {!session ? <LoginNeeded onClose={onClose} action="menulis ulasan" /> : (
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
           <p className="font-sub text-sm text-ink-secondary">Rating menggambarkan pengalaman Anda dan tidak memengaruhi nilai kecocokan. Satu ulasan per fasilitas; mengirim ulang akan memperbarui ulasan Anda.</p>
-          <fieldset>
+          {/* role=radiogroup + aria-describedby + aria-invalid: kolom teks di bawah
+              mendapat ketiganya gratis dari komponen TextArea bersama, sedangkan
+              kendali rating ini ditulis tangan dan melewatkannya. Akibatnya galat
+              "Pilih rating 1 sampai 5." hanya terdengar sekali lewat role=alert;
+              pengguna pembaca layar yang kembali ke kendalinya tidak menemukan
+              hubungan apa pun antara kendali itu dan pesannya. */}
+          <fieldset
+            role="radiogroup"
+            aria-invalid={errors.rating ? 'true' : undefined}
+            aria-describedby={errors.rating ? ratingErrorId : undefined}
+          >
             <legend className="mb-1 font-semibold">Rating pengalaman</legend>
             <div className="grid grid-cols-5 gap-1.5 sm:flex sm:flex-wrap sm:gap-2">
               {[1, 2, 3, 4, 5].map((n) => (
@@ -72,13 +95,13 @@ export function ReviewModal({ open, onClose, facilityId }) {
                 </label>
               ))}
             </div>
-            {errors.rating && <p role="alert" className="mt-1 text-sm font-semibold text-danger">{errors.rating.message}</p>}
+            {errors.rating && <p id={ratingErrorId} role="alert" className="mt-1 text-sm font-semibold text-danger">{errors.rating.message}</p>}
           </fieldset>
           <TextArea label="Ulasan singkat" requiredMark error={errors.content?.message} {...register('content')} />
           {serverError && <Alert tone="danger">{serverError}</Alert>}
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={onClose}>Batal</Button>
-            <Button type="submit" loading={isSubmitting}>Kirim ulasan</Button>
+            <Button type="submit" loading={isSubmitting}>{ulasanSaya ? 'Simpan perubahan' : 'Kirim ulasan'}</Button>
           </div>
         </form>
       )}

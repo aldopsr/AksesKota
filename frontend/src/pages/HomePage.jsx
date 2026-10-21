@@ -166,13 +166,13 @@ function Pitch() {
       <ul aria-label="Mulai dari kebutuhan Anda" className="ak-chips flex flex-wrap gap-2">
         {NEEDS_PRESETS.map((p, j) => (
           <li key={p.key} style={{ '--j': j }}>
-            <Link to={`/?needs=${p.codes.join(',')}`} className="inline-flex min-h-10 items-center rounded-full border border-border-strong bg-surface px-4 text-sm font-semibold hover:bg-surface-subtle">
+            <Link to={`/?needs=${p.codes.join(',')}`} className="inline-flex min-h-11 items-center rounded-full border border-border-strong bg-surface px-4 text-sm font-semibold hover:bg-surface-subtle">
               {p.label}
             </Link>
           </li>
         ))}
         <li style={{ '--j': NEEDS_PRESETS.length }}>
-          <Link to="/" className="inline-flex min-h-10 items-center rounded-full bg-ink px-4 text-sm font-semibold text-white hover:bg-brand-900">
+          <Link to="/" className="inline-flex min-h-11 items-center rounded-full bg-ink px-4 text-sm font-semibold text-white hover:bg-brand-900">
             Lihat semua fasilitas
           </Link>
         </li>

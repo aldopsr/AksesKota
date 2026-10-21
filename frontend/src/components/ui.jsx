@@ -48,7 +48,7 @@ export function Chip({ pressed = false, onClick, children, className = '' }) {
   return (
     <button
       type="button" onClick={onClick} aria-pressed={pressed}
-      className={`inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-semibold transition-colors ${pressed ? 'border-brand-700 bg-brand-700 text-ink-inverse' : 'border-border-strong bg-surface text-ink hover:bg-surface-subtle'} ${className}`}
+      className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-semibold transition-colors ${pressed ? 'border-brand-700 bg-brand-700 text-ink-inverse' : 'border-border-strong bg-surface text-ink hover:bg-surface-subtle'} ${className}`}
     >
       {pressed && <Check aria-hidden="true" size={14} />}
       {children}

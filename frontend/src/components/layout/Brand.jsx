@@ -33,9 +33,12 @@ export function Wordmark({ light = false }) {
   );
 }
 
+// inline-flex + min-h-11: tingginya dulu mengikuti logo saja (30 px), di bawah target
+// sentuh 44 px yang dipakai seluruh aplikasi ini. w-fit supaya area ketuknya tidak
+// melebar ke seluruh lebar footer.
 export function BrandLink({ to = '/', light = false, size = 34 }) {
   return (
-    <Link to={to} className="flex items-center gap-2.5" aria-label="AksesKota, ke beranda">
+    <Link to={to} className="inline-flex w-fit min-h-11 items-center gap-2.5" aria-label="AksesKota, ke beranda">
       <LogoMark size={size} /> <Wordmark light={light} />
     </Link>
   );

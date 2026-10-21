@@ -291,7 +291,11 @@ function Wizard({ mode, facility }) {
    * tinggalkan.
    */
   const petunjukLama = (kolom, nilai, label) => {
-    if (!isUpdate || values[kolom] === nilai) return undefined;
+    // `facility` null pada mode tambah, jadi argumen pemanggil memakai `?.` dan
+    // nilainya undefined di sini. Dijaga dua kali: pemanggil CRASH lebih dulu kalau
+    // hanya fungsinya yang memeriksa isUpdate — argumen dievaluasi sebelum fungsi
+    // dipanggil. Itu sempat mengosongkan seluruh halaman tambah fasilitas.
+    if (!isUpdate || nilai === undefined || values[kolom] === nilai) return undefined;
     return `Saat ini: ${label ?? nilai}`;
   };
 
@@ -306,12 +310,12 @@ function Wizard({ mode, facility }) {
       {step === 0 && (
         <div className="space-y-4">
           {isUpdate && <p className="font-sub text-ink-secondary">Kolom di bawah sudah terisi data sekarang. Ubah hanya bagian yang perlu diperbarui — yang Anda ubah ditandai beserta nilai lamanya.</p>}
-          <TextField label="Nama fasilitas" requiredMark hint={petunjukLama('name', facility.name)} error={errors.name?.message} {...register('name')} />
-          <SelectField label="Kategori" requiredMark hint={petunjukLama('category', facility.category, CATEGORY_LABEL[facility.category])} error={errors.category?.message} {...register('category')}>
+          <TextField label="Nama fasilitas" requiredMark hint={petunjukLama('name', facility?.name)} error={errors.name?.message} {...register('name')} />
+          <SelectField label="Kategori" requiredMark hint={petunjukLama('category', facility?.category, CATEGORY_LABEL[facility?.category])} error={errors.category?.message} {...register('category')}>
             <option value="">Pilih kategori</option>
             {CATEGORIES.map((c) => <option key={c.code} value={c.code}>{c.label} ({c.hint})</option>)}
           </SelectField>
-          <TextField label="Alamat" requiredMark hint={petunjukLama('address', facility.address)} error={errors.address?.message} {...register('address')} />
+          <TextField label="Alamat" requiredMark hint={petunjukLama('address', facility?.address)} error={errors.address?.message} {...register('address')} />
           <TextArea label="Deskripsi singkat" rows={3} error={errors.description?.message} {...register('description')} />
         </div>
       )}

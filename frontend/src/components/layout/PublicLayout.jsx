@@ -86,7 +86,7 @@ function TautanNav({ to, aktif, children, onClick }) {
       to={to}
       onClick={onClick}
       aria-current={aktif ? 'page' : undefined}
-      className={`inline-flex min-h-10 items-center rounded-full border px-4 text-sm font-semibold ${
+      className={`inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold ${
         aktif ? 'border-ink bg-ink text-white' : 'border-border-strong bg-surface text-ink hover:bg-surface-subtle'
       }`}
       style={{ transition: 'color 160ms ease' }}
@@ -111,7 +111,7 @@ function CtaAsisten() {
       type="button"
       onClick={openAssistant}
       aria-haspopup="dialog"
-      className="ak-pil inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full bg-ink py-1 pl-4 pr-1 text-sm font-semibold text-white hover:bg-brand-900"
+      className="ak-pil inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full bg-ink py-1 pl-4 pr-1 text-sm font-semibold text-white hover:bg-brand-900"
     >
       <Sparkles aria-hidden="true" size={16} className="sm:hidden" />
       <span className="max-sm:sr-only">Tanya asisten</span>
@@ -148,7 +148,7 @@ function PencarianNavbar() {
       chevron={false}
       align="right"
       lebar="w-[min(22rem,calc(100vw-1.5rem))] max-sm:fixed max-sm:left-3 max-sm:right-3 max-sm:top-[4.25rem] max-sm:w-auto"
-      buttonClassName="inline-flex min-h-10 items-center gap-2 rounded-full border border-border-strong bg-surface px-4 text-sm font-semibold text-ink-secondary hover:bg-surface-subtle"
+      buttonClassName="inline-flex min-h-11 items-center gap-2 rounded-full border border-border-strong bg-surface px-4 text-sm font-semibold text-ink-secondary hover:bg-surface-subtle"
       icon={() => <Search aria-hidden="true" size={16} />}
       label={<span className="max-sm:sr-only">Cari tempat</span>}
     >
@@ -241,7 +241,7 @@ function Header() {
   // Catatan jujur: emil-design-eng menyarankan bilah polos tanpa perabot untuk navigasi,
   // dan versi sebelumnya memang begitu. Bentuk ini dipilih karena diminta mengikuti
   // acuan; kalau nanti terasa ramai, bilah polos itu yang jadi jalan pulangnya.
-  const pil = 'inline-flex min-h-10 items-center rounded-full border px-4 text-sm font-semibold';
+  const pil = 'inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold';
 
   return (
     <header className="pointer-events-none fixed inset-x-0 top-0 z-40 px-3 pt-3">

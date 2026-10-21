@@ -36,6 +36,22 @@ app.use(cors({
     return cb(null, false);
   },
 }));
+// Header keamanan dasar, ditulis tangan alih-alih menambah helmet: yang benar-benar
+// berlaku untuk API JSON + folder foto hanya tiga baris ini, dan satu dependensi lagi
+// berarti satu lagi yang harus dipercaya dan diperbarui.
+//
+// nosniff yang paling penting di sini: /uploads menyajikan berkas kiriman pengguna dari
+// origin yang sama dengan API. Isinya sudah diperiksa lewat magic bytes dan namanya
+// dibuat server, jadi jalurnya sudah sempit — ini lapis keduanya, bukan satu-satunya.
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY'); // tidak ada halaman di sini yang perlu dibingkai
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  // Foto dimuat oleh frontend yang beda origin; tanpa ini sebagian browser memblokirnya.
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+});
+
 app.use(express.json({ limit: '1mb' }));
 app.use(optionalAuth); // guest tetap boleh lewat, req.user cuma diisi kalau ada token
 
@@ -79,4 +95,12 @@ if (!process.env.VERCEL) {
   // Tanpa Supabase Storage, savePhoto() jatuh ke folder ./uploads. Di serverless folder itu
   // sementara dan tidak dibagi antar instance, jadi foto kontribusi akan hilang diam-diam.
   console.error('[FATAL] SUPABASE_URL/SUPABASE_SERVICE_KEY wajib di Vercel — tanpa itu foto kontribusi hilang.');
+}
+
+// CORS_ORIGIN kosong berarti SEMUA origin diterima (lihat pemeriksa di atas). Itu
+// sengaja, supaya pengembangan tidak terhambat — tapi di produksi artinya situs mana
+// pun bisa memanggil API ini dengan token pengguna yang kebetulan tersimpan. Gagalnya
+// tidak terlihat: semuanya jalan normal. Jadi diteriakkan, bukan didiamkan.
+if (process.env.NODE_ENV === 'production' && !originTerdaftar?.length) {
+  console.error('[PERINGATAN KEAMANAN] CORS_ORIGIN belum diisi di produksi — API menerima permintaan dari origin mana pun. Isi dengan domain frontend Anda.');
 }

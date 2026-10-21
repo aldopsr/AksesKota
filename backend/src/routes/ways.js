@@ -9,6 +9,7 @@ import express from 'express';
 import { z } from 'zod';
 import { many } from '../db.js';
 import { HttpError } from '../http.js';
+import { rateLimit } from '../rateLimit.js';
 
 export const router = express.Router();
 
@@ -38,7 +39,13 @@ const KELAS = `case
   else 'belum'
 end`;
 
-router.get('/ways', async (req, res, next) => {
+// Pembatas laju, sama seperti /jangkauan yang membaca tabel yang sama. Ini bacaan
+// TERBERAT di aplikasi — 24.180 ruas, dipindai per kotak tampilan lalu disederhanakan —
+// dan satu-satunya yang dipanggil ulang tiap kali peta digeser. Dibiarkan tanpa batas,
+// satu skrip yang menggeser peta terus-menerus cukup untuk menghabiskan koneksi basis
+// data. 60/menit longgar untuk pemakaian jujur: penjaga anti-ulang di frontend membuat
+// penggeseran normal hanya memicu beberapa permintaan per menit.
+router.get('/ways', rateLimit({ windowMs: 60_000, max: 60 }), async (req, res, next) => {
   try {
     const p = query.safeParse(req.query);
     if (!p.success) throw new HttpError(400, 'Parameter bbox tidak valid.');
@@ -82,7 +89,7 @@ router.get('/ways', async (req, res, next) => {
 });
 
 // Ringkasan untuk keterangan lapisan: berapa yang terdata di kotak yang sedang dilihat.
-router.get('/ways/ringkasan', async (req, res, next) => {
+router.get('/ways/ringkasan', rateLimit({ windowMs: 60_000, max: 30 }), async (req, res, next) => {
   try {
     const p = query.safeParse(req.query);
     if (!p.success) throw new HttpError(400, 'Parameter bbox tidak valid.');
