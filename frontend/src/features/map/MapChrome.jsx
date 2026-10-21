@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { Layers, LocateFixed, Minus, Plus } from 'lucide-react';
+import { CircleQuestionMark, LocateFixed, Minus, Plus } from 'lucide-react';
 import { LEVELS } from '../accessibility/match';
 import { Spinner } from '../../components/ui';
 
@@ -74,7 +74,7 @@ export function MapControls({ onZoomIn, onZoomOut, onLocate, locating }) {
           className={`${kelasTombol} ${legenda ? 'bg-brand-100 text-brand-900' : ''}`}
           style={{ transition: 'transform 160ms var(--ease-out), background-color 160ms ease' }}
         >
-          <Layers aria-hidden="true" size={19} />
+          <CircleQuestionMark aria-hidden="true" size={19} />
         </button>
       </div>
 
