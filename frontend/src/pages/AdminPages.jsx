@@ -284,7 +284,32 @@ export function AdminDetailPage() {
           <section aria-labelledby="diff-title" className="space-y-2">
             <h2 id="diff-title" className="text-xl font-semibold">Perubahan yang diusulkan</h2>
             {rows.length === 0 ? <p className="font-sub text-ink-secondary">Tidak ada perubahan data, hanya foto tambahan.</p> : (
-              <div tabIndex={0} role="region" aria-label="Tabel perbandingan data, dapat digulir ke samping" className="overflow-x-auto rounded-card border border-border bg-surface">
+              <>
+              {/* Ponsel: ditumpuk, bukan tabel yang digulir ke samping.
+                  Tiga kolom butuh 480 px, wadahnya di ponsel 342 px — jadi kolom
+                  "Usulan", yang justru satu-satunya alasan halaman ini ada, selalu
+                  jatuh di luar layar dan baru terlihat kalau admin kebetulan menggeser.
+                  Keputusan menyetujui atau menolak tidak boleh bergantung pada gestur
+                  yang tidak diberitahukan. Tabelnya tetap dipakai dari lebar sm ke atas,
+                  karena di sana ia memang bentuk yang paling terbaca. */}
+              <ul className="space-y-2 sm:hidden">
+                {rows.map((r) => (
+                  <li key={r.label} className={`rounded-card border border-border p-3 ${r.changed ? 'bg-warning-bg/50' : 'bg-surface'}`}>
+                    <p className="font-semibold">{r.label}{r.changed && <span className="sr-only"> (berubah)</span>}</p>
+                    <dl className="mt-1 space-y-0.5 text-sm">
+                      <div className="flex gap-2">
+                        <dt className="font-sub w-20 shrink-0 text-ink-secondary">Saat ini</dt>
+                        <dd className="font-sub min-w-0 text-ink-secondary">{r.before ?? dash}</dd>
+                      </div>
+                      <div className="flex gap-2">
+                        <dt className="w-20 shrink-0 font-semibold">Usulan</dt>
+                        <dd className="min-w-0 font-semibold">{r.after ?? dash}</dd>
+                      </div>
+                    </dl>
+                  </li>
+                ))}
+              </ul>
+              <div tabIndex={0} role="region" aria-label="Tabel perbandingan data, dapat digulir ke samping" className="max-sm:hidden overflow-x-auto rounded-card border border-border bg-surface">
                 <table className="w-full min-w-[30rem] text-left">
                   <caption className="sr-only">Perbandingan data saat ini dan usulan</caption>
                   <thead className="bg-surface-subtle"><tr><th scope="col" className="p-3">Bidang</th><th scope="col" className="p-3">Saat ini</th><th scope="col" className="p-3">Usulan</th></tr></thead>
@@ -299,6 +324,7 @@ export function AdminDetailPage() {
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </section>
 

@@ -3,6 +3,7 @@ import { m } from 'motion/react';
 import { MapPin, Navigation } from 'lucide-react';
 import { ATTRIBUTE_LABEL, CATEGORY_LABEL, STATUS } from '../accessibility/constants';
 import { categoryIcon } from '../accessibility/icons';
+import { belumBisaDinilai } from '../accessibility/match';
 import { MatchBadge } from '../../components/status';
 import { formatDistance } from '../../lib/geo';
 
@@ -49,7 +50,7 @@ export default function FacilityCard({ facility: f, level, distance, selected, t
           hilang lalu muncul lagi — aplikasi terasa satu ruang, bukan tumpukan halaman. */}
       {f.label && (
         <div className="mb-2 flex items-center justify-between gap-2">
-          <m.div layoutId={`match-${f.id}`}><MatchBadge level={level} percent={f.match_pct} /></m.div>
+          <m.div layoutId={`match-${f.id}`}><MatchBadge level={level} percent={belumBisaDinilai(f) ? null : f.match_pct} /></m.div>
           {jarak && <span className="font-sub shrink-0 text-sm font-semibold text-ink-secondary">{jarak}</span>}
         </div>
       )}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Accessibility, Eye, SlidersHorizontal, X } from 'lucide-react';
+import { Accessibility, Eye, SlidersHorizontal, Target, X } from 'lucide-react';
 import { ATTRIBUTE_LABEL, NEEDS_PRESETS } from './constants';
 
 /**
@@ -20,7 +20,7 @@ const sudahDitutup = () => {
   try { return localStorage.getItem(KUNCI) === '1'; } catch { return false; }
 };
 
-export default function NeedsPrompt({ onApply, onOpenFilter, sisakanTombol = true, ringkas = false }) {
+export default function NeedsPrompt({ onApply, onOpenFilter, onCobaJangkauan, sisakanTombol = true, ringkas = false }) {
   const [tertutup, setTertutup] = useState(sudahDitutup);
 
   const tutup = () => {
@@ -130,6 +130,23 @@ export default function NeedsPrompt({ onApply, onOpenFilter, sisakanTombol = tru
           </span>
         </button>
       </div>
+      )}
+
+      {/* Jalan masuk ke jangkauan, di layar pertama.
+          Ini temuan terkuat yang kami punya — biru menjulur jauh, hijau berhenti
+          beberapa blok dari titik yang sama — dan sampai sekarang ia bersembunyi di
+          balik satu ikon di bilah peta yang tidak akan ditekan orang yang belum tahu
+          ada apa di baliknya. Ditaruh sebagai satu baris, bukan tombol sebesar preset:
+          memilih kebutuhan tetap pekerjaan utama layar ini, yang ini tawaran. */}
+      {onCobaJangkauan && (
+        <button
+          type="button"
+          onClick={onCobaJangkauan}
+          className="mt-3 flex min-h-11 w-full items-center gap-2 rounded-control border border-brand-200 bg-surface px-3 text-left text-sm font-semibold hover:border-brand-500"
+        >
+          <Target aria-hidden="true" size={18} className="shrink-0 text-brand-700" />
+          <span>Atau lihat sejauh mana kursi roda bisa pergi dari satu titik</span>
+        </button>
       )}
     </section>
   );

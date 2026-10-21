@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { m } from 'motion/react';
-import { ChevronDown, Check, Eye, EyeOff, Info, Loader2, Search, TriangleAlert, X, XCircle, CheckCircle2 } from 'lucide-react';
+import { ChevronDown, Check, Eye, EyeOff, Info, Link2, Loader2, Search, TriangleAlert, X, XCircle, CheckCircle2 } from 'lucide-react';
 
 /* ============ Button ============ */
 const base =
@@ -18,6 +18,57 @@ export const buttonClass = (variant = 'primary', size = 'md', extra = '') => `${
 
 export function Spinner({ size = 18, className = '' }) {
   return <Loader2 aria-hidden="true" className={`animate-spin ${className}`} size={size} />;
+}
+
+/**
+ * Menyalin alamat halaman saat ini.
+ *
+ * Alamat itu sendiri yang membawa hasilnya — titik jangkauan, menit, titik awal rute,
+ * gaya peta, lapisan — jadi yang dibagikan bukan "aplikasinya", melainkan temuan ini.
+ * Tanpa tombol ini fiturnya tetap ada tapi tak terlihat: tidak ada yang menyalin URL
+ * dari bilah alamat di ponsel.
+ *
+ * execCommand sudah usang tapi tetap dipasang: navigator.clipboard hanya hidup di
+ * konteks aman, dan menguji di ponsel lewat alamat IP jaringan lokal (http://192.168…)
+ * bukan konteks aman. Tombol salin yang diam-diam tidak melakukan apa pun lebih buruk
+ * daripada satu API usang.
+ */
+export function SalinTautan({ className = '', variant = 'secondary', size = 'md' }) {
+  const [tersalin, setTersalin] = useState(false);
+  useEffect(() => {
+    if (!tersalin) return undefined;
+    const t = setTimeout(() => setTersalin(false), 2200);
+    return () => clearTimeout(t);
+  }, [tersalin]);
+
+  async function salin() {
+    const url = window.location.href;
+    try {
+      await navigator.clipboard.writeText(url);
+      setTersalin(true);
+      return;
+    } catch { /* konteks tidak aman atau izin ditolak — coba cara lama */ }
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = url;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;top:-100px;opacity:0';
+      document.body.append(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+      setTersalin(true);
+    } catch { /* menyerah tanpa berpura-pura berhasil */ }
+  }
+
+  return (
+    <Button variant={variant} size={size} onClick={salin} className={className}>
+      {tersalin ? <Check aria-hidden="true" size={16} /> : <Link2 aria-hidden="true" size={16} />}
+      {tersalin ? 'Tautan tersalin' : 'Salin tautan'}
+      {/* Perubahan label saja tidak terdengar pembaca layar kalau fokus tetap di tombol. */}
+      <span role="status" className="sr-only">{tersalin ? 'Tautan hasil tersalin ke papan klip.' : ''}</span>
+    </Button>
+  );
 }
 
 export function Button({ variant = 'primary', size = 'md', className = '', type = 'button', loading = false, children, disabled, ...rest }) {

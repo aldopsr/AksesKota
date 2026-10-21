@@ -42,6 +42,23 @@ export function MapControls({ onZoomIn, onZoomOut, onLocate, locating, gaya = 'j
   const id = useId();
   const bungkus = useRef(null);
 
+  // Lapisan jalur dinyalakan: buka keterangannya sendiri, sekali seumur peramban.
+  //
+  // Lapisan itu menggambar tiga warna garis yang tidak berarti apa-apa sampai ada yang
+  // menerangkannya, dan penjelasannya bersembunyi di balik tombol tanda tanya yang
+  // tidak akan ditekan orang yang belum tahu ada yang perlu ditanyakan. Menyalakan
+  // lapisannya ADALAH saat ia paling dibutuhkan. Sekali saja: penjelasan yang sama
+  // muncul berulang kali berubah dari menolong jadi mengganggu, dan panel ini menutupi
+  // peta yang baru saja ingin dilihat pengguna.
+  useEffect(() => {
+    if (!jalur) return;
+    try {
+      if (localStorage.getItem('ak_legenda_jalur') === '1') return;
+      localStorage.setItem('ak_legenda_jalur', '1');
+    } catch { /* mode privat: biar terbuka, lebih baik daripada tidak pernah */ }
+    setLegenda(true);
+  }, [jalur]);
+
   // Legenda menutup saat diklik di luar atau Escape: ia menumpang di atas peta, dan
   // panel yang menempel di sana menghalangi hal yang justru ingin dilihat pengguna.
   useEffect(() => {

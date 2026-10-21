@@ -4,7 +4,7 @@ import { m } from 'motion/react';
 import { Accessibility, Check, Eye, RotateCcw } from 'lucide-react';
 import { api } from '../lib/api';
 import { ATTRIBUTE_GROUPS, ATTRIBUTE_HINT, ATTRIBUTE_LABEL, NEEDS_PRESETS } from '../features/accessibility/constants';
-import { levelFor } from '../features/accessibility/match';
+import { belumBisaDinilai, levelFor } from '../features/accessibility/match';
 import { MatchBadge } from '../components/status';
 import { useToast } from '../context/AppContexts';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
@@ -90,7 +90,7 @@ function Pratinjau({ codes }) {
               <li key={f.id} className="rounded-card border border-border bg-surface p-3">
                 <p className="truncate font-semibold leading-snug">{f.name}</p>
                 <div className="mt-1.5">
-                  <MatchBadge level={levelFor(f)} percent={f.match_pct} />
+                  <MatchBadge level={levelFor(f)} percent={belumBisaDinilai(f) ? null : f.match_pct} />
                 </div>
               </li>
             ))}

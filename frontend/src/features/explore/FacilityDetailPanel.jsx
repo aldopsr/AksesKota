@@ -6,7 +6,7 @@ import { ArrowLeft, Flag, MapPin, MessageSquarePlus, Navigation, Pencil, Sliders
 import { api } from '../../lib/api';
 import { ATTRIBUTE_GROUPS, ATTRIBUTE_LABEL, CATEGORY_LABEL, DISCLAIMER } from '../accessibility/constants';
 import { categoryIcon } from '../accessibility/icons';
-import { breakdown, levelFor, normalizeFacility } from '../accessibility/match';
+import { belumBisaDinilai, breakdown, levelFor, normalizeFacility } from '../accessibility/match';
 import { AttributeRow, FreshnessNote, MatchBadge, Stars } from '../../components/status';
 import { Alert, Button, LinkButton, Skeleton } from '../../components/ui';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
@@ -54,7 +54,7 @@ export default function FacilityDetailPanel({
             <p className="font-semibold text-brand-800">{CATEGORY_LABEL[awal.category] ?? awal.category_name}</p>
             {awal.label && (
               <m.div layoutId={`match-${awal.id}`} className="mt-2 inline-block">
-                <MatchBadge level={levelFor(awal)} percent={awal.match_pct} />
+                <MatchBadge level={levelFor(awal)} percent={belumBisaDinilai(awal) ? null : awal.match_pct} />
               </m.div>
             )}
           </>
@@ -108,11 +108,25 @@ export default function FacilityDetailPanel({
             </div>
           ) : (
             <div className="space-y-3 rounded-card border border-border bg-surface p-4">
-              <div className="flex flex-wrap items-center gap-3">
-                <p className="text-4xl font-extrabold tabular-nums">{f.match_pct}<span className="text-2xl">%</span></p>
-                <m.div layoutId={`match-${f.id}`}><MatchBadge level={level} percent={f.match_pct} /></m.div>
-              </div>
-              <p><strong>{f.needs_met} dari {f.needs_total}</strong> kebutuhan terpenuhi{usingProfile && <span className="font-sub text-ink-secondary"> (berdasarkan profil Anda)</span>}.</p>
+              {/* Tanpa satu pun kebutuhan yang terdata, "0%" bukan penilaian rendah —
+                  itu ketiadaan penilaian. Angkanya dikosongkan, bukan dikecilkan. */}
+              {belumBisaDinilai(f) ? (
+                <>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <p className="text-2xl font-extrabold leading-tight">Belum bisa dinilai</p>
+                    <m.div layoutId={`match-${f.id}`}><MatchBadge level={level} /></m.div>
+                  </div>
+                  <p><strong>{f.needs_total} dari {f.needs_total}</strong> kebutuhan Anda belum terdata di tempat ini{usingProfile && <span className="font-sub text-ink-secondary"> (berdasarkan profil Anda)</span>}.</p>
+                </>
+              ) : (
+                <>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <p className="text-4xl font-extrabold tabular-nums">{f.match_pct}<span className="text-2xl">%</span></p>
+                    <m.div layoutId={`match-${f.id}`}><MatchBadge level={level} percent={f.match_pct} /></m.div>
+                  </div>
+                  <p><strong>{f.needs_met} dari {f.needs_total}</strong> kebutuhan terpenuhi{usingProfile && <span className="font-sub text-ink-secondary"> (berdasarkan profil Anda)</span>}.</p>
+                </>
+              )}
               <dl className="space-y-1.5 text-sm">
                 {[['Tersedia', parts.met, 'text-success'], ['Tidak tersedia', parts.notAvailable, 'text-danger'], ['Belum diketahui', parts.unknown, 'text-neutral']].map(([label, list, cls]) => list.length > 0 && (
                   <div key={label} className="flex gap-2"><dt className={`w-32 shrink-0 font-semibold ${cls}`}>{label} ({list.length})</dt><dd className="font-sub">{names(list)}</dd></div>

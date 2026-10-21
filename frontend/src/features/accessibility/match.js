@@ -16,6 +16,23 @@ const BY_LABEL = Object.fromEntries(Object.values(LEVELS).map((l) => [l.label, l
 // `label` dikirim backend hanya bila ada kebutuhan yang dipilih
 export const levelFor = (f) => BY_LABEL[f.label] ?? LEVELS.neutral;
 
+/**
+ * Seluruh kebutuhan pengguna belum terdata di fasilitas ini — maka persennya bohong.
+ *
+ * match_pct menghasilkan 0% untuk dua keadaan yang sama sekali berbeda: kebutuhan yang
+ * TERBUKTI tidak ada, dan kebutuhan yang BELUM DIKETAHUI. Angka besar yang sama untuk
+ * keduanya persis kesalahan yang aplikasi ini dibangun untuk menghindarinya — dan yang
+ * dibaca orang dalam dua detik adalah angkanya, bukan tiga peredam di bawahnya.
+ *
+ * Hanya keadaan "semuanya belum diketahui" yang ditangani di sini. Campuran (mis. 2
+ * terbukti tidak ada, 2 belum diketahui) tetap menampilkan persen: di situ angka nol
+ * memang mengandung informasi, dan lencana "Data Terbatas" sudah menerangkan sisanya.
+ *
+ * Perhitungannya sendiri tidak diubah: match_pct dipakai SQL untuk mengurutkan hasil
+ * dan dibaca asisten AI. Yang berubah cuma apa yang ditampilkan.
+ */
+export const belumBisaDinilai = (f) => (f?.needs_total ?? 0) > 0 && f.needs_unknown === f.needs_total;
+
 // Ubah bentuk backend (lat/lon, category_code) ke bentuk yang dipakai komponen
 export function normalizeFacility(f) {
   return { ...f, category: f.category_code, location: { type: 'Point', coordinates: [f.lon, f.lat] } };

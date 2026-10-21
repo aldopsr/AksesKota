@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Bus, Crosshair, LocateFixed, MapPin, Route as RouteIcon, X } from 'lucide-react';
-import { Alert, Button, IconButton, SelectField, Skeleton } from '../../components/ui';
+import { Alert, Button, IconButton, SalinTautan, SelectField, Skeleton } from '../../components/ui';
 import { formatDistance, formatDuration } from '../../lib/geo';
 
 // Ringkasan rute jalan kaki (IA 5.4). Mewakili 5 keadaan: butuh titik awal, memuat, berhasil, gagal.
@@ -319,7 +319,12 @@ export default function RouteSummary({
           <p className="font-sub text-sm text-ink-secondary">
             Kondisi lapangan dapat berubah. Tidak ada jaminan rute sepenuhnya bebas hambatan.
           </p>
-          <Button variant="secondary" onClick={() => setEditing(true)}>Ubah titik awal</Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={() => setEditing(true)}>Ubah titik awal</Button>
+            {/* Titik awal ikut tertulis di alamat halaman, jadi penerima tautan melihat
+                rute yang sama persis — bukan rute dari tempat dia berdiri. */}
+            <SalinTautan />
+          </div>
         </div>
       )}
     </section>

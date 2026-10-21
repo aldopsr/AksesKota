@@ -1,6 +1,6 @@
 import { X } from 'lucide-react';
 import { WARNA_JANGKAUAN } from '../map/jangkauan';
-import { Skeleton } from '../../components/ui';
+import { SalinTautan, Skeleton } from '../../components/ui';
 
 /**
  * Hasil "jangkauan nyata": berapa banyak jaringan jalan yang tersisa bagi pengguna
@@ -87,6 +87,11 @@ export default function PanelJangkauan({ data, memuat, galat, menit, onGantiMeni
               </li>
             ))}
           </ul>
+
+          {/* Alamat halaman sudah membawa titik dan menitnya, jadi menyalinnya berarti
+              mengirim TEMUAN ini — "dari sini kursi roda cuma dapat separuh" — bukan
+              sekadar mengirim aplikasinya dan menyuruh orang mencari sendiri. */}
+          <SalinTautan size="sm" className="mt-3 w-full" />
 
           {/* Asumsinya ditulis, bukan disembunyikan. Selisih ini gabungan dua hal, dan
               membiarkan orang mengira ia murni soal hambatan itu menyesatkan.

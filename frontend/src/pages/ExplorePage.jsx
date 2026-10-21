@@ -77,13 +77,17 @@ export default function ExplorePage() {
   const [mapProblem, setMapProblem] = useState(false);
   // Pilihan gaya peta diingat: orang yang memilih satelit biasanya memilihnya karena
   // cara mereka mengenali tempat, bukan untuk sekali lihat.
+  // URL menang atas localStorage: kalau tautan ini dikirim orang lain, yang dilihat
+  // penerima harus sama dengan yang dilihat pengirim — bukan preferensi penerima.
   const [gayaPeta, setGayaPeta] = useState(() => {
+    if (params.gaya) return params.gaya;
     try { return localStorage.getItem('ak_gaya_peta') === 'satelit' ? 'satelit' : 'jalan'; } catch { return 'jalan'; }
   });
   // Lapisan jaringan pejalan kaki. Mati secara bawaan: layar pertama tetap harus
   // menjawab "ada apa di sekitar saya", dan 24 ribu garis sebelum pertanyaan itu
   // terjawab hanya menutupi penanda.
   const [jalurTerlihat, setJalurTerlihat] = useState(() => {
+    if (params.jalur) return true;
     try { return localStorage.getItem('ak_lapisan_jalur') === '1'; } catch { return false; }
   });
   const [jalurTerlaluJauh, setJalurTerlaluJauh] = useState(false);
@@ -92,9 +96,9 @@ export default function ExplorePage() {
   // Mode jangkauan: ketuk satu titik, lalu dua perjalanan dihitung di atas jaringan
   // yang sama — satu tanpa larangan, satu dengan tangga dibuang. Selisihnya yang
   // jadi jawabannya.
-  const [modeJangkauan, setModeJangkauan] = useState(false);
-  const [menitJangkauan, setMenitJangkauan] = useState(15);
-  const [titikJangkauan, setTitikJangkauan] = useState(null);
+  const [modeJangkauan, setModeJangkauan] = useState(!!params.jangkauan);
+  const [menitJangkauan, setMenitJangkauan] = useState(params.menit);
+  const [titikJangkauan, setTitikJangkauan] = useState(params.jangkauan);
   const jangkauanQ = useQuery({
     queryKey: ['jangkauan', titikJangkauan?.lng, titikJangkauan?.lat, menitJangkauan],
     queryFn: ({ signal }) => api('/jangkauan', {
@@ -219,6 +223,35 @@ export default function ExplorePage() {
     if (f) buildRoute({ lng: f.lon, lat: f.lat, label: f.name });
   };
 
+  // Titik awal rute datang dari tautan yang dikirim orang lain.
+  // Dipisah dari efek lokasi di atas karena keduanya saling meniadakan: yang ini harus
+  // menang, sebab titik yang ditulis pengirim adalah ISI tautannya — bukan tebakan
+  // tentang di mana penerimanya berada.
+  useEffect(() => {
+    if (!routeHere || !params.awal || route.origin || route.loading || route.data) return;
+    if (autoTried.current === id) return;
+    autoTried.current = id;
+    buildRoute({ ...params.awal, label: 'Titik dari tautan' });
+  }, [routeHere, id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ---------- keadaan hasil -> URL ----------
+     Satu arah dan terpusat, bukan ditempel di tiap penangan: jangkauan bisa berubah
+     dari ketukan peta ATAU dari tombol menit, rute dari empat jalur berbeda, dan
+     menuliskan URL di tiap tempat itu berarti cepat atau lambat ada satu yang terlupa
+     lalu tautannya diam-diam kehilangan sebagian isinya.
+     replace: true — menggeser peta bukan peristiwa yang pantas memenuhi tombol Back. */
+  useEffect(() => {
+    const tujuan = buildExplore({
+      ...params,
+      jangkauan: titikJangkauan,
+      menit: menitJangkauan,
+      awal: routeHere ? route.origin : null,
+      gaya: gayaPeta,
+      jalur: jalurTerlihat,
+    });
+    if (tujuan !== location.search) navigate({ pathname: location.pathname, search: tujuan }, { replace: true });
+  }, [titikJangkauan, menitJangkauan, route.origin, routeHere, gayaPeta, jalurTerlihat]); // eslint-disable-line react-hooks/exhaustive-deps
+
   /* ---------- peta ---------- */
   const onMarkerSelect = useCallback((mid) => {
     if (id) { navigate({ pathname: `/facilities/${mid}`, search: location.search }); return; }
@@ -266,6 +299,7 @@ export default function ExplorePage() {
         <NeedsPrompt
           onApply={(codes) => { goExplore(needsPatch(codes), { keepDetail: true }); toast.show(`${codes.length} kebutuhan diterapkan.`, 'info'); }}
           onOpenFilter={() => setFilterOpen(true)}
+          onCobaJangkauan={() => gantiModeJangkauan(true)}
         />
       )}
 
@@ -398,6 +432,7 @@ export default function ExplorePage() {
             sisakanTombol={false}
             onApply={(codes) => { goExplore(needsPatch(codes), { keepDetail: true }); toast.show(`${codes.length} kebutuhan diterapkan.`, 'info'); }}
             onOpenFilter={() => setFilterOpen(true)}
+            onCobaJangkauan={() => gantiModeJangkauan(true)}
           />
         </div>
       )}

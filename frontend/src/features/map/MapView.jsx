@@ -5,6 +5,7 @@ import { KeyRound } from 'lucide-react';
 import { clearRoute, drawRoute } from './route';
 import { ambilJalur, isiJalur, lepasJalur, pasangJalur, perluMuatUlang } from './jalur';
 import { isiJangkauan, lepasJangkauan, pasangJangkauan } from './jangkauan';
+import { IKON_KATEGORI_NODE } from '../accessibility/icon-nodes';
 
 const TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 if (TOKEN) mapboxgl.accessToken = TOKEN;
@@ -23,6 +24,29 @@ function NoToken() {
   );
 }
 
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/** Ikon kategori sebagai SVG, dibangun dari geometri lucide yang sama dengan kartu. */
+function ikonKategori(code) {
+  const node = IKON_KATEGORI_NODE[code] ?? IKON_KATEGORI_NODE._default;
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('width', '17');
+  svg.setAttribute('height', '17');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '2.4');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  svg.setAttribute('aria-hidden', 'true');
+  node.forEach(([tag, attr]) => {
+    const anak = document.createElementNS(SVG_NS, tag);
+    Object.entries(attr).forEach(([k, v]) => anak.setAttribute(k, String(v)));
+    svg.append(anak);
+  });
+  return svg;
+}
+
 function markerElement(facility, level, onSelect) {
   const el = document.createElement('button');
   el.type = 'button';
@@ -30,9 +54,16 @@ function markerElement(facility, level, onSelect) {
   el.dataset.level = level.key; // bentuk marker ditentukan CSS per tingkat, bukan warna saja
   el.style.background = level.bg;
   el.setAttribute('aria-label', level.key === 'neutral' ? facility.name : `${facility.name}. ${level.label}`);
+  // Isi penanda: ikon KATEGORI, bukan lambang tingkat.
+  //
+  // Lambang ●◐○? dulu mengulang apa yang sudah dikatakan BENTUK penanda — dua tanda
+  // untuk satu informasi, sementara "ini rumah sakit atau mal?" tidak terjawab sama
+  // sekali. Sekarang tiap tanda memikul satu makna: bentuk + warna = seberapa cocok,
+  // ikon = tempat apa. Jaminan PRD 13 tetap utuh karena tingkat tidak pernah
+  // bergantung pada warna saja — bentuknya berbeda per tingkat, dan namanya ada di
+  // aria-label serta label hover.
   const sym = document.createElement('span');
-  sym.setAttribute('aria-hidden', 'true');
-  sym.textContent = level.symbol;
+  sym.append(ikonKategori(facility.category ?? facility.category_code));
   const label = document.createElement('span');
   label.className = 'ak-marker-label';
   label.setAttribute('aria-hidden', 'true');
