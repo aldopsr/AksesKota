@@ -388,6 +388,7 @@ export default function ExplorePage() {
       {!isDesktop && !sheetTerlihat && !jalurTerlihat && !modeJangkauan && required.length === 0 && (
         <div className="absolute inset-x-3 bottom-4 z-30">
           <NeedsPrompt
+            ringkas
             sisakanTombol={false}
             onApply={(codes) => { goExplore(needsPatch(codes), { keepDetail: true }); toast.show(`${codes.length} kebutuhan diterapkan.`, 'info'); }}
             onOpenFilter={() => setFilterOpen(true)}

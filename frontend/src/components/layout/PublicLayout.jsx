@@ -381,8 +381,24 @@ export default function PublicLayout() {
     // diklik dari navigasi. Diabaikan bila pengguna meminta gerakan dikurangi.
     if (hash) {
       const halus = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      setTimeout(() => document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: halus ? 'smooth' : 'auto' }), 60);
-    } else if (!workspace) window.scrollTo(0, 0);
+      // Dicoba beberapa kali, bukan sekali setelah 60 ms.
+      //
+      // Membuka /#cara-kerja langsung (muat dingin) sebelumnya berakhir di hero: pada
+      // 60 ms halaman masih setinggi hero karena peta, foto, dan tabel di bawahnya
+      // belum selesai menata diri, jadi gulirannya tidak ke mana-mana — terukur
+      // scrollY 0 padahal bagiannya ada di 2065. Percobaan berhenti begitu bagian itu
+      // benar-benar berada di dekat puncak layar.
+      const jadwal = [60, 300, 700, 1200].map((ms) => setTimeout(() => {
+        const el = document.getElementById(hash.slice(1));
+        if (!el) return;
+        const atas = el.getBoundingClientRect().top;
+        if (Math.abs(atas) < 80) return; // sudah di tempat
+        el.scrollIntoView({ behavior: halus ? 'smooth' : 'auto' });
+      }, ms));
+      return () => jadwal.forEach(clearTimeout);
+    }
+    if (!workspace) window.scrollTo(0, 0);
+    return undefined;
   }, [pathname, hash, workspace]);
 
   return (

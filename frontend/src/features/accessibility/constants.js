@@ -44,9 +44,13 @@ export const ATTRIBUTE_HINT = {
 // Jalan pintas kebutuhan: satu ketukan mengisi beberapa atribut sekaligus.
 // Tinggal di sini, bukan di NeedsPrompt, karena halaman profil memakai daftar yang
 // sama persis — dua salinan akan menyimpang begitu salah satunya diubah.
+// labelPendek dipakai kartu ringkas di atas peta, tempat satu baris saja yang muat.
+// Ditulis di sini, bukan dipotong dari `label` dengan string surgery — memangkas
+// "Saya " menghasilkan "pengguna kursi roda" yang dimulai huruf kecil dan terbaca
+// seperti potongan kalimat yang hilang awalannya.
 export const NEEDS_PRESETS = [
-  { key: 'kursi_roda', label: 'Saya pengguna kursi roda', icon: 'kursi_roda', codes: ['ramp', 'wheelchair_path', 'accessible_toilet', 'lift'] },
-  { key: 'netra', label: 'Saya tunanetra atau low vision', icon: 'netra', codes: ['guiding_block', 'audio_access', 'braille'] },
+  { key: 'kursi_roda', label: 'Saya pengguna kursi roda', labelPendek: 'Kursi roda', icon: 'kursi_roda', codes: ['ramp', 'wheelchair_path', 'accessible_toilet', 'lift'] },
+  { key: 'netra', label: 'Saya tunanetra atau low vision', labelPendek: 'Low vision', icon: 'netra', codes: ['guiding_block', 'audio_access', 'braille'] },
 ];
 
 export const CATEGORIES = [

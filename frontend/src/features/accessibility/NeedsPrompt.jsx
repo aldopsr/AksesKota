@@ -20,7 +20,7 @@ const sudahDitutup = () => {
   try { return localStorage.getItem(KUNCI) === '1'; } catch { return false; }
 };
 
-export default function NeedsPrompt({ onApply, onOpenFilter, sisakanTombol = true }) {
+export default function NeedsPrompt({ onApply, onOpenFilter, sisakanTombol = true, ringkas = false }) {
   const [tertutup, setTertutup] = useState(sudahDitutup);
 
   const tutup = () => {
@@ -62,8 +62,40 @@ export default function NeedsPrompt({ onApply, onOpenFilter, sisakanTombol = tru
         Apa yang Anda butuhkan?
       </h2>
       <p className="font-sub mt-1 text-sm text-ink-secondary">
-        Pilih sekali, lalu hasil dan warna penanda peta langsung menyesuaikan kebutuhan Anda.
+        {ringkas
+          ? 'Pilih sekali, hasil dan warna penanda peta menyesuaikan.'
+          : 'Pilih sekali, lalu hasil dan warna penanda peta langsung menyesuaikan kebutuhan Anda.'}
       </p>
+
+      {/* Bentuk ringkas untuk kartu yang mengambang DI ATAS PETA.
+          Versi penuhnya 430 px dan di layar 375 px itu menyisakan sepertiga layar
+          untuk petanya sendiri — padahal di halaman depan peta itulah kesan pertama.
+          Isinya sama, cuma kehilangan baris keterangan tiap preset. */}
+      {ringkas ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {NEEDS_PRESETS.map(({ key, labelPendek, icon, codes }) => {
+            const Icon = IKON[icon];
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => onApply(codes)}
+                className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-control border border-border bg-surface px-3 text-sm font-semibold hover:border-brand-500"
+              >
+                <Icon aria-hidden="true" size={18} className="shrink-0 text-brand-700" />
+                {labelPendek}
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            onClick={onOpenFilter}
+            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-control border border-border bg-surface px-3 text-sm font-semibold hover:border-brand-500"
+          >
+            <SlidersHorizontal aria-hidden="true" size={18} className="shrink-0 text-brand-700" /> Pilih sendiri dari 10 atribut
+          </button>
+        </div>
+      ) : (
 
       <div className="mt-4 grid gap-2 sm:grid-cols-3">
         {NEEDS_PRESETS.map(({ key, label, icon, codes }) => {
@@ -98,6 +130,7 @@ export default function NeedsPrompt({ onApply, onOpenFilter, sisakanTombol = tru
           </span>
         </button>
       </div>
+      )}
     </section>
   );
 }
