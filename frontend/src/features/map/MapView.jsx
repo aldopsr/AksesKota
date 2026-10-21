@@ -3,6 +3,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { KeyRound } from 'lucide-react';
 import { clearRoute, drawRoute } from './route';
+import { ambilJalur, isiJalur, lepasJalur, pasangJalur } from './jalur';
 
 const TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 if (TOKEN) mapboxgl.accessToken = TOKEN;
@@ -48,8 +49,8 @@ export const GAYA_PETA = {
 };
 
 const MapCanvas = forwardRef(function MapCanvas({
-  items, selectedId, onSelect, userLocation, origin, routeGeometry, pickingOrigin, onPickOrigin, focus, onError,
-  gaya = 'jalan',
+  items, selectedId, onSelect, userLocation, origin, routeGeometry, routeSegmen, pickingOrigin, onPickOrigin, focus, onError,
+  gaya = 'jalan', jalurTerlihat = false, onJalurTerlaluJauh, onJalurRingkas,
   // Sisi yang tertutup panel: penanda yang pas di tengah viewport tetap tersembunyi
   // kalau separuh kiri layar ditempati kartu mengambang.
   fitPaddingBottom = 70, fitPaddingLeft = 60,
@@ -63,7 +64,10 @@ const MapCanvas = forwardRef(function MapCanvas({
   // Geometri rute disimpan juga di ref: setStyle membuang semua source dan layer kita,
   // jadi garis rutenya harus digambar ulang dari sesuatu yang bertahan.
   const routeGeomRef = useRef(null);
+  const routeSegmenRef = useRef(null);
   const gayaRef = useRef(gaya);
+  const jalurRef = useRef(jalurTerlihat);
+  jalurRef.current = jalurTerlihat;
 
   const live = useRef({});
   live.current = { onSelect, onPickOrigin, pickingOrigin, selectedId, onError };
@@ -90,6 +94,11 @@ const MapCanvas = forwardRef(function MapCanvas({
     const ro = new ResizeObserver(() => map.resize());
     ro.observe(containerRef.current);
     mapRef.current = map;
+    // Pegangan untuk memeriksa layer dari konsol saat pengembangan. Tidak ikut
+    // terbangun ke produksi, dan sekali ini sudah berguna: lapisan jalur sempat
+    // terlihat "tidak muncul" padahal queryRenderedFeatures menghitung 318 ruas —
+    // yang salah warnanya, bukan kodenya.
+    if (import.meta.env.DEV) window.__peta = map;
     return () => { ro.disconnect(); map.remove(); mapRef.current = null; markersRef.current = []; setReady(false); };
   }, []);
 
@@ -168,19 +177,63 @@ const MapCanvas = forwardRef(function MapCanvas({
     map.setStyle(GAYA_PETA[gaya] ?? GAYA_PETA.jalan);
     // Penanda dibuat sebagai elemen DOM (mapboxgl.Marker), jadi ia selamat dari
     // pergantian gaya. Yang hilang hanya source/layer rute.
-    map.once('style.load', () => { if (routeGeomRef.current) drawRoute(map, routeGeomRef.current); });
+    map.once('style.load', () => {
+      if (routeGeomRef.current) drawRoute(map, routeGeomRef.current, routeSegmenRef.current);
+      if (jalurRef.current) { pasangJalur(map); ambilJalur(map).then(({ data }) => isiJalur(map, data)).catch(() => {}); }
+    });
   }, [gaya, ready]);
 
   useEffect(() => {
     const map = mapRef.current;
     routeGeomRef.current = routeGeometry ?? null;
+    routeSegmenRef.current = routeSegmen ?? null;
     if (!map || !ready) return;
     if (!routeGeometry) { clearRoute(map); return; }
-    drawRoute(map, routeGeometry);
+    drawRoute(map, routeGeometry, routeSegmen);
     const b = new mapboxgl.LngLatBounds();
     routeGeometry.coordinates.forEach((c) => b.extend(c));
     map.fitBounds(b, { padding: { top: 140, left: fitPaddingLeft, right: 60, bottom: fitPaddingBottom }, duration: 600 });
-  }, [routeGeometry, ready]);
+  }, [routeGeometry, routeSegmen, ready]);
+
+  // Lapisan jaringan pejalan kaki. Datanya diambil per kotak yang terlihat, bukan
+  // sekaligus se-Bogor: 24.180 ruas sebagai satu GeoJSON membuat peta tersendat
+  // beberapa detik setiap kali dibuka.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return undefined;
+    if (!jalurTerlihat) { lepasJalur(map); return undefined; }
+
+    pasangJalur(map);
+    let batal = null;
+    let tunda = null;
+    const muat = async () => {
+      batal?.abort();
+      batal = new AbortController();
+      try {
+        const { data, terlaluJauh } = await ambilJalur(map, { signal: batal.signal });
+        isiJalur(map, data);
+        onJalurTerlaluJauh?.(terlaluJauh);
+        // Dihitung dari yang BENAR-BENAR digambar, bukan dari query terpisah ke
+        // server: angka di keterangan harus cocok dengan garis yang dilihat orang.
+        const hitung = { hambatan: 0, lolos: 0, belum: 0 };
+        (data.features ?? []).forEach((f) => { hitung[f.properties.kelas] += 1; });
+        onJalurRingkas?.(terlaluJauh ? null : hitung);
+      } catch (e) {
+        if (e.name !== 'AbortError') isiJalur(map, null);
+      }
+    };
+    // Ditunda sesaat: menggeser peta memicu belasan moveend beruntun, dan tanpa jeda
+    // ini setiap satu di antaranya jadi satu permintaan ke server.
+    const jadwalkan = () => { clearTimeout(tunda); tunda = setTimeout(muat, 350); };
+    muat();
+    map.on('moveend', jadwalkan);
+    return () => {
+      clearTimeout(tunda);
+      batal?.abort();
+      map.off('moveend', jadwalkan);
+      if (map.getStyle()) lepasJalur(map);
+    };
+  }, [jalurTerlihat, ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { const map = mapRef.current; if (map) map.getCanvas().style.cursor = pickingOrigin ? 'crosshair' : ''; }, [pickingOrigin]);
   useEffect(() => { const map = mapRef.current; if (map && focus) map.flyTo({ center: [focus.lng, focus.lat], zoom: focus.zoom ?? 14, duration: 600 }); }, [focus?.key]); // eslint-disable-line react-hooks/exhaustive-deps

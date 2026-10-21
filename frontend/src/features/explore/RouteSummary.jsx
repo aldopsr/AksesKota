@@ -218,6 +218,12 @@ export default function RouteSummary({
   const { origin, picking, loading, error, data } = route;
   const [editing, setEditing] = useState(false);
   const chooser = !origin || editing;
+  // Berapa penggal rute yang jatuh di tiap kelas — dihitung dari data yang sama yang
+  // digambar di peta, jadi kalimat di kartu tidak pernah berbeda dari garisnya.
+  const penggal = (data?.segmen?.features ?? []).reduce(
+    (n, f) => ({ ...n, [f.properties.kelas]: (n[f.properties.kelas] ?? 0) + 1 }),
+    { hambatan: 0, lolos: 0, belum: 0 },
+  );
 
   return (
     <section aria-labelledby="route-title" className={`rounded-card border border-border bg-surface ${compact ? 'p-4' : 'border-brand-200 bg-brand-50 p-4'}`}>
@@ -283,6 +289,17 @@ export default function RouteSummary({
               {data.hambatan?.ruas_tangga > 0 && (
                 <strong className="font-semibold text-danger"> · terdeteksi {data.hambatan.ruas_tangga} ruas tangga</strong>
               )}
+            </p>
+          )}
+
+          {/* Penghubung antara angka di kartu dan garis di peta. Tanpa baris ini,
+              penggal merah di peta tidak pernah dijelaskan di mana pun — dan satu
+              angka persentase tetap meratakan rute yang justru tidak rata. */}
+          {penggal.hambatan > 0 && (
+            <p className="font-sub text-sm text-ink-secondary">
+              Di peta,{' '}
+              <strong className="font-semibold text-danger">{penggal.hambatan} penggal berwarna merah</strong>{' '}
+              adalah bagian rute yang melewati hambatan itu.
             </p>
           )}
 

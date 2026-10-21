@@ -81,6 +81,75 @@ async function nilaiJalur(geometry, panjangM) {
   };
 }
 
+/**
+ * Memecah garis rute jadi potongan-potongan berwarna menurut jalur yang dilaluinya.
+ *
+ * Sebelumnya rute digambar satu garis ungu polos dengan satu angka persentase di
+ * kartu. Angka itu meratakan hal yang justru tidak rata: satu rute bisa mulus 800 m
+ * lalu berakhir di tangga, dan rata-ratanya terdengar baik-baik saja. Di peta, tangga
+ * itu sekarang punya tempatnya sendiri.
+ *
+ * Caranya: tiap penggal garis rute dicocokkan dengan ruas pejalan kaki TERDEKAT dalam
+ * radius toleransi, lalu penggal berurutan yang sekelas digabung kembali supaya yang
+ * dikirim puluhan garis, bukan ratusan.
+ */
+async function segmenRute(geometry) {
+  const rows = await many(
+    `with rute as (select st_setsrid(st_geomfromgeojson($1),4326) g),
+          titik as (
+            select (dp).path[1] as i, (dp).geom as p
+              from rute, st_dumppoints(g) dp
+          ),
+          penggal as (
+            select a.i,
+                   st_makeline(a.p, b.p) as seg
+              from titik a join titik b on b.i = a.i + 1
+          ),
+          -- Ruas pejalan kaki terdekat untuk tiap penggal. LATERAL + ORDER BY jarak
+          -- memakai indeks GiST, jadi ini tetap murah untuk rute beratus titik.
+          dinilai as (
+            select p.i,
+                   st_asgeojson(p.seg) as geojson,
+                   coalesce(w.kelas, 'belum') as kelas
+              from penggal p
+              left join lateral (
+                select case
+                         when x.highway = 'steps' or x.wheelchair = 'no'
+                              or x.smoothness in ('bad','very_bad','horrible','very_horrible','impassable')
+                           then 'hambatan'
+                         when x.wheelchair in ('yes','designated') or x.tactile_paving = 'yes'
+                              or x.smoothness in ('excellent','good')
+                           then 'lolos'
+                         else 'belum' end as kelas
+                  from pedestrian_ways x
+                 where st_dwithin(x.geom, p.seg::geography, $2)
+                 order by x.geom <-> p.seg::geography
+                 limit 1
+              ) w on true
+          )
+     select i, kelas, geojson from dinilai order by i`,
+    [JSON.stringify(geometry), TOLERANSI_M],
+  );
+
+  // Gabungkan penggal berurutan yang sekelas. Satu rute 10 km bisa punya 600 penggal;
+  // dikirim mentah, itu 600 fitur GeoJSON untuk informasi yang sama.
+  const fitur = [];
+  for (const r of rows) {
+    const koordinat = JSON.parse(r.geojson).coordinates;
+    const terakhir = fitur[fitur.length - 1];
+    if (terakhir && terakhir.properties.kelas === r.kelas) {
+      terakhir.geometry.coordinates.push(koordinat[1]);
+    } else {
+      fitur.push({
+        type: 'Feature',
+        properties: { kelas: r.kelas },
+        geometry: { type: 'LineString', coordinates: koordinat },
+      });
+    }
+  }
+  return { type: 'FeatureCollection', features: fitur };
+}
+
 // Di atas jarak ini, menyodorkan rute jalan kaki sebagai saran itu tidak jujur:
 // 2 km berarti sekitar 25-30 menit berjalan, dan bagi banyak pengguna kursi roda
 // atau lansia itu bukan pilihan.
@@ -231,5 +300,6 @@ router.get('/routes/walking', rateLimit({ windowMs: 60_000, max: 30 }), async (r
     terlalu_jauh_untuk_jalan_kaki: saran !== null,
     saran_transportasi: saran,
     ...(await scoreRoute(route.distance, route.geometry)),
+    segmen: await segmenRute(route.geometry),
   });
 });

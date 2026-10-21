@@ -79,6 +79,18 @@ export default function ExplorePage() {
   const [gayaPeta, setGayaPeta] = useState(() => {
     try { return localStorage.getItem('ak_gaya_peta') === 'satelit' ? 'satelit' : 'jalan'; } catch { return 'jalan'; }
   });
+  // Lapisan jaringan pejalan kaki. Mati secara bawaan: layar pertama tetap harus
+  // menjawab "ada apa di sekitar saya", dan 24 ribu garis sebelum pertanyaan itu
+  // terjawab hanya menutupi penanda.
+  const [jalurTerlihat, setJalurTerlihat] = useState(() => {
+    try { return localStorage.getItem('ak_lapisan_jalur') === '1'; } catch { return false; }
+  });
+  const [jalurTerlaluJauh, setJalurTerlaluJauh] = useState(false);
+  const [ringkasJalur, setRingkasJalur] = useState(null);
+  const gantiJalur = (v) => {
+    setJalurTerlihat(v);
+    try { localStorage.setItem('ak_lapisan_jalur', v ? '1' : '0'); } catch { /* mode privat */ }
+  };
   const gantiGayaPeta = (g) => {
     setGayaPeta(g);
     try { localStorage.setItem('ak_gaya_peta', g); } catch { /* mode privat */ }
@@ -169,13 +181,13 @@ export default function ExplorePage() {
   const closeRoute = () => navigate({ pathname: location.pathname, search: buildExplore({ ...params, route: false }) });
   const routeUseMyLocation = async () => { const loc = geo.location ?? (await locateMe()); if (loc) buildRoute({ lng: loc.lng, lat: loc.lat, label: 'Lokasi saya' }); };
   const routeStartPick = () => {
-    setRoute((r) => {
-      const picking = !r.picking;
-      // Panel turun ke posisi mengintip begitu mode pilih-titik menyala: perintahnya
-      // "ketuk peta", jadi petanya harus ada.
-      if (picking && !isDesktop) sheetRef.current?.mengintip();
-      return { ...r, picking, facilityId: String(id) };
-    });
+    // Dihitung di luar updater setRoute. Updater dipanggil React pada fase render,
+    // dan memanggil mengintip() dari sana berarti mengubah state komponen lain
+    // di tengah render komponen ini — React memperingatkannya, dan akibatnya
+    // tidak dapat diramalkan.
+    const picking = !route.picking;
+    if (picking && !isDesktop) sheetRef.current?.mengintip();
+    setRoute((r) => ({ ...r, picking, facilityId: String(id) }));
   };
   const routePicked = ({ lng, lat: la }) => buildRoute({ lng, lat: la, label: 'Titik yang dipilih di peta' });
   const routeChooseFacility = (fid) => {
@@ -334,10 +346,11 @@ export default function ExplorePage() {
     <>
       <MapView
         ref={mapRef} items={items} selectedId={id ?? previewId} onSelect={onMarkerSelect}
-        userLocation={geo.location} origin={routeHere ? route.origin : null} routeGeometry={routeHere ? route.data?.geometry ?? null : null}
+        userLocation={geo.location} origin={routeHere ? route.origin : null} routeGeometry={routeHere ? route.data?.geometry ?? null : null} routeSegmen={routeHere ? route.data?.segmen ?? null : null}
         pickingOrigin={routeHere && route.picking} onPickOrigin={routePicked} focus={focus}
         onError={(e) => { if ([401, 403].includes(e?.error?.status)) setMapProblem(true); }}
         gaya={gayaPeta}
+        jalurTerlihat={jalurTerlihat} onJalurTerlaluJauh={setJalurTerlaluJauh} onJalurRingkas={setRingkasJalur}
         fitPaddingBottom={isDesktop ? 70 : (sheetTerlihat ? 380 : 90)}
         fitPaddingLeft={isDesktop ? 430 : 60}
       />
@@ -365,7 +378,16 @@ export default function ExplorePage() {
         onZoomIn={() => mapRef.current?.zoomIn()} onZoomOut={() => mapRef.current?.zoomOut()}
         onLocate={locateMe} locating={geo.status === 'loading'}
         gaya={gayaPeta} onGantiGaya={gantiGayaPeta}
+        jalur={jalurTerlihat} onGantiJalur={gantiJalur} ringkasJalur={ringkasJalur}
       />
+
+      {/* Lapisannya menyala tapi petanya terlalu jauh untuk menggambar apa pun —
+          tanpa pesan ini tombolnya tampak rusak. */}
+      {jalurTerlihat && jalurTerlaluJauh && (
+        <p role="status" className="absolute inset-x-3 bottom-4 z-30 mx-auto max-w-sm rounded-control bg-ink/90 px-3 py-2 text-center text-sm font-semibold text-white lg:bottom-auto lg:left-1/2 lg:top-[7.5rem] lg:w-fit lg:-translate-x-1/2">
+          Perbesar peta untuk melihat jalur pejalan kaki
+        </p>
+      )}
 
       {mapProblem && (
         <div className="absolute inset-x-3 top-32 z-30 mx-auto max-w-md">

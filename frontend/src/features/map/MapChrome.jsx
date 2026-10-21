@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { CircleQuestionMark, Layers, LocateFixed, Minus, Plus } from 'lucide-react';
+import { CircleQuestionMark, Footprints, Layers, LocateFixed, Minus, Plus } from 'lucide-react';
 import { LEVELS } from '../accessibility/match';
+import { WARNA_JALUR } from './jalur';
 import { Spinner } from '../../components/ui';
 
 /**
@@ -29,7 +30,7 @@ function Tombol({ label, onClick, children, className = '' }) {
   );
 }
 
-export function MapControls({ onZoomIn, onZoomOut, onLocate, locating, gaya = 'jalan', onGantiGaya }) {
+export function MapControls({ onZoomIn, onZoomOut, onLocate, locating, gaya = 'jalan', onGantiGaya, jalur = false, onGantiJalur, ringkasJalur }) {
   const [legenda, setLegenda] = useState(false);
   const id = useId();
   const bungkus = useRef(null);
@@ -65,6 +66,21 @@ export function MapControls({ onZoomIn, onZoomOut, onLocate, locating, gaya = 'j
           {locating ? <Spinner size={19} /> : <LocateFixed aria-hidden="true" size={19} />}
         </Tombol>
         <span aria-hidden="true" className="h-px bg-border" />
+        {/* Lapisan jaringan pejalan kaki: tangga, jalur ber-guiding block, dan ruas
+            yang belum terdata. Ditaruh satu kelompok dengan sakelar satelit karena
+            keduanya menjawab pertanyaan yang sama — "peta ini menampilkan apa". */}
+        <button
+          type="button"
+          aria-pressed={jalur}
+          aria-label={jalur ? 'Sembunyikan jalur pejalan kaki' : 'Tampilkan jalur pejalan kaki dan hambatannya'}
+          onClick={() => onGantiJalur?.(!jalur)}
+          className={`${kelasTombol} ${jalur ? 'bg-brand-100 text-brand-900' : ''}`}
+          style={{ transition: 'transform 160ms var(--ease-out), background-color 160ms ease' }}
+        >
+          <Footprints aria-hidden="true" size={19} />
+        </button>
+        <span aria-hidden="true" className="h-px bg-border" />
+
         {/* Ikon tumpukan lembaran akhirnya dipakai untuk hal yang memang dijanjikannya.
             Label berubah mengikuti keadaan, karena tombol sakelar yang namanya tetap
             tidak pernah jelas sedang menyalakan atau mematikan apa. */}
@@ -97,7 +113,7 @@ export function MapControls({ onZoomIn, onZoomOut, onLocate, locating, gaya = 'j
           id={id}
           // Muncul dari sudut tombolnya, bukan dari tengah: panel yang membesar dari
           // titik lain terasa datang entah dari mana.
-          className="ak-muncul w-64 origin-top-right rounded-card border border-border bg-surface p-3 shadow-popover"
+          className="ak-muncul panel-scroll max-h-[calc(100dvh-27rem)] w-64 origin-top-right overflow-y-auto rounded-card border border-border bg-surface p-3 shadow-popover lg:max-h-[min(70dvh,34rem)]"
         >
           <p className="mb-2 text-sm font-bold">Kecocokan dengan kebutuhan Anda</p>
           <ul className="space-y-1.5">
@@ -114,6 +130,36 @@ export function MapControls({ onZoomIn, onZoomOut, onLocate, locating, gaya = 'j
             })}
           </ul>
           <p className="font-sub mt-2 text-xs text-ink-secondary">Kecocokan bukan sertifikasi. Detail ada di halaman fasilitas.</p>
+
+          {/* Keterangan garis hanya muncul kalau lapisannya memang menyala: kunci warna
+              untuk sesuatu yang tidak terlihat hanya menambah yang harus dibaca. */}
+          {jalur && (
+            <>
+              <p className="mb-2 mt-3 border-t border-border pt-3 text-sm font-bold">Jalur pejalan kaki</p>
+              {/* Angka untuk kotak yang sedang dilihat, bukan untuk seluruh kota:
+                  kunci warna memberi tahu artinya, angka ini memberi tahu seberapa
+                  banyak — dan "belum terdata" yang selalu menang telak itu temuannya. */}
+              {ringkasJalur && (
+                <p className="font-sub mb-2 text-xs text-ink-secondary">
+                  Di layar ini: <strong className="font-semibold text-ink">{ringkasJalur.hambatan}</strong> hambatan ·{' '}
+                  <strong className="font-semibold text-ink">{ringkasJalur.lolos}</strong> terdata lolos ·{' '}
+                  <strong className="font-semibold text-ink">{ringkasJalur.belum}</strong> belum terdata
+                </p>
+              )}
+              <ul className="space-y-1.5">
+                {[
+                  ['hambatan', 'Hambatan: tangga atau ditandai tidak dapat dilalui'],
+                  ['lolos', 'Terdata dapat dilalui atau ber-guiding block'],
+                  ['belum', 'Belum terdata'],
+                ].map(([k, teks]) => (
+                  <li key={k} className="flex items-center gap-2.5">
+                    <span aria-hidden="true" style={{ background: WARNA_JALUR[k] }} className="h-1 w-6 shrink-0 rounded-full" />
+                    <span className="text-sm">{teks}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </div>
       )}
     </div>

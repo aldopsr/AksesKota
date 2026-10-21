@@ -8,6 +8,7 @@ import { router as contributionsRouter } from './routes/contributions.js';
 import { router as feedbackRouter } from './routes/feedback.js';
 import { router as adminRouter } from './routes/admin.js';
 import { router as routingRouter } from './routes/routing.js';
+import { router as waysRouter } from './routes/ways.js';
 import { router as aiRouter } from './routes/ai.js';
 import { rateLimit } from './rateLimit.js';
 import { UPLOAD_DIR, MAKS_FOTO_MB } from './storage.js';
@@ -47,6 +48,7 @@ app.use('/api', contributionsRouter);
 app.use('/api', feedbackRouter);
 app.use('/api', adminRouter);
 app.use('/api', routingRouter);
+app.use('/api', waysRouter);
 app.use('/api', aiRouter);
 
 app.use((_req, res) => res.status(404).json({ error: 'Endpoint tidak ada' }));
