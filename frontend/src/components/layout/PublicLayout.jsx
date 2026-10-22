@@ -29,7 +29,34 @@ function RouteAnnouncer() {
    tidak pernah dirender ulang, petanya tidak pernah kembali. Terukur: renderUlang
    false padahal URL sudah "/". Navigasinya kini diserahkan penuh ke Link. */
 
-const navCls = (on) => `inline-flex min-h-11 items-center rounded-control px-3.5 font-semibold transition-colors ${on ? 'bg-brand-100 text-brand-900' : 'text-ink-secondary hover:bg-surface-subtle hover:text-ink'}`;
+/* ---------- gaya bersama bilah atas ----------
+   Permukaan mengambang dipisahkan dari peta oleh BAYANGAN lembut dan kaca buram, bukan
+   garis tepi tebal di tiap tombol. */
+const kaca = 'bg-white/85 ring-1 ring-black/5 shadow-panel backdrop-blur-xl';
+
+// Pindah ke awal halaman penjelasan. Dipakai saat "Cara kerja" diklik ketika sudah berada
+// di sana: alamatnya tidak berubah, jadi efek di PublicLayout tidak akan berjalan lagi.
+const keAwalHalaman = () => {
+  const halus = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  window.scrollTo({ top: 0, behavior: halus ? 'smooth' : 'auto' });
+};
+
+// Penanda aktif: satu pil gelap yang MELUNCUR ke item aktif (layoutId). Z negatif di dalam
+// elemen `isolate` supaya berada di bawah teks dan ikon panah menu. Otomatis dilewati bila
+// pengguna memilih mengurangi gerakan (MotionConfig reducedMotion="user").
+const penandaAktif = (
+  <m.span
+    layoutId="nav-aktif" aria-hidden="true"
+    className="absolute inset-0 -z-10 rounded-full bg-ink"
+    transition={{ type: 'spring', stiffness: 520, damping: 40 }}
+  />
+);
+const itemNav = (aktif) => `relative isolate inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-semibold transition-colors duration-200 focus-visible:rounded-full max-lg:min-w-11 lg:px-4 ${
+  aktif ? 'text-white' : 'text-ink-secondary hover:bg-black/5 hover:text-ink'
+}`;
+// Di bawah lg dock hanya memuat ikon; item yang AKTIF tetap menampilkan namanya supaya
+// pengguna tahu sedang di mana. Nama item lain tetap ada untuk pembaca layar (sr-only).
+const labelNav = (aktif) => (aktif ? '' : 'max-lg:sr-only');
 
 function AccountMenu() {
   const { me, isAdmin, signOut } = useAuth();
@@ -37,9 +64,11 @@ function AccountMenu() {
   const initial = (me?.name ?? 'A').trim().charAt(0).toUpperCase();
   return (
     <Menu
-      label={<span className="max-sm:sr-only sm:max-w-40 sm:truncate">{me?.name ?? 'Akun'}</span>}
-      buttonClassName={`${buttonClass('secondary')} pl-1.5 max-sm:px-1.5`}
-      icon={() => <span aria-hidden="true" className="inline-flex size-8 items-center justify-center rounded-full bg-brand-700 text-sm font-bold text-white">{initial}</span>}
+      // Nama hanya tampil di layar sangat lebar; selebihnya cukup avatar. Nama panjang
+      // adalah penyumbang terbesar tabrakan antara tombol-tombol di kanan dan logo.
+      label={<span className="sr-only 2xl:not-sr-only 2xl:max-w-40 2xl:truncate">{me?.name ?? 'Akun'}</span>}
+      buttonClassName={`${kaca} inline-flex min-h-12 items-center gap-2 rounded-full pl-1.5 pr-1.5 text-sm font-semibold text-ink transition-colors hover:bg-white focus-visible:rounded-full 2xl:pr-4`}
+      icon={() => <span aria-hidden="true" className="inline-flex size-9 items-center justify-center rounded-full bg-brand-700 text-sm font-bold text-white">{initial}</span>}
     >
       <Link to="/accessibility-profile" className={menuItemClass}><UserRound aria-hidden="true" size={18} /> Profil aksesibilitas</Link>
       <Link to="/my-contributions" className={menuItemClass}><ListChecks aria-hidden="true" size={18} /> Kontribusi saya</Link>
@@ -50,51 +79,19 @@ function AccountMenu() {
   );
 }
 
-/**
- * Header: logo di TENGAH, navigasi di kiri, akun di kanan.
- *
- * Bentuk ini diminta mengikuti acuan, dan kebetulan memecahkan satu masalah nyata:
- * dengan logo di kiri, navigasi dan tombol akun sama-sama berebut sisi kanan dan di
- * layar sedang keduanya saling mendorong. Logo di tengah membagi ruang jadi dua sisi
- * yang masing-masing punya tugas jelas.
- *
- * Di layar sempit tautan navigasinya runtuh jadi satu tombol yang membuka popup —
- * "lebih sederhana, baru muncul saat diklik".
- */
-/**
- * Tautan navigasi: teks polos, bukan pil berbingkai.
- *
- * Sebelumnya tiap tautan adalah kapsul beroutline. Tiga kapsul berjajar membuat bilahnya
- * ramai dan — justru — terbaca sebagai halaman generik: outline pil pada navigasi adalah
- * salah satu penanda paling kuat dari tata letak bawaan. Bilah yang terbaca mahal itu
- * justru bilah tanpa perabot: nama, beberapa tautan polos, satu aksi.
- *
- * Keadaan aktif ditandai bobot dan warna tinta, bukan kotak — ditambah garis pendek di
- * bawah supaya tidak hanya mengandalkan warna.
- */
-function TautanNav({ to, aktif, children, onClick }) {
+function TautanNav({ to, aktif, Ikon, children, onClick }) {
   return (
-    <Link
-      to={to}
-      onClick={onClick}
-      aria-current={aktif ? 'page' : undefined}
-      className={`inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold ${
-        aktif ? 'border-ink bg-ink text-white' : 'border-border-strong bg-surface text-ink hover:bg-surface-subtle'
-      }`}
-      style={{ transition: 'color 160ms ease' }}
-    >
-      {children}
+    <Link to={to} onClick={onClick} aria-current={aktif ? 'page' : undefined} className={itemNav(aktif)}>
+      {aktif && penandaAktif}
+      <Ikon aria-hidden="true" size={18} className="shrink-0 lg:hidden" />
+      <span className={labelNav(aktif)}>{children}</span>
     </Link>
   );
 }
 
 /**
- * CTA utama di kanan navbar, meniru tombol gelap berpanah bundar pada acuan.
- *
- * Dulu ia tombol mengambang di atas peta. Dinaikkan ke sini karena roda mouse kini
- * dipakai peta untuk zoom: area peta harus menyisakan sesedikit mungkin hal yang
- * menumpang di atasnya, dan satu-satunya ajakan utama lebih tepat tinggal di navigasi
- * yang selalu terlihat.
+ * CTA utama di kanan. Di bawah lg ia tombol bundar berikon (48 px); mulai lg ia tombol
+ * gelap berlabel dengan panah bundar yang bergeser sedikit saat disorot.
  */
 function CtaAsisten() {
   const { openAssistant } = useAssistant();
@@ -103,26 +100,20 @@ function CtaAsisten() {
       type="button"
       onClick={openAssistant}
       aria-haspopup="dialog"
-      className="ak-pil inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full bg-ink py-1 pl-4 pr-1 text-sm font-semibold text-white hover:bg-brand-900"
+      className="ak-pil group inline-flex h-12 shrink-0 items-center justify-center gap-2.5 rounded-full bg-ink text-sm font-semibold text-white shadow-panel transition-colors hover:bg-brand-900 focus-visible:rounded-full max-lg:w-12 lg:py-1 lg:pl-5 lg:pr-1"
     >
-      <Sparkles aria-hidden="true" size={16} className="sm:hidden" />
-      <span className="max-sm:sr-only">Tanya asisten</span>
-      <span aria-hidden="true" className="inline-flex size-8 items-center justify-center rounded-full bg-white text-ink">
-        <ArrowUpRight size={15} />
+      <Sparkles aria-hidden="true" size={19} className="lg:hidden" />
+      <span className="max-lg:sr-only">Tanya asisten</span>
+      <span aria-hidden="true" className="inline-flex size-10 items-center justify-center rounded-full bg-white text-ink max-lg:hidden">
+        <ArrowUpRight size={16} className="transition-transform duration-200 motion-safe:group-hover:-translate-y-px motion-safe:group-hover:translate-x-px" />
       </span>
-
     </button>
   );
 }
 
 /**
- * Pencarian di navbar: pil tenang yang baru membuka isinya saat diklik.
- *
- * Sebelumnya ia bilah penuh yang mengambang permanen di atas peta bersama baris
- * kategori — dua baris yang selalu menutupi peta padahal sebagian besar waktu tidak
- * dipakai. Sekarang peta bersih, dan seluruh isian pencarian muncul hanya ketika
- * diminta. Hasilnya tetap lewat URL, jadi tidak ada state yang perlu dibagi dengan
- * halaman peta.
+ * Pencarian di navbar: kapsul kaca yang baru membuka isinya saat diklik. Di bawah xl ia
+ * menyusut jadi tombol ikon bundar 48 px.
  */
 function PencarianNavbar() {
   const navigate = useNavigate();
@@ -140,9 +131,9 @@ function PencarianNavbar() {
       chevron={false}
       align="right"
       lebar="w-[min(22rem,calc(100vw-1.5rem))] max-sm:fixed max-sm:left-3 max-sm:right-3 max-sm:top-[4.25rem] max-sm:w-auto"
-      buttonClassName="inline-flex min-h-11 items-center gap-2 rounded-full border border-border-strong bg-surface px-4 text-sm font-semibold text-ink-secondary hover:bg-surface-subtle"
-      icon={() => <Search aria-hidden="true" size={16} />}
-      label={<span className="max-sm:sr-only">Cari tempat</span>}
+      buttonClassName={`${kaca} inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold text-ink-secondary transition-colors hover:bg-white hover:text-ink focus-visible:rounded-full max-xl:w-12 max-xl:px-0`}
+      icon={() => <Search aria-hidden="true" size={18} />}
+      label={<span className="max-xl:sr-only">Cari tempat</span>}
     >
       <form
         onSubmit={(e) => { e.preventDefault(); cari(teks.trim(), ''); }}
@@ -173,7 +164,7 @@ function PencarianNavbar() {
           {CATEGORIES.map((c) => (
             <button
               key={c.code} type="button" data-close onClick={() => cari(teks.trim(), c.code)}
-              className="inline-flex min-h-9 items-center rounded-full border border-border-strong bg-surface px-3 text-sm font-semibold hover:bg-surface-subtle"
+              className="inline-flex min-h-9 items-center rounded-full bg-surface-subtle px-3 text-sm font-semibold transition-colors hover:bg-brand-100"
             >
               {c.label}
             </button>
@@ -190,12 +181,23 @@ function PencarianNavbar() {
   );
 }
 
+/**
+ * Header: tiga kolom grid — dock navigasi | logo | aksi (pencarian, asisten, akun).
+ *
+ * Dulu logo diposisikan absolut di tengah viewport sementara kiri dan kanan mengalir bebas,
+ * jadi tidak ada yang menjaga ketiganya agar tidak saling tindih: di lebar menengah dock
+ * navigasi menabrak pencarian dan logo. Kolom `1fr auto 1fr` memberi sisi kiri dan kanan
+ * lebar yang SAMA dan logo tepat di tengah, dan tiap sisi menyusut bertahap sesuai lebar
+ * (label disembunyikan, pencarian jadi ikon, nama akun dihilangkan) sampai isinya muat:
+ *
+ *   < md   logo di kiri, aksi di kanan (navigasi pindah ke bilah bawah)
+ *   md–lg  dock berisi ikon (yang aktif menampilkan nama), semua aksi berupa ikon bundar
+ *   lg–xl  dock berlabel, asisten berlabel, pencarian tetap ikon
+ *   xl+    pencarian berlabel; nama akun baru tampil di 2xl
+ */
 function Header() {
   const { session } = useAuth();
-  const { pathname } = useLocation();
-  // Di "/" peta hanya mengisi layar pertama; begitu pengguna menggulir ke bawah ia
-  // sedang membaca halaman biasa, dan di sanalah tombol masuk masuk akal. Jadi sisi
-  // kanan bilah ini mengikuti APA YANG SEDANG DILIHAT, bukan sekadar alamatnya.
+  const { pathname, hash } = useLocation();
   const [diHero, setDiHero] = useState(true);
   useEffect(() => {
     if (pathname !== '/') { setDiHero(false); return undefined; }
@@ -204,50 +206,30 @@ function Header() {
     window.addEventListener('scroll', pantau, { passive: true });
     return () => window.removeEventListener('scroll', pantau);
   }, [pathname]);
-  const exploring = pathname === '/' || pathname.startsWith('/map')
-    || (pathname.startsWith('/facilities') && !pathname.startsWith('/facilities/new') && !pathname.includes('/update'));
+
+  // "/#cara-kerja" = halaman penjelasan tanpa peta: di sana "Cara kerja" yang menyala.
+  const caraKerja = pathname === '/' && hash === '#cara-kerja';
+  const detailFasilitas = pathname.startsWith('/facilities') && !pathname.startsWith('/facilities/new') && !pathname.includes('/update');
+  const exploring = (pathname === '/' && !caraKerja) || pathname.startsWith('/map') || detailFasilitas;
   const berkontribusi = pathname.startsWith('/facilities/new') || pathname.includes('/update') || pathname.startsWith('/my-contributions');
-
-  const petaTerlihat = (pathname === '/' && diHero) || pathname.startsWith('/map')
-    || (pathname.startsWith('/facilities') && !pathname.startsWith('/facilities/new') && !pathname.includes('/update'));
-
-  const tautan = (
-    <>
-      <TautanNav
-        to="/" aktif={exploring}
-        onClick={(e) => { if (pathname === '/') { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); window.history.replaceState(null, '', '/'); } }}
-      >
-        <Compass aria-hidden="true" size={16} className="mr-1.5" /> Jelajahi
-      </TautanNav>
-      <TautanNav to="/#cara-kerja" aktif={false}>
-        Cara kerja
-      </TautanNav>
-    </>
-  );
-
-  // Navigasi mengikuti acuan Rallyo Club, ditiru dekat, bukan diadaptasi:
-  // pil-pil bergaris di kiri, logo menggantung di tab putih di tengah, pencarian dan
-  // satu CTA gelap berpanah bundar di kanan — semuanya mengambang dengan margin halaman,
-  // bukan bilah penuh yang menempel di tepi atas.
-  //
-  // Catatan jujur: emil-design-eng menyarankan bilah polos tanpa perabot untuk navigasi,
-  // dan versi sebelumnya memang begitu. Bentuk ini dipilih karena diminta mengikuti
-  // acuan; kalau nanti terasa ramai, bilah polos itu yang jadi jalan pulangnya.
-  const pil = 'inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold';
+  const petaTerlihat = (pathname === '/' && diHero && !caraKerja) || pathname.startsWith('/map') || detailFasilitas;
 
   return (
     <header className="pointer-events-none fixed inset-x-0 top-0 z-40 px-3 pt-3">
-      <div className="relative mx-auto flex max-w-7xl items-start gap-2">
-        <nav aria-label="Navigasi utama" className="pointer-events-auto hidden items-center gap-2 md:flex">
-          <TautanNav to="/" aktif={exploring}>
-            Jelajahi
-          </TautanNav>
-          <TautanNav to="/#cara-kerja" aktif={false}>
+      <div className="mx-auto grid max-w-7xl grid-cols-[auto_minmax(0,1fr)] items-start gap-2 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+        <nav aria-label="Navigasi utama" className={`pointer-events-auto hidden items-center gap-0.5 justify-self-start rounded-full p-0.5 md:flex ${kaca}`}>
+          <TautanNav to="/" aktif={exploring} Ikon={Compass}>Jelajahi</TautanNav>
+          {/* Sudah di halaman penjelasan: klik lagi membawa ke awalnya. Dari tempat lain
+              ia berpindah ke "/#cara-kerja", dan PublicLayout menampilkannya dari atas. */}
+          <TautanNav
+            to="/#cara-kerja" aktif={caraKerja} Ikon={BookOpen}
+            onClick={(e) => { if (caraKerja) { e.preventDefault(); keAwalHalaman(); } }}
+          >
             Cara kerja
           </TautanNav>
           <Menu
-            label="Kontribusi" align="left"
-            buttonClassName={`${pil} gap-1 ${berkontribusi ? 'border-ink bg-ink text-white' : 'border-border-strong bg-surface text-ink hover:bg-surface-subtle'}`}
+            label={<>{berkontribusi && penandaAktif}<PlusCircle aria-hidden="true" size={18} className="shrink-0 lg:hidden" /><span className={labelNav(berkontribusi)}>Kontribusi</span></>}
+            align="left" buttonClassName={itemNav(berkontribusi)}
           >
             <Link to="/facilities/new" className={menuItemClass}><PlusCircle aria-hidden="true" size={18} /> Tambah fasilitas</Link>
             <Link to="/map?intent=update" className={menuItemClass}><ClipboardList aria-hidden="true" size={18} /> Perbarui data fasilitas</Link>
@@ -255,23 +237,24 @@ function Header() {
           </Menu>
         </nav>
 
-        {/* Tab logo: menggantung dari tepi atas, sudut bawahnya membulat — bentuk inilah
-            tanda paling khas acuan itu. Diposisikan absolut supaya benar-benar di tengah
-            viewport dan tidak bergeser saat tombol kanan berubah. */}
+        {/* Tab logo: menggantung dari tepi atas layar. Di md ke atas bahunya melebar
+            lewat dua pseudo-elemen (kuadran lingkaran terbalik) sehingga tab terlihat
+            tumbuh dari tepi atas, bukan kotak yang ditempel. Di bawah md ia kapsul kaca
+            biasa. Wordmark disembunyikan di bawah 380 px agar tidak menabrak aksi. */}
         <Link
           to="/"
           aria-label="AksesKota, ke beranda"
-          className="pointer-events-auto absolute left-0 top-0 z-10 flex items-center gap-2 rounded-full bg-surface px-4 py-2.5 md:-top-3 md:left-1/2 md:-translate-x-1/2 md:rounded-b-[1.5rem] md:rounded-t-none md:px-7 md:pb-3.5 md:pt-7"
+          className="pointer-events-auto relative flex min-h-12 items-center gap-2 justify-self-center rounded-full bg-white/85 px-4 ring-1 ring-black/5 shadow-panel backdrop-blur-xl md:-mt-3 md:min-h-0 md:rounded-b-[1.75rem] md:rounded-t-none md:bg-surface md:px-8 md:pb-4 md:pt-7 md:shadow-none md:ring-0 md:backdrop-blur-none md:before:absolute md:before:-left-4 md:before:top-0 md:before:size-4 md:before:bg-[radial-gradient(circle_at_0_100%,transparent_16px,var(--color-surface)_16.5px)] md:after:absolute md:after:-right-4 md:after:top-0 md:after:size-4 md:after:bg-[radial-gradient(circle_at_100%_100%,transparent_16px,var(--color-surface)_16.5px)] max-md:justify-self-start"
         >
           <LogoMark size={26} />
-          <span className="text-base font-extrabold tracking-tight">AksesKota</span>
+          <span className="text-base font-extrabold tracking-tight max-[380px]:sr-only">AksesKota</span>
         </Link>
 
-        <div className="pointer-events-auto ml-auto flex items-center gap-2">
+        <div className="pointer-events-auto flex items-center gap-2 justify-self-end">
           {petaTerlihat && <PencarianNavbar />}
           <CtaAsisten />
           {session ? <AccountMenu /> : !petaTerlihat && (
-            <Link to="/login" className={`${pil} border-border-strong bg-surface text-ink hover:bg-surface-subtle`}>
+            <Link to="/login" className={`${kaca} inline-flex min-h-12 items-center rounded-full px-5 text-sm font-semibold text-ink transition-colors hover:bg-white focus-visible:rounded-full`}>
               <span className="sm:hidden">Masuk</span>
               <span className="max-sm:hidden">Masuk atau daftar</span>
             </Link>
@@ -284,17 +267,18 @@ function Header() {
 
 function BottomNav() {
   const { session } = useAuth();
-  const { pathname } = useLocation();
-  // Empat, bukan tiga: "Cara kerja" dipindah ke sini dari menu popup di bilah atas.
-  // Sejak peta menahan gulir, tautan itu satu-satunya jalan turun ke penjelasan — ia
-  // tidak boleh bersembunyi di balik ketukan kedua.
+  const { pathname, hash } = useLocation();
+  // Empat, bukan tiga: "Cara kerja" ada di sini karena sejak peta menahan gulir, tautan itu
+  // satu-satunya jalan ke penjelasan — ia tidak boleh bersembunyi di balik ketukan kedua.
   //
   // Keaktifan dihitung sendiri, bukan diserahkan ke NavLink: "Cara kerja" menunjuk ke
-  // /#cara-kerja, dan NavLink hanya melihat pathname-nya — jadi di beranda ia menyala
-  // sementara "Jelajahi" justru padam. Ia memang bagian dari halaman, bukan halaman.
+  // /#cara-kerja dan NavLink hanya melihat pathname-nya, jadi di beranda ia menyala sementara
+  // "Jelajahi" justru padam. "/" dengan hash itu adalah halaman penjelasan, dan di sana
+  // "Cara kerja" yang aktif — bukan "Jelajahi".
+  const caraKerja = pathname === '/' && hash === '#cara-kerja';
   const items = [
-    { to: '/', label: 'Jelajahi', Icon: Compass, aktif: pathname === '/' || pathname.startsWith('/map') || (pathname.startsWith('/facilities/') && !pathname.startsWith('/facilities/new')) },
-    { to: '/#cara-kerja', label: 'Cara kerja', Icon: BookOpen, aktif: false },
+    { to: '/', label: 'Jelajahi', Icon: Compass, aktif: (pathname === '/' && !caraKerja) || pathname.startsWith('/map') || (pathname.startsWith('/facilities/') && !pathname.startsWith('/facilities/new')) },
+    { to: '/#cara-kerja', label: 'Cara kerja', Icon: BookOpen, aktif: caraKerja, onClick: (e) => { if (caraKerja) { e.preventDefault(); keAwalHalaman(); } } },
     { to: '/facilities/new', label: 'Kontribusi', Icon: PlusCircle, aktif: pathname.startsWith('/facilities/new') || pathname.startsWith('/my-contributions') },
     session
       ? { to: '/accessibility-profile', label: 'Profil', Icon: UserRound, aktif: pathname.startsWith('/accessibility-profile') }
@@ -303,14 +287,26 @@ function BottomNav() {
   return (
     <nav aria-label="Navigasi bawah" className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden">
       <ul className="mx-auto grid max-w-md grid-cols-4">
-        {items.map(({ to, label, Icon, aktif }) => (
+        {items.map(({ to, label, Icon, aktif, onClick }) => (
           <li key={label}>
             <Link
               to={to}
+              onClick={onClick}
               aria-current={aktif ? 'page' : undefined}
-              className={`flex min-h-14 flex-col items-center justify-center gap-0.5 text-sm font-semibold ${aktif ? 'text-brand-800' : 'text-ink-secondary'}`}
+              className={`flex min-h-14 flex-col items-center justify-center gap-0.5 text-sm font-semibold transition-colors ${aktif ? 'text-brand-900' : 'text-ink-secondary'}`}
             >
-              <Icon aria-hidden="true" size={21} /> <span className="text-xs">{label}</span>
+              {/* Penanda aktif: pil di belakang ikon yang meluncur antar tab. */}
+              <span className="relative inline-flex h-8 w-14 items-center justify-center">
+                {aktif && (
+                  <m.span
+                    layoutId="bn-aktif" aria-hidden="true"
+                    className="absolute inset-0 rounded-full bg-brand-100"
+                    transition={{ type: 'spring', stiffness: 520, damping: 40 }}
+                  />
+                )}
+                <Icon aria-hidden="true" size={21} className="relative" />
+              </span>
+              <span className="text-xs">{label}</span>
             </Link>
           </li>
         ))}
@@ -416,8 +412,21 @@ export default function PublicLayout() {
   const section = workspace ? 'explore' : pathname.split('/')[1] || 'home';
 
   useEffect(() => {
-    // Menggulir halus, bukan melompat: inilah yang diminta terjadi saat "Cara kerja"
-    // diklik dari navigasi. Diabaikan bila pengguna meminta gerakan dikurangi.
+    // "Cara kerja" membuka halaman penjelasan dari AWALNYA (hero), bukan melompat ke
+    // bagian "Cara kerja" di tengahnya. Dua kali dicoba: sekali langsung, sekali setelah
+    // tata letak berganti dari layar-penuh ke halaman biasa.
+    if (landingTerbuka) {
+      window.scrollTo(0, 0);
+      const t = setTimeout(() => window.scrollTo(0, 0), 60);
+      return () => clearTimeout(t);
+    }
+    // Menggulir halus, bukan melompat. Diabaikan bila pengguna meminta gerakan dikurangi.
+    // "/#cara-kerja" = halaman penjelasan: tampilkan dari AWALNYA (hero), bukan melompat
+    // ke bagian "Cara kerja" di tengahnya. Hash-nya penanda MODE halaman, bukan posisi gulir.
+    if (pathname === '/' && hash === '#cara-kerja') {
+      window.scrollTo(0, 0);
+      return undefined;
+    }
     if (hash) {
       const halus = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       // Dicoba beberapa kali, bukan sekali setelah 60 ms.
@@ -438,7 +447,7 @@ export default function PublicLayout() {
     }
     if (!workspace) window.scrollTo(0, 0);
     return undefined;
-  }, [pathname, hash, workspace]);
+  }, [pathname, hash, workspace, landingTerbuka]);
 
   return (
     <LocationProvider>
