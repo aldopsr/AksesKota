@@ -1,17 +1,14 @@
 import { useState } from 'react';
-import { Accessibility, Eye, SlidersHorizontal, Target, X } from 'lucide-react';
-import { ATTRIBUTE_LABEL, NEEDS_PRESETS } from './constants';
+import { Accessibility, ChevronRight, Eye, SlidersHorizontal, Target, X } from 'lucide-react';
+import { ATTRIBUTES, ATTRIBUTE_LABEL, NEEDS_PRESETS } from './constants';
 
 /**
  * Pertanyaan pertama di layar jelajah: "Apa yang Anda butuhkan?"
  *
- * Tanpa kebutuhan terpilih, aplikasi ini tidak punya apa pun untuk dikatakan — kartu
- * hasil tampil tanpa kecocokan dan semua marker peta berwarna sama. Dulu kebutuhan
- * tersembunyi di balik tombol filter, jadi sebagian besar pengguna tidak pernah
- * menyalakannya dan melihat produk dalam keadaan paling tidak berguna.
- *
- * Dua pilihan teratas mengisi beberapa atribut sekaligus dalam satu ketukan; menyusunnya
- * satu per satu tetap tersedia, satu tingkat lebih dalam (prinsip "jalur umum dulu").
+ * Tata letak: SATU KOLOM, satu baris per pilihan. Dulu tiga kolom (sm:grid-cols-3) yang
+ * mengikuti lebar LAYAR, bukan lebar kartu — padahal kartu ini mengambang selebar 24 rem,
+ * jadi tiap kolom hanya ~100 px dan teksnya terpotong per suku kata. Baris penuh memberi
+ * teks lebar yang cukup di kartu selebar apa pun.
  */
 const IKON = { kursi_roda: Accessibility, netra: Eye };
 
@@ -19,6 +16,29 @@ const KUNCI = 'ak_needs_prompt_ditutup';
 const sudahDitutup = () => {
   try { return localStorage.getItem(KUNCI) === '1'; } catch { return false; }
 };
+
+// Satu gaya baris untuk semua pilihan supaya ketiganya benar-benar sejajar.
+const barisCls =
+  'group flex w-full items-center gap-3 rounded-control border border-border bg-surface p-3 text-left transition-colors duration-200 hover:border-brand-500 hover:bg-white';
+
+function Baris({ Ikon, judul, keterangan, onClick }) {
+  return (
+    <button type="button" onClick={onClick} className={barisCls}>
+      <span aria-hidden="true" className="inline-flex size-11 shrink-0 items-center justify-center rounded-control bg-brand-100 text-brand-800">
+        <Ikon size={22} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[0.95rem] font-semibold leading-snug">{judul}</span>
+        {keterangan && <span className="font-sub mt-0.5 block text-xs leading-snug text-ink-secondary">{keterangan}</span>}
+      </span>
+      {/* motion-safe: panah hanya bergeser bila pengguna tidak memilih mengurangi gerakan. */}
+      <ChevronRight
+        aria-hidden="true" size={18}
+        className="shrink-0 text-ink-muted transition-transform duration-200 group-hover:text-brand-700 motion-safe:group-hover:translate-x-0.5"
+      />
+    </button>
+  );
+}
 
 export default function NeedsPrompt({ onApply, onOpenFilter, onCobaJangkauan, sisakanTombol = true, ringkas = false }) {
   const [tertutup, setTertutup] = useState(sudahDitutup);
@@ -29,8 +49,7 @@ export default function NeedsPrompt({ onApply, onOpenFilter, onCobaJangkauan, si
   };
 
   // Sudah pernah ditutup: sisakan satu tombol tenang, jangan bertanya lagi setiap kunjungan.
-  // Kecuali saat ia dipakai sebagai kartu mengambang di atas peta — di sana tombol sisa
-  // itu jadi perabot yang menutupi peta selamanya, dan pintunya sudah ada di menu cari.
+  // Kecuali saat dipakai sebagai kartu mengambang di atas peta.
   if (tertutup) {
     if (!sisakanTombol) return null;
     return (
@@ -53,7 +72,7 @@ export default function NeedsPrompt({ onApply, onOpenFilter, onCobaJangkauan, si
         type="button"
         onClick={tutup}
         aria-label="Tutup, lanjutkan tanpa memilih kebutuhan"
-        className="absolute right-2 top-2 inline-flex size-11 items-center justify-center rounded-control text-ink-secondary hover:bg-brand-100"
+        className="absolute right-2 top-2 inline-flex size-11 items-center justify-center rounded-control text-ink-secondary transition-colors hover:bg-brand-100"
       >
         <X aria-hidden="true" size={18} />
       </button>
@@ -61,16 +80,13 @@ export default function NeedsPrompt({ onApply, onOpenFilter, onCobaJangkauan, si
       <h2 id="needs-prompt-judul" className="pr-10 text-lg font-bold leading-snug">
         Apa yang Anda butuhkan?
       </h2>
-      <p className="font-sub mt-1 text-sm text-ink-secondary">
+      <p className="font-sub mt-1.5 text-sm leading-snug text-ink-secondary">
         {ringkas
           ? 'Pilih sekali, hasil dan warna penanda peta menyesuaikan.'
-          : 'Pilih sekali, lalu hasil dan warna penanda peta langsung menyesuaikan kebutuhan Anda.'}
+          : 'Pilih sekali, hasil dan warna penanda peta langsung menyesuaikan.'}
       </p>
 
-      {/* Bentuk ringkas untuk kartu yang mengambang DI ATAS PETA.
-          Versi penuhnya 430 px dan di layar 375 px itu menyisakan sepertiga layar
-          untuk petanya sendiri — padahal di halaman depan peta itulah kesan pertama.
-          Isinya sama, cuma kehilangan baris keterangan tiap preset. */}
+      {/* Bentuk ringkas untuk kartu yang mengambang DI ATAS PETA (ponsel). */}
       {ringkas ? (
         <div className="mt-3 flex flex-wrap gap-2">
           {NEEDS_PRESETS.map(({ key, labelPendek, icon, codes }) => {
@@ -80,7 +96,7 @@ export default function NeedsPrompt({ onApply, onOpenFilter, onCobaJangkauan, si
                 key={key}
                 type="button"
                 onClick={() => onApply(codes)}
-                className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-control border border-border bg-surface px-3 text-sm font-semibold hover:border-brand-500"
+                className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-control border border-border bg-surface px-3 text-sm font-semibold transition-colors hover:border-brand-500"
               >
                 <Icon aria-hidden="true" size={18} className="shrink-0 text-brand-700" />
                 {labelPendek}
@@ -90,63 +106,52 @@ export default function NeedsPrompt({ onApply, onOpenFilter, onCobaJangkauan, si
           <button
             type="button"
             onClick={onOpenFilter}
-            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-control border border-border bg-surface px-3 text-sm font-semibold hover:border-brand-500"
+            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-control border border-border bg-surface px-3 text-sm font-semibold transition-colors hover:border-brand-500"
           >
-            <SlidersHorizontal aria-hidden="true" size={18} className="shrink-0 text-brand-700" /> Pilih sendiri dari 10 atribut
+            <SlidersHorizontal aria-hidden="true" size={18} className="shrink-0 text-brand-700" /> Pilih sendiri dari {ATTRIBUTES.length} atribut
           </button>
         </div>
       ) : (
-
-      <div className="mt-4 grid gap-2 sm:grid-cols-3">
-        {NEEDS_PRESETS.map(({ key, label, icon, codes }) => {
-          const Icon = IKON[icon];
-          return (
-          <button
-            key={key}
-            type="button"
-            onClick={() => onApply(codes)}
-            className="flex min-h-14 items-center gap-3 rounded-control border border-border bg-surface px-4 py-3 text-left hover:border-brand-500 sm:flex-col sm:items-start sm:gap-2"
-          >
-            <Icon aria-hidden="true" size={22} className="shrink-0 text-brand-700" />
-            <span>
-              <span className="block text-sm font-semibold leading-snug">{label}</span>
-              <span className="font-sub mt-0.5 block text-xs text-ink-muted">
-                {codes.map((c) => ATTRIBUTE_LABEL[c]).join(', ')}
-              </span>
-            </span>
-          </button>
-          );
-        })}
-
-        <button
-          type="button"
-          onClick={onOpenFilter}
-          className="flex min-h-14 items-center gap-3 rounded-control border border-border bg-surface px-4 py-3 text-left hover:border-brand-500 sm:flex-col sm:items-start sm:gap-2"
-        >
-          <SlidersHorizontal aria-hidden="true" size={22} className="shrink-0 text-brand-700" />
-          <span>
-            <span className="block text-sm font-semibold leading-snug">Pilih sendiri</span>
-            <span className="font-sub mt-0.5 block text-xs text-ink-muted">Susun dari 10 atribut</span>
-          </span>
-        </button>
-      </div>
+        // ak-stagger: baris masuk bergiliran (CSS di index.css, otomatis mati bila
+        // pengguna memilih mengurangi gerakan).
+        <ul className="ak-stagger mt-4 space-y-2">
+          {NEEDS_PRESETS.map(({ key, label, icon, codes }, i) => (
+            <li key={key} style={{ '--i': i }}>
+              <Baris
+                Ikon={IKON[icon]}
+                judul={label}
+                keterangan={codes.map((c) => ATTRIBUTE_LABEL[c]).join(' · ')}
+                onClick={() => onApply(codes)}
+              />
+            </li>
+          ))}
+          <li style={{ '--i': NEEDS_PRESETS.length }}>
+            <Baris
+              Ikon={SlidersHorizontal}
+              judul="Pilih sendiri"
+              keterangan={`Susun dari ${ATTRIBUTES.length} atribut`}
+              onClick={onOpenFilter}
+            />
+          </li>
+        </ul>
       )}
 
-      {/* Jalan masuk ke jangkauan, di layar pertama.
-          Ini temuan terkuat yang kami punya — biru menjulur jauh, hijau berhenti
-          beberapa blok dari titik yang sama — dan sampai sekarang ia bersembunyi di
-          balik satu ikon di bilah peta yang tidak akan ditekan orang yang belum tahu
-          ada apa di baliknya. Ditaruh sebagai satu baris, bukan tombol sebesar preset:
-          memilih kebutuhan tetap pekerjaan utama layar ini, yang ini tawaran. */}
+      {/* Jalan masuk ke jangkauan: dipisah garis tipis dan dibuat sebagai tautan tenang,
+          bukan kotak sebesar preset — memilih kebutuhan tetap pekerjaan utama layar ini. */}
       {onCobaJangkauan && (
-        <button
-          type="button"
-          onClick={onCobaJangkauan}
-          className="mt-3 flex min-h-11 w-full items-center gap-2 rounded-control border border-brand-200 bg-surface px-3 text-left text-sm font-semibold hover:border-brand-500"
-        >
-          <Target aria-hidden="true" size={18} className="shrink-0 text-brand-700" />
-          <span>Atau lihat sejauh mana kursi roda bisa pergi dari satu titik</span>
-        </button>
+        <div className="mt-3 border-t border-brand-200 pt-3">
+          <button
+            type="button"
+            onClick={onCobaJangkauan}
+            className="group flex min-h-11 w-full items-center gap-2.5 rounded-control px-1 text-left text-sm font-semibold text-brand-900 transition-colors hover:text-brand-700"
+          >
+            <Target aria-hidden="true" size={18} className="shrink-0 text-brand-700" />
+            <span className="flex-1 leading-snug underline-offset-4 group-hover:underline">
+              Lihat sejauh mana kursi roda bisa pergi dari satu titik
+            </span>
+            <ChevronRight aria-hidden="true" size={16} className="shrink-0 text-ink-muted" />
+          </button>
+        </div>
       )}
     </section>
   );
