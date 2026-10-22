@@ -333,6 +333,14 @@ function BottomNav() {
 }
 
 function Footer() {
+  // Ajakan "Tambah fasilitas" hanya di halaman utama.
+  //
+  // Di halaman lain ia salah tempat sampai mengganggu: pada formulir tambah fasilitas
+  // ia mengajak melakukan hal yang SEDANG dikerjakan pengguna, dan di halaman detail
+  // ia bersaing dengan "Usulkan pembaruan" yang jauh lebih tepat di sana. Ajakan
+  // penutup masuk akal ketika orang baru selesai membaca penjelasan, bukan ketika ia
+  // sedang di tengah pekerjaan.
+  const beranda = useLocation().pathname === '/';
   return (
     /* Satu blok penutup gelap: ajakan + tautan + legal, bukan dua blok berturut-turut.
        Halaman depan sebelumnya berakhir dengan CTA gelap setinggi hampir satu layar,
@@ -344,6 +352,7 @@ function Footer() {
       <div className="mx-auto max-w-7xl px-4 py-16 sm:py-24">
         {/* Ajakan. Satu-satunya tombol di seluruh footer, jadi tidak ada yang bersaing
             dengannya — persis saran "single CTA focus". */}
+        {beranda && (
         <div className="grid gap-8 sm:grid-cols-12 sm:items-end">
           <div className="sm:col-span-7">
             <h2 className="max-w-[13ch] text-title font-extrabold leading-[0.95] tracking-[-0.035em]">
@@ -363,8 +372,10 @@ function Footer() {
             </Link>
           </div>
         </div>
+        )}
 
-        <div className="mt-16 grid gap-10 border-t border-white/15 pt-12 sm:grid-cols-12">
+        {/* Garis pemisah dan jaraknya hanya berarti kalau ada ajakan di atasnya. */}
+        <div className={`grid gap-10 sm:grid-cols-12 ${beranda ? 'mt-16 border-t border-white/15 pt-12' : ''}`}>
           <div className="sm:col-span-5">
             <BrandLink size={30} light />
             <p className="font-sub mt-4 max-w-[28ch] text-brand-100">Cek dulu aksesnya, baru berangkat.</p>
