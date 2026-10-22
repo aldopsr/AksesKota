@@ -70,7 +70,15 @@ function markerElement(facility, level, onSelect) {
   label.textContent = level.key === 'neutral' ? facility.name : `${facility.name} - ${level.label}`;
   el.append(sym, label);
   el.addEventListener('click', (e) => { e.stopPropagation(); onSelect(facility.id); });
-  return el;
+  // Mapbox memosisikan elemen marker lewat `transform` inline. Animasi CSS (pantul)
+  // dan rotasi tingkat "low" juga memakai `transform`, jadi bila dipasang pada elemen
+  // yang sama, transform Mapbox tertimpa dan marker terlempar ke pojok kiri atas peta.
+  // Solusinya: pembungkus ini milik Mapbox (hanya diposisikan), tombol di dalamnya
+  // milik kita (bentuk, rotasi, animasi).
+  const wrap = document.createElement('div');
+  wrap.className = 'ak-marker-wrap';
+  wrap.append(el);
+  return { wrap, el };
 }
 
 // Dua gaya saja. satellite-streets, bukan satellite polos: tanpa nama jalan di atas
@@ -167,10 +175,12 @@ const MapCanvas = forwardRef(function MapCanvas({
     if (!map) return;
     markersRef.current.forEach((x) => x.marker.remove());
     markersRef.current = items.map(({ facility, level }) => {
-      const el = markerElement(facility, level, (id) => live.current.onSelect(id));
-      el.dataset.selected = String(String(facility.id) === String(live.current.selectedId));
-      const marker = new mapboxgl.Marker({ element: el }).setLngLat([facility.lon, facility.lat]).addTo(map);
-      return { id: facility.id, el, marker };
+      const { wrap, el } = markerElement(facility, level, (id) => live.current.onSelect(id));
+      const terpilih = String(facility.id) === String(live.current.selectedId);
+      el.dataset.selected = String(terpilih);
+      wrap.style.zIndex = terpilih ? '5' : '';
+      const marker = new mapboxgl.Marker({ element: wrap }).setLngLat([facility.lon, facility.lat]).addTo(map);
+      return { id: facility.id, el, wrap, marker };
     });
   }, [items]);
 
@@ -179,6 +189,7 @@ const MapCanvas = forwardRef(function MapCanvas({
       const terpilih = String(x.id) === String(selectedId);
       const baruTerpilih = terpilih && x.el.dataset.selected !== 'true';
       x.el.dataset.selected = String(terpilih);
+      x.wrap.style.zIndex = terpilih ? '5' : ''; // z-index harus di pembungkus, bukan tombol
       // Pantul sekali hanya pada transisi menjadi-terpilih, bukan di setiap render.
       //
       // Lepas-reflow-pasang, bukan menunggu `animationend`: kalau event itu tidak sempat

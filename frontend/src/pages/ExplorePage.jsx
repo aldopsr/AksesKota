@@ -61,7 +61,11 @@ export default function ExplorePage() {
   const heroRef = useRef(null);
   const [heroTerlihat, setHeroTerlihat] = useState(true);
   useEffect(() => {
-    if (!halamanDepan || !heroRef.current) { setHeroTerlihat(true); return undefined; }
+    // landingTerbuka ikut jadi dependensi: saat "Cara kerja" dibuka, hero (dan peta)
+    // dilepas dari DOM. Observer lama tetap menempel pada elemen yang sudah hilang dan
+    // melaporkan "tidak terlihat"; saat kembali ke "Jelajahi" elemen hero yang BARU
+    // tidak pernah diamati, sehingga kartu fasilitas tidak pernah muncul lagi.
+    if (!halamanDepan || landingTerbuka || !heroRef.current) { setHeroTerlihat(true); return undefined; }
     // Kartu mengambang memakai position: fixed, jadi tanpa ini ia tetap melayang di
     // atas bagian "Cara kerja" saat halaman digulir — menutupi isi yang tidak ada
     // hubungannya dengan peta.
@@ -77,7 +81,7 @@ export default function ExplorePage() {
     );
     io.observe(heroRef.current);
     return () => io.disconnect();
-  }, [halamanDepan]);
+  }, [halamanDepan, landingTerbuka]);
 
   useDocumentTitle(id ? null : 'Jelajahi fasilitas');
 

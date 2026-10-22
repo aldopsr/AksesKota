@@ -162,7 +162,9 @@
 }
 
 /* ---------- marker peta: warna + simbol + halo putih ---------- */
+.ak-marker-wrap { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; }
 .ak-marker {
+  position: relative; flex: none;
   display: flex; align-items: center; justify-content: center;
   width: 38px; height: 38px; padding: 0; border-radius: 9999px;
   border: 3px solid #fff; color: #fff; cursor: pointer;
@@ -270,9 +272,10 @@
   .ak-muncul { animation-name: ak-kartu-masuk; }
 }
 .ak-marker[data-selected="true"] {
-  width: 46px; height: 46px; font-size: 19px; z-index: 5;
+  width: 46px; height: 46px; font-size: 19px;
   box-shadow: 0 0 0 3px var(--color-focus), 0 2px 8px rgb(17 24 39 / .4);
 }
+.ak-marker:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 3px; }
 .ak-marker-label {
   display: none; position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
   white-space: nowrap; background: var(--color-ink); color: #fff; font-size: 13px; font-weight: 600;
@@ -296,3 +299,29 @@ dialog[open] { animation: ak-dialog var(--motion-slow) cubic-bezier(0.2, 0, 0, 1
 .panel-scroll { scrollbar-width: thin; scrollbar-color: var(--color-brand-300) transparent; }
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* ---------- asisten: indikator hidup ---------- */
+/* Titik berpikir: tiga titik bergantian naik. Menggantikan kalimat "sedang berpikir…"
+   yang diam; geraknya memberi tahu bahwa sesuatu sedang berjalan, bukan macet. */
+.ak-titik > span { width: 6px; height: 6px; border-radius: 9999px; background: var(--color-brand-600); animation: ak-titik 1.1s ease-in-out infinite; }
+.ak-titik > span:nth-child(2) { animation-delay: 0.15s; }
+.ak-titik > span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes ak-titik {
+  0%, 80%, 100% { opacity: 0.3; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-3px); }
+}
+/* Denyut: cincin yang membesar lalu memudar di belakang titik status dan tombol mikrofon.
+   Warnanya diwarisi dari elemennya sendiri, jadi satu aturan untuk semua. */
+.ak-denyut { position: relative; isolation: isolate; }
+.ak-denyut::after {
+  content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: inherit;
+  pointer-events: none; animation: ak-denyut 1.5s var(--ease-out) infinite;
+}
+@keyframes ak-denyut {
+  0% { transform: scale(1); opacity: 0.55; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ak-titik > span { animation: none; opacity: 0.6; }
+  .ak-denyut::after { animation: none; display: none; }
+}
