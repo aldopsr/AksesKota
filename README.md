@@ -17,8 +17,15 @@ cp .env.example .env        # isi DATABASE_URL, JWT_SECRET (min. 32 karakter)
 npm run db:reset            # skema + seed 14 fasilitas Bogor + akun admin
 npm run dev                 # http://localhost:3000
 ```
-Akun admin awal: `admin@akseskota.id` / `admin12345` (ganti sebelum deploy).
-Database: PostgreSQL 16 dengan ekstensi PostGIS (Supabase sudah menyediakannya).
+Akun admin awal: `admin@akseskota.id` / `admin12345`. **Kata sandi ini ada di
+repositori, jadi ia hanya untuk pengembangan lokal.** Sebelum (dan sesudah) deploy,
+gantilah — kata sandinya diketik saat dijalankan dan tidak tersimpan di berkas mana pun:
+
+```bash
+cd backend && npm run admin:sandi
+```
+
+Database: PostgreSQL 17 dengan ekstensi PostGIS (Supabase sudah menyediakannya).
 
 **2. Frontend**
 ```bash

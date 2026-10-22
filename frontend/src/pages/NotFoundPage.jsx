@@ -8,7 +8,7 @@ export default function NotFoundPage() {
       {/* Satu-satunya halaman yang masih memakai ukuran lepas (text-8xl, text-3xl)
           setelah skala tipografi dipindah ke token. Dirapikan agar sebangun dengan
           halaman lain, bukan dirancang ulang: susunannya tetap sama. */}
-      <p aria-hidden="true" className="text-[clamp(5rem,22vw,9rem)] font-extrabold leading-none text-brand-200">404</p>
+      <p aria-hidden="true" className="text-[clamp(5rem,22vw,9rem)] font-extrabold leading-none text-brand-500">404</p>
       <h1 className="mt-3 text-title font-extrabold leading-[0.95] tracking-[-0.03em]">Halaman tidak ditemukan</h1>
       <p className="font-sub mt-3 text-lg text-ink-secondary">Alamat yang Anda buka tidak ada atau sudah dipindahkan.</p>
       <div className="mt-7 flex flex-wrap justify-center gap-2">

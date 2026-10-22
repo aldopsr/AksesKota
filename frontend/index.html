@@ -8,6 +8,17 @@
     <meta name="theme-color" content="#ffffff" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>AksesKota</title>
+    <!-- Pratinjau saat tautannya dibagikan di WhatsApp, X, atau Slack. Tanpa ini yang
+         muncul hanya URL telanjang — dan tautan ini memang dibagikan, itu caranya
+         orang saling memberi tahu sebuah tempat bisa diakses atau tidak. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="AksesKota" />
+    <meta property="og:title" content="AksesKota — cek akses sebelum berangkat" />
+    <meta property="og:description" content="Peta aksesibilitas fasilitas publik: tiap tempat dicocokkan dengan kebutuhan Anda, bukan satu angka untuk semua orang." />
+    <meta property="og:url" content="https://akses-kota.vercel.app/" />
+    <meta property="og:image" content="https://akses-kota.vercel.app/logo-akseskota.jpg" />
+    <meta property="og:locale" content="id_ID" />
+    <meta name="twitter:card" content="summary_large_image" />
     <!-- Dipasang ke layar utama ponsel (PWA). Tidak ada service worker: tanpa
          jaringan aplikasi ini memang tidak bisa apa-apa (peta, rute, dan data
          semuanya dari server), jadi cache offline cuma menambah risiko versi
@@ -22,6 +33,12 @@
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <p style="font:16px/1.5 system-ui;max-width:40rem;margin:4rem auto;padding:0 1rem">
+        AksesKota membutuhkan JavaScript untuk menampilkan peta dan menghitung rute.
+        Mohon aktifkan JavaScript di peramban Anda, lalu muat ulang halaman ini.
+      </p>
+    </noscript>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

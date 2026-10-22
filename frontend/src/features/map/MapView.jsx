@@ -214,6 +214,12 @@ const MapCanvas = forwardRef(function MapCanvas({
       el.dataset.selected = String(terpilih);
       wrap.style.zIndex = terpilih ? '5' : '';
       const marker = new mapboxgl.Marker({ element: wrap }).setLngLat([facility.lon, facility.lat]).addTo(map);
+      // Mapbox memasang role="img" aria-label="Map marker" pada elemen penanda. Pada
+      // pembungkus kita itu merusak dua hal sekaligus: tombol yang bisa difokus jadi
+      // bersarang di dalam peran img (axe: nested-interactive, serius), dan nama
+      // fasilitas yang sudah ada di aria-label tombol tertelan oleh "Map marker".
+      wrap.removeAttribute('role');
+      wrap.removeAttribute('aria-label');
       return { id: facility.id, el, wrap, marker };
     });
     sebelumnya.forEach((x) => x.marker.remove()); // sisa = fasilitas yang keluar dari hasil

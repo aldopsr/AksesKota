@@ -43,6 +43,7 @@ app.use(cors({
 // nosniff yang paling penting di sini: /uploads menyajikan berkas kiriman pengguna dari
 // origin yang sama dengan API. Isinya sudah diperiksa lewat magic bytes dan namanya
 // dibuat server, jadi jalurnya sudah sempit — ini lapis keduanya, bukan satu-satunya.
+app.disable('x-powered-by'); // tidak perlu mengumumkan server apa yang dipakai
 app.use((_req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY'); // tidak ada halaman di sini yang perlu dibingkai

@@ -187,6 +187,10 @@ export default function ExplorePage() {
   const results = useMemo(() => (facilitiesQ.data?.results ?? []).map(normalizeFacility), [facilitiesQ.data]);
   const items = useMemo(() => results.map((f) => ({ facility: f, level: levelFor(f), distance: f.distance_m ?? null })), [results]);
   const loadingList = facilitiesQ.isLoading || !profileReady;
+  // Saat permintaan gagal, "0 fasilitas" berbohong: ia terbaca "tidak ada yang cocok di
+  // sini", padahal yang terjadi adalah tidak ada jawaban sama sekali. Dua hal itu
+  // menuntun pengguna ke kesimpulan yang berlawanan tentang kotanya sendiri.
+  const labelHasil = (ekor) => (facilitiesQ.error ? 'Hasil pencarian' : `${loadingList ? 'Memuat' : results.length} fasilitas${ekor}`);
 
   /* ---------- lokasi ---------- */
   async function locateMe() {
@@ -521,7 +525,7 @@ export default function ExplorePage() {
           <FloatingCard
             key={id ? 'detail' : 'hasil'}
             id={id ? 'detail' : 'hasil'}
-            label={id ? (loaded?.name ?? 'Detail fasilitas') : `${loadingList ? 'Memuat' : results.length} fasilitas${required.length ? ` · ${usingProfile ? 'profil Anda' : `${required.length} kebutuhan`}` : ''}`}
+            label={id ? (loaded?.name ?? 'Detail fasilitas') : labelHasil(required.length ? ` · ${usingProfile ? 'profil Anda' : `${required.length} kebutuhan`}` : '')}
             // 88 px: tepat di bawah navbar. Dulu 184 px karena ada bilah perintah dan
             // baris kategori di atasnya; keduanya sudah pindah ke navbar, jadi angka
             // lama menyisakan satu jalur kosong selebar kartu.
@@ -547,7 +551,7 @@ export default function ExplorePage() {
           label={id ? 'Detail fasilitas' : 'Hasil pencarian'}
           ringkasan={
             <p role="status" className="truncate text-center text-sm font-semibold">
-              {id ? (loaded?.name ?? 'Detail fasilitas') : `${results.length} fasilitas${required.length ? ` · ${required.length} kebutuhan` : ''}`}
+              {id ? (loaded?.name ?? 'Detail fasilitas') : labelHasil(required.length ? ` · ${required.length} kebutuhan` : '')}
             </p>
           }
         >

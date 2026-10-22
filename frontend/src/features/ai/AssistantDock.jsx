@@ -210,8 +210,23 @@ export default function AssistantDock() {
     if (!v) tts.cancel();
   }
 
+  // Fokus dipinjam saat asisten terbuka, dan DIKEMBALIKAN saat ditutup.
+  //
+  // Tanpa pengembalian itu, menutup dengan Escape melempar fokus ke <body>: pengguna
+  // papan ketik yang tadi menekan "Tanya asisten" harus menelusuri seluruh halaman
+  // dari awal hanya untuk kembali ke tempatnya semula. Pola yang sama sudah dipakai
+  // menu di components/ui.jsx. Pemicu yang sudah lepas dari DOM dilewati — misalnya
+  // saat asisten ditutup karena berpindah halaman.
+  const pemicuRef = useRef(null);
   useEffect(() => {
-    if (open) { setMinimized(false); setOpsiOpen(false); setTimeout(() => inputRef.current?.focus(), 150); } else { rec.cancel(); tts.cancel(); setHandsFree(false); }
+    if (open) {
+      pemicuRef.current = document.activeElement;
+      setMinimized(false); setOpsiOpen(false); setTimeout(() => inputRef.current?.focus(), 150);
+    } else {
+      if (pemicuRef.current?.isConnected) pemicuRef.current.focus();
+      pemicuRef.current = null;
+      rec.cancel(); tts.cancel(); setHandsFree(false);
+    }
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
