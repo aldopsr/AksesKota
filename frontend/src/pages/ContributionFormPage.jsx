@@ -18,7 +18,14 @@ import LocationPicker from '../features/contribute/LocationPicker';
 import PhotoUpload from '../features/contribute/PhotoUpload';
 import PlaceSearch from '../features/contribute/PlaceSearch';
 
-const STEPS = ['Informasi', 'Lokasi', 'Atribut', 'Foto dan catatan', 'Tinjau dan kirim'];
+/* Lokasi SEBELUM Informasi, dan alamat tidak lagi wajib.
+   Orang yang paling berguna bagi peta ini justru sering tidak hafal alamat resmi
+   tempat yang mereka laporkan — mereka tahu "di sana", bukan "Jl. X No. 12". Memaksa
+   mengetik alamat sebelum boleh menunjuk peta membalik urutan yang alami dan
+   menyaring kontributor yang kita paling butuhkan. Sekarang: tunjuk titiknya dulu,
+   alamat menyusul kalau memang tahu — dan kalau titiknya dipilih lewat pencarian
+   tempat, alamatnya terisi sendiri. */
+const STEPS = ['Lokasi', 'Informasi', 'Atribut', 'Foto dan catatan', 'Tinjau dan kirim'];
 const DRAFT_KEY = 'ak_draft_new_facility';
 
 const coord = (label, min, max) => z.string().trim().min(1, `Isi ${label}.`).transform(Number)
@@ -26,7 +33,10 @@ const coord = (label, min, max) => z.string().trim().min(1, `Isi ${label}.`).tra
 const schema = z.object({
   name: z.string().trim().min(3, 'Nama minimal 3 karakter.').max(120, 'Nama maksimal 120 karakter.'),
   category: z.enum(CATEGORY_CODES, { errorMap: () => ({ message: 'Pilih kategori fasilitas.' }) }),
-  address: z.string().trim().min(5, 'Alamat minimal 5 karakter.').max(255, 'Alamat maksimal 255 karakter.'),
+  // Opsional, tapi kalau diisi harus berarti: kosong diterima, satu-dua huruf tidak.
+  address: z.string().trim().max(255, 'Alamat maksimal 255 karakter.')
+    .refine((v) => v === '' || v.length >= 5, 'Alamat minimal 5 karakter, atau kosongkan saja.')
+    .optional(),
   description: z.string().trim().max(1000, 'Deskripsi maksimal 1000 karakter.').optional(),
   lat: coord('Latitude', ID_BOUNDS.latMin, ID_BOUNDS.latMax),
   lng: coord('Longitude', ID_BOUNDS.lngMin, ID_BOUNDS.lngMax),
@@ -34,7 +44,7 @@ const schema = z.object({
   notes: z.record(z.string().max(300, 'Catatan maksimal 300 karakter.')).optional(),
   note: z.string().trim().max(500, 'Catatan maksimal 500 karakter.').optional(),
 });
-const STEP_FIELDS = [['name', 'category', 'address', 'description'], ['lat', 'lng'], [], ['note'], []];
+const STEP_FIELDS = [['lat', 'lng'], ['name', 'category', 'address', 'description'], [], ['note'], []];
 const ALL_CODES = ATTRIBUTE_GROUPS.flatMap((g) => g.codes);
 
 function defaultsFrom(f) {
@@ -207,6 +217,10 @@ function Wizard({ mode, facility }) {
       : attrs.filter((a) => a.status !== 'unknown' || a.notes);
     const info = { name: (v.name ?? '').trim(), category: v.category, address: (v.address ?? '').trim(), description: (v.description ?? '').trim(), lat: Number(v.lat), lon: Number(v.lng) };
     let part = info;
+    // Fasilitas baru tanpa alamat: buang kuncinya, jangan kirim string kosong.
+    // Dengan begitu ringkasan tahu bedanya "tidak diisi" (kunci tidak ada) dari
+    // "dikosongkan" (kunci ada, isinya kosong) — lihat summarizePayload.
+    if (!isUpdate && !info.address) { part = { ...info }; delete part.address; }
     if (isUpdate) {
       part = {};
       ['name', 'category', 'address'].forEach((k) => { if (info[k] !== facility[k]) part[k] = info[k]; });
@@ -309,20 +323,7 @@ function Wizard({ mode, facility }) {
 
       {step === 0 && (
         <div className="space-y-4">
-          {isUpdate && <p className="font-sub text-ink-secondary">Kolom di bawah sudah terisi data sekarang. Ubah hanya bagian yang perlu diperbarui — yang Anda ubah ditandai beserta nilai lamanya.</p>}
-          <TextField label="Nama fasilitas" requiredMark hint={petunjukLama('name', facility?.name)} error={errors.name?.message} {...register('name')} />
-          <SelectField label="Kategori" requiredMark hint={petunjukLama('category', facility?.category, CATEGORY_LABEL[facility?.category])} error={errors.category?.message} {...register('category')}>
-            <option value="">Pilih kategori</option>
-            {CATEGORIES.map((c) => <option key={c.code} value={c.code}>{c.label} ({c.hint})</option>)}
-          </SelectField>
-          <TextField label="Alamat" requiredMark hint={petunjukLama('address', facility?.address)} error={errors.address?.message} {...register('address')} />
-          <TextArea label="Deskripsi singkat" rows={3} error={errors.description?.message} {...register('description')} />
-        </div>
-      )}
-
-      {step === 1 && (
-        <div className="space-y-4">
-          <p className="font-sub text-ink-secondary">Cari alamat atau nama tempat, atau klik peta untuk menaruh pin tepat di fasilitas.</p>
+          <p className="font-sub text-ink-secondary">Cari nama tempat, atau klik peta untuk menaruh pin tepat di fasilitas. Alamatnya bisa diisi menyusul — dan terisi sendiri kalau Anda memilih dari hasil pencarian.</p>
           <PlaceSearch onPick={(r) => { setPoint(r.lat, r.lon); if (!getValues('address')) setValue('address', r.address, { shouldDirty: true }); }} />
           <LocationPicker lat={lat} lng={lng} onChange={setPoint} />
           <div className="flex flex-wrap items-center gap-3">
@@ -338,6 +339,27 @@ function Wizard({ mode, facility }) {
             </div>
           </details>
           {isUpdate && <p className="font-sub text-sm text-ink-secondary">Lokasi saat ini: {facility.lat}, {facility.lon}</p>}
+        </div>
+      )}
+
+      {step === 1 && (
+        <div className="space-y-4">
+          {isUpdate && <p className="font-sub text-ink-secondary">Kolom di bawah sudah terisi data sekarang. Ubah hanya bagian yang perlu diperbarui — yang Anda ubah ditandai beserta nilai lamanya.</p>}
+          <TextField label="Nama fasilitas" requiredMark hint={petunjukLama('name', facility?.name)} error={errors.name?.message} {...register('name')} />
+          <SelectField label="Kategori" requiredMark hint={petunjukLama('category', facility?.category, CATEGORY_LABEL[facility?.category])} error={errors.category?.message} {...register('category')}>
+            <option value="">Pilih kategori</option>
+            {CATEGORIES.map((c) => <option key={c.code} value={c.code}>{c.label} ({c.hint})</option>)}
+          </SelectField>
+          {/* Tanpa requiredMark, dan keterangannya menyebut alasannya — bukan sekadar
+              "(opsional)". Titik di peta sudah memberi tahu DI MANA; alamat hanya
+              membantu orang lain mengenalinya lebih cepat. */}
+          <TextField
+            label="Alamat"
+            hint={petunjukLama('address', facility?.address) ?? 'Boleh dikosongkan. Titik di peta sudah menentukan lokasinya.'}
+            error={errors.address?.message}
+            {...register('address')}
+          />
+          <TextArea label="Deskripsi singkat" rows={3} error={errors.description?.message} {...register('description')} />
         </div>
       )}
 

@@ -64,7 +64,7 @@ async function applyContribution(client, c, adminId) {
       `insert into facilities (name, category_id, address, description, location)
        values ($1, (select id from categories where code = $2), $3, $4, st_setsrid(st_makepoint($6,$5),4326)::geography)
        returning id`,
-      [f.name, f.category, f.address, f.description ?? '', f.lat, f.lon],
+      [f.name, f.category, f.address ?? '', f.description ?? '', f.lat, f.lon],
     )).rows[0];
     facilityId = row.id;
     // PRD 8.2: atribut yang belum diketahui tetap disimpan eksplisit sebagai unknown

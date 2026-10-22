@@ -23,7 +23,10 @@ const attribute = z.object({
 const facilityFull = z.object({
   name: z.string().trim().min(3).max(120),
   category: z.string().max(50),
-  address: z.string().trim().min(5).max(255),
+  // Opsional sejak alur "lokasi dulu": kontributor yang menunjuk titik di peta tidak
+  // selalu hafal alamat resminya, dan titik itu sendiri sudah menentukan lokasinya.
+  // Kosong diterima; kalau diisi harus berarti, bukan satu-dua huruf.
+  address: z.string().trim().max(255).refine((v) => v === '' || v.length >= 5, 'Alamat minimal 5 karakter, atau kosongkan saja.').default(''),
   description: z.string().trim().max(1000).default(''),
   lat: z.coerce.number().min(-11.5).max(6.5),
   lon: z.coerce.number().min(94).max(141.5),

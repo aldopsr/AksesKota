@@ -51,9 +51,6 @@ function markerElement(facility, level, onSelect) {
   const el = document.createElement('button');
   el.type = 'button';
   el.className = 'ak-marker';
-  el.dataset.level = level.key; // bentuk marker ditentukan CSS per tingkat, bukan warna saja
-  el.style.background = level.bg;
-  el.setAttribute('aria-label', level.key === 'neutral' ? facility.name : `${facility.name}. ${level.label}`);
   // Isi penanda: ikon KATEGORI, bukan lambang tingkat.
   //
   // Lambang ●◐○? dulu mengulang apa yang sudah dikatakan BENTUK penanda — dua tanda
@@ -67,8 +64,8 @@ function markerElement(facility, level, onSelect) {
   const label = document.createElement('span');
   label.className = 'ak-marker-label';
   label.setAttribute('aria-hidden', 'true');
-  label.textContent = level.key === 'neutral' ? facility.name : `${facility.name} - ${level.label}`;
   el.append(sym, label);
+  terapkanTingkat(el, facility, level);
   el.addEventListener('click', (e) => { e.stopPropagation(); onSelect(facility.id); });
   // Mapbox memosisikan elemen marker lewat `transform` inline. Animasi CSS (pantul)
   // dan rotasi tingkat "low" juga memakai `transform`, jadi bila dipasang pada elemen
@@ -79,6 +76,15 @@ function markerElement(facility, level, onSelect) {
   wrap.className = 'ak-marker-wrap';
   wrap.append(el);
   return { wrap, el };
+}
+
+/** Bagian penanda yang berubah saat kebutuhan pengguna berubah — warna, bentuk, nama. */
+function terapkanTingkat(el, facility, level) {
+  el.dataset.level = level.key; // bentuk marker ditentukan CSS per tingkat, bukan warna saja
+  el.style.background = level.bg;
+  el.setAttribute('aria-label', level.key === 'neutral' ? facility.name : `${facility.name}. ${level.label}`);
+  const label = el.querySelector('.ak-marker-label');
+  if (label) label.textContent = level.key === 'neutral' ? facility.name : `${facility.name} - ${level.label}`;
 }
 
 // Dua gaya saja. satellite-streets, bukan satellite polos: tanpa nama jalan di atas
@@ -170,11 +176,39 @@ const MapCanvas = forwardRef(function MapCanvas({
     else map.scrollZoom.enable();
   }, [heroGulir, ready]);
 
+  /**
+   * Penanda dipasang hanya SETELAH peta siap.
+   *
+   * mapRef.current sudah terisi sejak `new mapboxgl.Map()`, jauh sebelum peta selesai
+   * memuat — dan penanda yang ditambahkan ke peta yang belum siap tidak punya posisi
+   * layar untuk dihitung, jadi Mapbox menaruhnya di titik 0,0: pojok kiri atas, menimpa
+   * navbar. Terukur persis begitu saat berpindah dari /map ke halaman detail: satu
+   * penanda di x:0 y:0 beserta labelnya di -6,-29. Ia memang hilang sendiri begitu peta
+   * tenang, tapi kedipannya terlihat — cukup terlihat untuk difoto.
+   */
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
-    markersRef.current.forEach((x) => x.marker.remove());
-    markersRef.current = items.map(({ facility, level }) => {
+    if (!map || !ready) return;
+    // Pakai ulang penanda yang fasilitasnya masih ada; hanya yang benar-benar baru
+    // yang dibuat, dan hanya yang benar-benar hilang yang dibuang.
+    //
+    // Dulu SELURUH penanda dibuang lalu dibuat ulang setiap kali `items` berubah —
+    // termasuk saat berpindah dari daftar ke halaman detail, di mana dua puluh
+    // fasilitas yang sama dibuat ulang tanpa alasan. Mapbox menunda penempatan penanda
+    // baru ke DOM task, jadi selama satu frame semuanya menumpuk di titik 0,0, dan dua
+    // puluh penanda sekaligus di tengah perpindahan rute membuat frame itu melar sampai
+    // kedipannya terlihat. Pembungkus penanda sudah menghilangkan sebab utamanya;
+    // berhenti membuat ulang yang tidak berubah menghapus sisanya sekaligus membuat
+    // perpindahan rute jauh lebih murah.
+    const sebelumnya = new Map(markersRef.current.map((x) => [String(x.id), x]));
+    const dipakai = items.map(({ facility, level }) => {
+      const kunci = String(facility.id);
+      const lama = sebelumnya.get(kunci);
+      if (lama) {
+        sebelumnya.delete(kunci);
+        terapkanTingkat(lama.el, facility, level);
+        return lama;
+      }
       const { wrap, el } = markerElement(facility, level, (id) => live.current.onSelect(id));
       const terpilih = String(facility.id) === String(live.current.selectedId);
       el.dataset.selected = String(terpilih);
@@ -182,7 +216,9 @@ const MapCanvas = forwardRef(function MapCanvas({
       const marker = new mapboxgl.Marker({ element: wrap }).setLngLat([facility.lon, facility.lat]).addTo(map);
       return { id: facility.id, el, wrap, marker };
     });
-  }, [items]);
+    sebelumnya.forEach((x) => x.marker.remove()); // sisa = fasilitas yang keluar dari hasil
+    markersRef.current = dipakai;
+  }, [items, ready]);
 
   useEffect(() => {
     markersRef.current.forEach((x) => {

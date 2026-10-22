@@ -217,7 +217,7 @@ function buildRows(c) {
   if (nf) {
     if ('name' in nf) add('Nama', pf.name ?? null, nf.name);
     if ('category' in nf) add('Kategori', pf.category ? CATEGORY_LABEL[pf.category] : null, CATEGORY_LABEL[nf.category]);
-    if ('address' in nf) add('Alamat', pf.address ?? null, nf.address);
+    if ('address' in nf) add('Alamat', pf.address ?? null, nf.address || null);
     if ('description' in nf) add('Deskripsi', pf.description ?? null, nf.description || null);
     if ('lat' in nf) add('Koordinat (lat, lon)', coordText(pf.lat, pf.lon), coordText(nf.lat, nf.lon));
   }

@@ -195,9 +195,25 @@ function PencarianNavbar() {
  *   lg–xl  dock berlabel, asisten berlabel, pencarian tetap ikon
  *   xl+    pencarian berlabel; nama akun baru tampil di 2xl
  */
+/**
+ * Dua tujuan navbar yang sebenarnya satu halaman: "Jelajahi" dan "Cara kerja".
+ *
+ * Keduanya menunjuk ke "/" — bedanya hanya hash. Karena itu kuerinya HARUS ikut
+ * terbawa: di layar sempit, pergi ke penjelasan lalu kembali ke Jelajahi tadinya
+ * membuang ?q= beserta filternya, dan panel hasil yang baru saja dilihat pengguna
+ * hilang tanpa sebab yang terlihat. Kueri hanya dibawa dari "/" sendiri; dari halaman
+ * lain ia milik halaman itu, bukan milik peta.
+ */
+function useTautanBeranda() {
+  const { pathname, search } = useLocation();
+  const kueri = pathname === '/' ? search : '';
+  return { jelajahi: { pathname: '/', search: kueri }, caraKerja: { pathname: '/', search: kueri, hash: '#cara-kerja' } };
+}
+
 function Header() {
   const { session } = useAuth();
   const { pathname, hash } = useLocation();
+  const tujuan = useTautanBeranda();
   const [diHero, setDiHero] = useState(true);
   useEffect(() => {
     if (pathname !== '/') { setDiHero(false); return undefined; }
@@ -218,11 +234,11 @@ function Header() {
     <header className="pointer-events-none fixed inset-x-0 top-0 z-40 px-3 pt-3">
       <div className="mx-auto grid max-w-7xl grid-cols-[auto_minmax(0,1fr)] items-start gap-2 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
         <nav aria-label="Navigasi utama" className={`pointer-events-auto hidden items-center gap-0.5 justify-self-start rounded-full p-0.5 md:flex ${kaca}`}>
-          <TautanNav to="/" aktif={exploring} Ikon={Compass}>Jelajahi</TautanNav>
+          <TautanNav to={tujuan.jelajahi} aktif={exploring} Ikon={Compass}>Jelajahi</TautanNav>
           {/* Sudah di halaman penjelasan: klik lagi membawa ke awalnya. Dari tempat lain
               ia berpindah ke "/#cara-kerja", dan PublicLayout menampilkannya dari atas. */}
           <TautanNav
-            to="/#cara-kerja" aktif={caraKerja} Ikon={BookOpen}
+            to={tujuan.caraKerja} aktif={caraKerja} Ikon={BookOpen}
             onClick={(e) => { if (caraKerja) { e.preventDefault(); keAwalHalaman(); } }}
           >
             Cara kerja
@@ -268,6 +284,7 @@ function Header() {
 function BottomNav() {
   const { session } = useAuth();
   const { pathname, hash } = useLocation();
+  const tujuan = useTautanBeranda();
   // Empat, bukan tiga: "Cara kerja" ada di sini karena sejak peta menahan gulir, tautan itu
   // satu-satunya jalan ke penjelasan — ia tidak boleh bersembunyi di balik ketukan kedua.
   //
@@ -277,8 +294,8 @@ function BottomNav() {
   // "Cara kerja" yang aktif — bukan "Jelajahi".
   const caraKerja = pathname === '/' && hash === '#cara-kerja';
   const items = [
-    { to: '/', label: 'Jelajahi', Icon: Compass, aktif: (pathname === '/' && !caraKerja) || pathname.startsWith('/map') || (pathname.startsWith('/facilities/') && !pathname.startsWith('/facilities/new')) },
-    { to: '/#cara-kerja', label: 'Cara kerja', Icon: BookOpen, aktif: caraKerja, onClick: (e) => { if (caraKerja) { e.preventDefault(); keAwalHalaman(); } } },
+    { to: tujuan.jelajahi, label: 'Jelajahi', Icon: Compass, aktif: (pathname === '/' && !caraKerja) || pathname.startsWith('/map') || (pathname.startsWith('/facilities/') && !pathname.startsWith('/facilities/new')) },
+    { to: tujuan.caraKerja, label: 'Cara kerja', Icon: BookOpen, aktif: caraKerja, onClick: (e) => { if (caraKerja) { e.preventDefault(); keAwalHalaman(); } } },
     { to: '/facilities/new', label: 'Kontribusi', Icon: PlusCircle, aktif: pathname.startsWith('/facilities/new') || pathname.startsWith('/my-contributions') },
     session
       ? { to: '/accessibility-profile', label: 'Profil', Icon: UserRound, aktif: pathname.startsWith('/accessibility-profile') }

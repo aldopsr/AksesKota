@@ -87,7 +87,7 @@ export default function FacilityDetailPanel({
           <div className="min-w-0">
             <m.h2 layoutId={`nama-${f.id}`} id="facility-name" className="text-2xl font-bold leading-tight">{f.name}</m.h2>
             <p className="font-semibold text-brand-800">{CATEGORY_LABEL[f.category] ?? f.category_name}</p>
-            <p className="font-sub mt-1 flex items-start gap-1 text-ink-secondary"><MapPin aria-hidden="true" className="mt-1 shrink-0" size={15} /><span>{f.address}{distance != null && ` (${formatDistance(distance)} dari lokasi Anda)`}</span></p>
+            <p className="font-sub mt-1 flex items-start gap-1 text-ink-secondary"><MapPin aria-hidden="true" className="mt-1 shrink-0" size={15} /><span>{f.address || 'Alamat belum terdata'}{distance != null && ` (${formatDistance(distance)} dari lokasi Anda)`}</span></p>
           </div>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
