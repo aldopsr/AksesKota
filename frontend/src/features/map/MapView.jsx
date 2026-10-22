@@ -82,7 +82,7 @@ export const GAYA_PETA = {
 
 const MapCanvas = forwardRef(function MapCanvas({
   items, selectedId, onSelect, userLocation, origin, routeGeometry, routeSegmen, pickingOrigin, onPickOrigin, focus, onError,
-  gaya = 'jalan', jalurTerlihat = false, onJalurTerlaluJauh, onJalurRingkas, jangkauan = null, modeJangkauan = false, onPickJangkauan,
+  gaya = 'jalan', jalurTerlihat = false, onJalurTerlaluJauh, onJalurRingkas, jangkauan = null, modeJangkauan = false, onPickJangkauan, heroGulir = false,
   // Sisi yang tertutup panel: penanda yang pas di tengah viewport tetap tersembunyi
   // kalau separuh kiri layar ditempati kartu mengambang.
   fitPaddingBottom = 70, fitPaddingLeft = 60,
@@ -112,11 +112,15 @@ const MapCanvas = forwardRef(function MapCanvas({
   }));
 
   useEffect(() => {
-    // scrollZoom SENGAJA menyala, dan itu berarti roda mouse di atas peta melakukan
-    // zoom, bukan menggulir halaman. Keputusannya begitu: peta adalah antarmuka utama,
-    // jadi pengguna harus tetap berada di peta selama kursornya ada di peta.
-    // Konsekuensinya jalan turun ke bagian penjelasan hanya lewat navigasi — dan karena
-    // itu tautan "Cara kerja" di navbar tidak boleh pernah hilang di ukuran layar mana pun.
+    // scrollZoom menyala di /map dan /facilities/:id, MATI saat peta jadi hero halaman
+    // depan — lihat efek `heroGulir` di bawah.
+    //
+    // Dulu ia menyala di mana-mana, dengan alasan "peta adalah antarmuka utama". Di
+    // halaman depan alasan itu tidak berlaku: di sana peta setinggi satu layar dan
+    // halaman berlanjut ke bawah, jadi roda mouse yang mem-zoom peta berarti halaman
+    // TIDAK BISA digulir sama sekali selama kursor ada di peta — yang menempati seluruh
+    // lebar layar. Penguji menyebutnya "ke zoom out petanya mulu", dan mereka benar:
+    // bagian penjelasan praktis tidak terjangkau tanpa memakai navbar.
     const map = new mapboxgl.Map({
       container: containerRef.current, style: GAYA_PETA[gayaRef.current] ?? GAYA_PETA.jalan,
       center: [118, -2.5], zoom: 3.6,
@@ -138,6 +142,25 @@ const MapCanvas = forwardRef(function MapCanvas({
     if (import.meta.env.DEV) window.__peta = map;
     return () => { ro.disconnect(); map.remove(); mapRef.current = null; markersRef.current = []; setReady(false); };
   }, []);
+
+  /**
+   * Roda mouse: mem-zoom peta, atau menggulir halaman?
+   *
+   * Jawabannya bergantung pada peran peta saat itu. Di /map dan /facilities/:id peta
+   * memenuhi layar dan tidak ada apa pun di bawahnya — zoom benar. Di halaman depan
+   * peta hanya hero setinggi satu layar dengan penjelasan di bawahnya, dan di sana
+   * zoom berarti halaman terkunci: peta menempati seluruh lebar layar, jadi tidak ada
+   * tempat untuk menggulir melewatinya.
+   *
+   * Tombol +/- dan cubit dua jari tetap bekerja di kedua keadaan, jadi tidak ada cara
+   * memperbesar yang hilang — yang hilang hanya jebakannya.
+   */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (heroGulir) map.scrollZoom.disable();
+    else map.scrollZoom.enable();
+  }, [heroGulir, ready]);
 
   useEffect(() => {
     const map = mapRef.current;

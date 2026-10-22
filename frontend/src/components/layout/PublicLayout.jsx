@@ -20,22 +20,14 @@ function RouteAnnouncer() {
   return <div id="route-announcer" role="status" aria-live="polite" className="sr-only" />;
 }
 
-/**
- * Menggulir ke sebuah bagian, dan tetap bekerja ketika URL-nya SUDAH hash itu.
- *
- * Dulu tautannya hanya mengandalkan perubahan lokasi: begitu alamatnya sudah
- * "/#cara-kerja", mengklik tautan yang sama tidak mengubah apa pun, React Router tidak
- * melihat perubahan, dan efek yang menggulir tidak pernah berjalan lagi. Jadi setelah
- * menggulir naik ke peta, tombol "Cara kerja" berhenti berfungsi.
- */
-function gulirKeBagian(id) {
-  const el = document.getElementById(id);
-  if (!el) return false; // bagian itu tidak ada di halaman ini: biarkan Link menavigasi
-  const halus = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  el.scrollIntoView({ behavior: halus ? 'smooth' : 'auto' });
-  window.history.replaceState(null, '', `#${id}`);
-  return true;
-}
+/* gulirKeBagian() dulu ada di sini: ia membatalkan navigasi Link lalu memanggil
+   history.replaceState untuk menyelaraskan URL tanpa render ulang — masuk akal ketika
+   peta dan penjelasan masih satu dokumen yang digulir.
+   Sejak halaman depan dipecah jadi dua keadaan (peta "/" dan penjelasan
+   "/#cara-kerja"), hash bukan lagi penanda posisi gulir melainkan MODE, dan
+   replaceState mengubahnya di belakang punggung React Router: URL berubah, komponen
+   tidak pernah dirender ulang, petanya tidak pernah kembali. Terukur: renderUlang
+   false padahal URL sudah "/". Navigasinya kini diserahkan penuh ke Link. */
 
 const navCls = (on) => `inline-flex min-h-11 items-center rounded-control px-3.5 font-semibold transition-colors ${on ? 'bg-brand-100 text-brand-900' : 'text-ink-secondary hover:bg-surface-subtle hover:text-ink'}`;
 
@@ -227,7 +219,7 @@ function Header() {
       >
         <Compass aria-hidden="true" size={16} className="mr-1.5" /> Jelajahi
       </TautanNav>
-      <TautanNav to="/#cara-kerja" aktif={false} onClick={(e) => { if (gulirKeBagian('cara-kerja')) e.preventDefault(); }}>
+      <TautanNav to="/#cara-kerja" aktif={false}>
         Cara kerja
       </TautanNav>
     </>
@@ -247,10 +239,10 @@ function Header() {
     <header className="pointer-events-none fixed inset-x-0 top-0 z-40 px-3 pt-3">
       <div className="relative mx-auto flex max-w-7xl items-start gap-2">
         <nav aria-label="Navigasi utama" className="pointer-events-auto hidden items-center gap-2 md:flex">
-          <TautanNav to="/" aktif={exploring} onClick={(e) => { if (pathname === '/') { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); window.history.replaceState(null, '', '/'); } }}>
+          <TautanNav to="/" aktif={exploring}>
             Jelajahi
           </TautanNav>
-          <TautanNav to="/#cara-kerja" aktif={false} onClick={(e) => { if (gulirKeBagian('cara-kerja')) e.preventDefault(); }}>
+          <TautanNav to="/#cara-kerja" aktif={false}>
             Cara kerja
           </TautanNav>
           <Menu
@@ -316,7 +308,6 @@ function BottomNav() {
             <Link
               to={to}
               aria-current={aktif ? 'page' : undefined}
-              onClick={(e) => { if (label === 'Cara kerja' && gulirKeBagian('cara-kerja')) e.preventDefault(); }}
               className={`flex min-h-14 flex-col items-center justify-center gap-0.5 text-sm font-semibold ${aktif ? 'text-brand-800' : 'text-ink-secondary'}`}
             >
               <Icon aria-hidden="true" size={21} /> <span className="text-xs">{label}</span>
@@ -330,33 +321,75 @@ function BottomNav() {
 
 function Footer() {
   return (
-    <footer className="mt-12 border-t border-border bg-surface pb-16 md:pb-0">
-      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-8 md:grid-cols-[1fr_auto_1.3fr]">
-        <div>
-          <BrandLink size={30} />
-          <p className="font-sub mt-2 max-w-xs text-ink-secondary">Cek dulu aksesnya, baru berangkat.</p>
+    /* Satu blok penutup gelap: ajakan + tautan + legal, bukan dua blok berturut-turut.
+       Halaman depan sebelumnya berakhir dengan CTA gelap setinggi hampir satu layar,
+       lalu footer terang menempel di bawahnya — dua penutup beruntun, dan yang kedua
+       terbaca seperti sisa yang menggantung. Acuan menyatukannya: ajakan dan footer
+       adalah satu permukaan. Gelap, karena penutup halaman harus terasa seperti dasar,
+       bukan seperti bagian berikutnya yang kebetulan habis. */
+    <footer className="on-dark bg-ink text-white pb-16 md:pb-0">
+      <div className="mx-auto max-w-7xl px-4 py-16 sm:py-24">
+        {/* Ajakan. Satu-satunya tombol di seluruh footer, jadi tidak ada yang bersaing
+            dengannya — persis saran "single CTA focus". */}
+        <div className="grid gap-8 sm:grid-cols-12 sm:items-end">
+          <div className="sm:col-span-7">
+            <h2 className="max-w-[13ch] text-title font-extrabold leading-[0.95] tracking-[-0.035em]">
+              Datanya belum lengkap
+            </h2>
+            <p className="font-sub mt-5 max-w-[46ch] text-lead leading-snug text-brand-100">
+              Tambahkan fasilitas atau perbarui datanya dengan foto bukti. Setiap kiriman
+              ditinjau admin sebelum data resmi berubah.
+            </p>
+          </div>
+          <div className="sm:col-span-4 sm:col-start-9">
+            <Link
+              to="/facilities/new"
+              className="ak-pil flex min-h-14 w-full items-center justify-center rounded-control bg-accent-cyan px-6 text-base font-bold text-ink hover:brightness-95"
+            >
+              Tambah fasilitas
+            </Link>
+          </div>
         </div>
-        <nav aria-label="Tautan footer">
-          <ul className="font-semibold">
-            {[['/map', 'Jelajahi fasilitas'], ['/facilities/new', 'Tambah fasilitas'], ['/#cara-kerja', 'Cara kerja']].map(([to, label]) => (
-              <li key={to}><Link to={to} className="inline-flex min-h-11 items-center text-ink-secondary hover:text-brand-800">{label}</Link></li>
-            ))}
-          </ul>
-        </nav>
-        <p className="font-sub text-sm text-ink-secondary">
-          Informasi aksesibilitas berasal dari data yang dipetakan dan kontribusi pengguna yang telah diverifikasi. Kondisi di lapangan dapat berubah, dan AksesKota tidak menjamin suatu fasilitas atau rute sepenuhnya bebas hambatan.
-        </p>
-      </div>
 
-      {/* Kredit gambar: kewajiban lisensi CC BY, bukan hiasan. Tautan ke halaman sumber
-          dan ke teks lisensinya harus tetap bisa diklik. */}
-      <div className="mx-auto max-w-7xl px-4 pb-8">
-        <p className="font-sub text-sm text-ink-secondary">
-          Foto arsip jalanan Bogor:{' '}
-          <a href="https://commons.wikimedia.org/w/index.php?curid=85691345" className="underline underline-offset-2 hover:text-brand-800">“Straat inbij Buitenzorg (huidige Bogor), West-Java”</a> oleh Rijksmuseum, <a href="https://creativecommons.org/publicdomain/zero/1.0/deed.en/" className="underline underline-offset-2 hover:text-brand-800">CC0</a>;{' '}
-          <a href="https://commons.wikimedia.org/w/index.php?curid=105307930" className="underline underline-offset-2 hover:text-brand-800">“Eetstalletjes aan de Roode Brug te Buitenzorg, KITLV 18920”</a>;{' '}
-          <a href="https://commons.wikimedia.org/w/index.php?curid=101307482" className="underline underline-offset-2 hover:text-brand-800">“Straat te Buitenzorg met het paleis van de gouverneur-generaal, KITLV A1219”</a>, keduanya <a href="https://creativecommons.org/licenses/by/4.0/" className="underline underline-offset-2 hover:text-brand-800">CC BY 4.0</a> — semuanya via Wikimedia Commons.
+        <div className="mt-16 grid gap-10 border-t border-white/15 pt-12 sm:grid-cols-12">
+          <div className="sm:col-span-5">
+            <BrandLink size={30} light />
+            <p className="font-sub mt-4 max-w-[28ch] text-brand-100">Cek dulu aksesnya, baru berangkat.</p>
+          </div>
+
+          <nav aria-label="Tautan footer" className="grid grid-cols-2 gap-8 sm:col-span-5 sm:col-start-8">
+            {[
+              ['Jelajahi', [['/map', 'Peta fasilitas'], ['/#cara-kerja', 'Cara kerja'], ['/accessibility-profile', 'Profil kebutuhan']]],
+              ['Kontribusi', [['/facilities/new', 'Tambah fasilitas'], ['/my-contributions', 'Kontribusi saya']]],
+            ].map(([judul, tautan]) => (
+              <div key={judul}>
+                <h2 className="font-sub text-xs font-bold uppercase tracking-wide text-brand-300">{judul}</h2>
+                <ul className="mt-1">
+                  {tautan.map(([to, label]) => (
+                    <li key={to}>
+                      <Link to={to} className="inline-flex min-h-11 items-center font-semibold text-white hover:text-accent-cyan">
+                        {label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </nav>
+        </div>
+
+        <p className="font-sub mt-12 max-w-[72ch] text-sm leading-relaxed text-brand-100">
+          Informasi aksesibilitas berasal dari data yang dipetakan dan kontribusi pengguna yang telah diverifikasi.
+          Kondisi di lapangan dapat berubah, dan AksesKota tidak menjamin suatu fasilitas atau rute sepenuhnya bebas hambatan.
         </p>
+
+        {/* Kredit gambar: KEWAJIBAN lisensi CC BY, bukan hiasan. Kecil boleh, hilang tidak. */}
+        <div className="mt-10 flex flex-col gap-4 border-t border-white/15 pt-6 sm:flex-row sm:items-start sm:justify-between">
+          <p className="font-sub text-sm text-brand-100">© {new Date().getFullYear()} AksesKota</p>
+          <p className="font-sub max-w-[62ch] text-xs leading-relaxed text-brand-100">
+            Foto arsip: <a href="https://commons.wikimedia.org/w/index.php?curid=101307482" className="underline underline-offset-2 hover:text-white">“Straat te Buitenzorg met het paleis van de gouverneur-generaal, KITLV A1219”</a>, <a href="https://creativecommons.org/licenses/by/4.0/" className="underline underline-offset-2 hover:text-white">CC BY 4.0</a> via Wikimedia Commons.
+          </p>
+        </div>
       </div>
     </footer>
   );
@@ -371,9 +404,15 @@ export default function PublicLayout() {
   // digulir. Alamat /map dan /facilities/:id tetap kerangka aplikasi murni tanpa
   // bagian landing, untuk pengguna yang datang langsung ke petanya.
   const beranda = pathname === '/';
+  // Halaman depan punya dua keadaan (lihat ExplorePage): "/" peta layar penuh, dan
+  // "/#cara-kerja" penjelasan tanpa peta. Yang pertama berperilaku seperti /map —
+  // layar penuh, tidak menggulir, tanpa footer; yang kedua halaman biasa.
+  const landingTerbuka = beranda && hash === '#cara-kerja';
   const workspace = pathname.startsWith('/map')
     || (pathname.startsWith('/facilities') && !pathname.startsWith('/facilities/new') && !pathname.includes('/update'));
   const showBottomNav = !pathname.startsWith('/admin');
+  // Layar penuh tanpa gulir: /map, /facilities/:id, dan "/" selagi masih berupa peta.
+  const layarPenuh = workspace || (beranda && !landingTerbuka);
   const section = workspace ? 'explore' : pathname.split('/')[1] || 'home';
 
   useEffect(() => {
@@ -415,7 +454,7 @@ export default function PublicLayout() {
               258 px ke atas begitu tombol di bagian panel yang di luar layar menerima
               fokus: peta, navbar, dan banner "Klik peta untuk menentukan titik awal"
               ikut terbawa keluar layar. overflow-clip tidak pernah jadi wadah gulir. */}
-          <div className={`flex flex-col ${workspace ? 'h-dvh overflow-clip' : 'min-h-dvh'}`}>
+          <div className={`flex flex-col ${layarPenuh ? 'h-dvh overflow-clip' : 'min-h-dvh'}`}>
             <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[70] focus:rounded-control focus:bg-brand-900 focus:px-4 focus:py-3 focus:font-semibold focus:text-white">
               Lewati ke konten utama
             </a>
@@ -423,12 +462,12 @@ export default function PublicLayout() {
             {/* Navbar kini fixed dan tidak memakan ruang; halaman yang BUKAN hero peta
                 harus menyediakan ruangnya sendiri. Hero peta tidak: di sana navbar
                 memang harus mengambang di atas petanya, seperti pada acuan. */}
-            <main id="main" tabIndex={-1} className={`flex-1 outline-none ${workspace ? 'min-h-0' : ''} ${beranda || workspace ? '' : 'pt-[4.75rem]'} ${showBottomNav ? 'pb-16 md:pb-0' : ''}`}>
-              <m.div key={section} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }} className={workspace ? 'h-full' : undefined}>
+            <main id="main" tabIndex={-1} className={`flex-1 outline-none ${layarPenuh ? 'min-h-0 pt-0' : 'pt-[4.75rem]'} ${showBottomNav ? 'pb-16 md:pb-0' : ''}`}>
+              <m.div key={section} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }} className={layarPenuh ? 'h-full' : undefined}>
                 <Outlet />
               </m.div>
             </main>
-            {!workspace && <Footer />}
+            {!layarPenuh && <Footer />}
             {showBottomNav && <BottomNav />}
             <AssistantDock />
             <RouteAnnouncer />

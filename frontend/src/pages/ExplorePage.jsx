@@ -44,6 +44,20 @@ export default function ExplorePage() {
   // Di "/" peta hanya hero setinggi satu layar dan halaman berlanjut ke bawah.
   // Di /map dan /facilities/:id ia kerangka aplikasi penuh tanpa bagian landing.
   const halamanDepan = location.pathname === '/';
+  /**
+   * Halaman depan punya DUA keadaan, bukan satu halaman panjang.
+   *
+   *   "/"             -> peta saja, setinggi layar penuh. Roda mouse mem-zoom peta.
+   *   "/#cara-kerja"  -> penjelasan saja. Petanya TIDAK dirender.
+   *
+   * Dulu keduanya satu dokumen yang digulir, dan itu memaksa memilih salah satu dari
+   * dua hal buruk: roda mem-zoom peta sehingga penjelasan di bawahnya tak terjangkau,
+   * atau roda menggulir halaman sehingga peta kehilangan zoom-nya. Dipisah jadi dua
+   * keadaan, keduanya bisa benar sekaligus — dan menggulir ke atas dari penjelasan
+   * berhenti di puncak penjelasan, bukan kembali ke peta, karena petanya memang tidak
+   * ada di dokumen itu. Jalan antar-keadaan lewat navbar: "Cara kerja" dan "Jelajahi".
+   */
+  const landingTerbuka = halamanDepan && location.hash === '#cara-kerja';
   const heroRef = useRef(null);
   const [heroTerlihat, setHeroTerlihat] = useState(true);
   useEffect(() => {
@@ -550,7 +564,18 @@ export default function ExplorePage() {
     );
   }
 
-  // "/": peta jadi hero setinggi satu layar, lalu halaman berlanjut ke penjelasannya.
+  // "/#cara-kerja": penjelasannya saja, tanpa peta sama sekali.
+  if (landingTerbuka) {
+    return (
+      <>
+        <h1 className="sr-only">Cara kerja AksesKota</h1>
+        <LandingSections />
+        {filterSheet}
+      </>
+    );
+  }
+
+  // "/": peta saja, setinggi layar penuh.
   return (
     <>
       {/* Peta dimasukkan ke dalam kotak bersudut besar dengan margin halaman, persis
@@ -562,8 +587,6 @@ export default function ExplorePage() {
           {petaShell}
         </div>
       </div>
-
-      <LandingSections />
       {filterSheet}
     </>
   );

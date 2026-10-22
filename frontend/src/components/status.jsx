@@ -3,6 +3,7 @@ import AngkaBerjalan from './AngkaBerjalan';
 import { ATTRIBUTES, ATTRIBUTE_HINT, ATTRIBUTE_LABEL, STATUS } from '../features/accessibility/constants';
 import { Badge } from './ui';
 import { formatDate } from '../lib/format';
+import { IkonAtribut } from '../features/accessibility/attr-icons';
 
 /* Tiga konsep terpisah (design system 4.3): status kontribusi, status atribut, Accessibility Match. */
 
@@ -32,7 +33,15 @@ export function AttributeStatus({ status = 'unknown', className = '' }) {
 export function AttributeRow({ code, status, note, required }) {
   return (
     <li className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 py-2.5">
-      <div className="min-w-0">
+      {/* Ikon atribut: dekoratif, bukan pengganti nama.
+          Nama atributnya tetap tertulis penuh di sebelahnya — ikon di sini hanya
+          mempercepat pemindaian mata di daftar sepuluh baris, dan ikon sendirian
+          tidak pernah cukup untuk menyampaikan "ramp" atau "guiding block". */}
+      <div className="flex min-w-0 gap-2.5">
+        <span aria-hidden="true" className="mt-0.5 shrink-0 text-brand-700">
+          <IkonAtribut code={code} />
+        </span>
+        <div className="min-w-0">
         <p className="font-semibold">
           {ATTRIBUTE_LABEL[code]}
           {required && <span className="ml-2 rounded-full bg-brand-100 px-1.5 py-0.5 text-xs font-semibold text-brand-900">Dibutuhkan</span>}
@@ -40,6 +49,7 @@ export function AttributeRow({ code, status, note, required }) {
         {note
           ? <p className="font-sub text-sm text-ink-secondary">{note}</p>
           : status === 'unknown' && <p className="font-sub text-sm text-ink-secondary">Informasi ini belum cukup untuk memastikan ketersediaan.</p>}
+        </div>
       </div>
       <AttributeStatus status={status} />
     </li>
