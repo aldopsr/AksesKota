@@ -37,6 +37,21 @@ export default function FacilityCard({ facility: f, level, distance, selected, t
   const Icon = categoryIcon(f.category);
   const jarak = distance !== null && distance !== undefined ? formatDistance(distance) : null;
   const kebutuhan = Object.entries(f.needs_status ?? {});
+  /**
+   * Chip hanya untuk kebutuhan yang BELUM terjawab.
+   *
+   * Dulu tiap kartu menampilkan chip untuk semua kebutuhan. Dengan tiga kebutuhan dan
+   * dua puluh hasil yang semuanya 100%, layar berisi enam puluh pil hijau yang
+   * mengulang persis apa yang sudah dikatakan lencana "Sangat Sesuai 100%" di atasnya —
+   * banyak sekali tinta untuk nol informasi, dan justru menenggelamkan kartu yang
+   * benar-benar punya masalah.
+   *
+   * Yang berharga adalah kebalikannya: apa yang TIDAK ada, atau belum diketahui.
+   * Kartu sempurna kini diam; kartu bermasalah yang berbicara.
+   */
+  const perluPerhatian = kebutuhan.filter(([, status]) => status !== 'available');
+  const chipTampil = perluPerhatian.slice(0, 3);
+  const sisaChip = perluPerhatian.length - chipTampil.length;
 
   return (
     <article
@@ -88,7 +103,7 @@ export default function FacilityCard({ facility: f, level, distance, selected, t
         {onRoute && (
           <button
             type="button" onClick={onRoute}
-            className="ak-pil relative z-10 inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-border-strong bg-surface text-ink hover:bg-surface-subtle"
+            className="ak-pil relative z-10 inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-border-strong bg-surface text-ink hover:bg-surface-subtle"
           >
             <Navigation aria-hidden="true" size={16} />
             <span className="sr-only">Rute ke {f.name}</span>
@@ -98,10 +113,20 @@ export default function FacilityCard({ facility: f, level, distance, selected, t
 
       {/* MANA yang terpenuhi, bukan sekadar "3 dari 4". Bagi pengguna kursi roda,
           "ada ramp tapi tidak ada lift" adalah informasi yang sama sekali berbeda dari 75%. */}
-      {kebutuhan.length > 0 && (
+      {chipTampil.length > 0 && (
         <ul className="ak-chips mt-3 flex flex-wrap gap-1.5">
-          {kebutuhan.map(([code, status], j) => <AttributeChip key={code} code={code} status={status} urutan={j} />)}
+          {chipTampil.map(([code, status], j) => <AttributeChip key={code} code={code} status={status} urutan={j} />)}
+          {sisaChip > 0 && (
+            <li className="inline-flex items-center rounded-full bg-surface-subtle px-2 py-0.5 text-xs font-semibold text-ink-secondary">
+              +{sisaChip} lagi
+            </li>
+          )}
         </ul>
+      )}
+      {/* Pembaca layar tidak melihat lencana kecocokan sebagai gambar utuh, jadi
+          "tidak ada chip" tidak berarti apa-apa di sana. Satu kalimat menggantikannya. */}
+      {kebutuhan.length > 0 && perluPerhatian.length === 0 && (
+        <p className="sr-only">Semua kebutuhan Anda terpenuhi di tempat ini.</p>
       )}
 
       {/* Tanggal verifikasi dan rating dipindah ke halaman detail. Di dalam daftar

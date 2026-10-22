@@ -144,6 +144,11 @@ export default function FacilityDetailPanel({
         </Section>
 
         <Section id="attr-title" title="Atribut aksesibilitas">
+          {/* Dikatakan sekali di sini, bukan diulang pada tiap baris yang belum
+              diketahui — lihat catatan di AttributeRow. */}
+          <p className="font-sub -mt-1 text-sm text-ink-secondary">
+            Atribut bertanda <strong className="font-semibold text-ink">Belum diketahui</strong> belum cukup datanya untuk dipastikan, dan tidak pernah dihitung sebagai tersedia.
+          </p>
           <div className="space-y-4">
             {ATTRIBUTE_GROUPS.map((g) => (
               <div key={g.key}>

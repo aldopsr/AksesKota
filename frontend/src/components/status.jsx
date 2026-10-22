@@ -46,9 +46,13 @@ export function AttributeRow({ code, status, note, required }) {
           {ATTRIBUTE_LABEL[code]}
           {required && <span className="ml-2 rounded-full bg-brand-100 px-1.5 py-0.5 text-xs font-semibold text-brand-900">Dibutuhkan</span>}
         </p>
-        {note
-          ? <p className="font-sub text-sm text-ink-secondary">{note}</p>
-          : status === 'unknown' && <p className="font-sub text-sm text-ink-secondary">Informasi ini belum cukup untuk memastikan ketersediaan.</p>}
+        {/* Hanya catatan asli dari admin yang tampil di sini.
+            Kalimat "Informasi ini belum cukup untuk memastikan ketersediaan" dulu
+            dicetak pada SETIAP atribut yang belum diketahui — enam kali di satu
+            halaman, 48 dari 290 kata, dan setelah kalimat pertama ia tidak menambah
+            apa pun. Kini dikatakan sekali di kepala bagiannya; lencana "Belum
+            diketahui" di tiap baris sudah cukup sebagai penanda. */}
+        {note && <p className="font-sub text-sm text-ink-secondary">{note}</p>}
         </div>
       </div>
       <AttributeStatus status={status} />

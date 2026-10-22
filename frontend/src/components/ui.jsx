@@ -107,12 +107,15 @@ export function Chip({ pressed = false, onClick, children, className = '' }) {
   );
 }
 
+// min-h-11 pada chip dan size-11 pada tombol silangnya: keduanya dulu 36 dan 32 px,
+// di bawah ambang 44 px yang dipakai seluruh aplikasi ini. Silang kecil di dalam chip
+// kecil adalah sasaran tersulit di seluruh antarmuka — dan ini aplikasi aksesibilitas.
 export function RemovableChip({ label, onRemove }) {
   return (
-    <span className="inline-flex min-h-9 items-center gap-1 rounded-full border border-brand-200 bg-brand-50 py-0.5 pl-3 pr-1 text-sm font-semibold text-brand-900">
+    <span className="inline-flex min-h-11 items-center gap-0.5 rounded-full border border-brand-200 bg-brand-50 py-0.5 pl-3.5 pr-0.5 text-sm font-semibold text-brand-900">
       {label}
-      <button type="button" onClick={onRemove} aria-label={`Hapus filter ${label}`} className="inline-flex size-8 items-center justify-center rounded-full hover:bg-brand-100">
-        <X aria-hidden="true" size={14} />
+      <button type="button" onClick={onRemove} aria-label={`Hapus filter ${label}`} className="inline-flex size-11 items-center justify-center rounded-full hover:bg-brand-100">
+        <X aria-hidden="true" size={15} />
       </button>
     </span>
   );

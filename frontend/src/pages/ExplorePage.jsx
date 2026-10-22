@@ -294,7 +294,7 @@ export default function ExplorePage() {
   );
 
   const listContent = (
-    <div className="space-y-3 p-3">
+    <div className="space-y-4 p-4">
       <h2 className="sr-only">Hasil pencarian</h2>
       {filterAktif}
       {params.intent === 'update' && (
@@ -319,14 +319,23 @@ export default function ExplorePage() {
 
       {/* Di HP jumlah hasil sudah terbaca di gagang panel bawah; mengulanginya di sini
           hanya menambah satu baris sebelum hasil pertama. */}
+      {/* Satu baris, bukan dua blok bertumpuk.
+          Jumlah hasil adalah berita; urutan hanya keterangan tentang berita itu, jadi
+          ia ikut di baris yang sama dengan bobot lebih rendah. Dulu keduanya jadi dua
+          paragraf penuh, dan bersama baris chip filter serta tombol lokasi, hampir
+          separuh tinggi panel habis sebelum hasil pertama terlihat. */}
       {!facilitiesQ.error && (
-      <div className="hidden space-y-0.5 lg:block">
+      <div className="hidden lg:block">
         <p role="status" aria-live="polite" className="font-semibold">
           {loadingList ? 'Memuat fasilitas…' : (
-            <>{results.length} fasilitas{params.q && <> untuk “{params.q}”</>}{catLabel && <> · {catLabel}</>}{required.length > 0 && <> · {usingProfile ? 'profil Anda' : `${required.length} kebutuhan`}</>}</>
+            <>
+              {results.length} fasilitas{params.q && <> untuk “{params.q}”</>}{catLabel && <> · {catLabel}</>}
+              {required.length > 0 && (
+                <span className="font-sub ml-2 text-sm font-normal text-ink-secondary">diurutkan menurut {sortText}</span>
+              )}
+            </>
           )}
         </p>
-        {required.length > 0 && <p className="font-sub text-sm text-ink-secondary">Urutan: {sortText}.</p>}
       </div>
       )}
       {/* Catatan privasi dipindah ke dalam tombol sebagai teks bantuan, bukan paragraf
@@ -335,7 +344,6 @@ export default function ExplorePage() {
       {!geo.location && (
         <Button
           variant="secondary"
-          size="sm"
           onClick={locateMe}
           loading={geo.status === 'loading'}
           aria-describedby="catatan-lokasi"
@@ -372,7 +380,7 @@ export default function ExplorePage() {
 
       {/* key berganti saat filter berubah supaya animasi masuk terputar ulang —
           tanpa itu ia hanya main sekali seumur halaman. */}
-      <ul key={filtersKey} className="ak-stagger space-y-2.5">
+      <ul key={filtersKey} className="ak-stagger space-y-3">
         {items.map(({ facility, level, distance }, i) => (
           <li key={facility.id} style={{ '--i': i }}>
             <FacilityCard
@@ -568,7 +576,8 @@ export default function ExplorePage() {
   if (landingTerbuka) {
     return (
       <>
-        <h1 className="sr-only">Cara kerja AksesKota</h1>
+        {/* Tanpa h1 tersembunyi di sini: judul besar di Hero ADALAH h1 halaman ini.
+            Dua h1 pada satu halaman membuat daftar judul pembaca layar berbohong. */}
         <LandingSections />
         {filterSheet}
       </>
