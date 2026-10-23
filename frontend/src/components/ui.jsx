@@ -344,6 +344,12 @@ export function Menu({ label, icon: Icon, children, align = 'right', buttonClass
         <m.div
           id={id} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.14 }}
           onClick={(e) => { if (e.target.closest('a,[data-close]')) setOpen(false); }}
+          // Formulir di dalam menu menutupnya begitu dikirim. Tanpa ini, menekan Enter
+          // di kolom pencarian navbar meninggalkan popup terbuka MENUTUPI hasil yang
+          // baru saja dicari — orang mengira pencariannya tidak jalan, lalu menutupnya
+          // sendiri dan baru melihat hasilnya. Tombol kategori sudah punya data-close;
+          // yang tidak punya hanyalah pengiriman lewat papan ketik.
+          onSubmit={() => setOpen(false)}
           className={`absolute z-40 mt-1 rounded-card border border-border bg-surface p-1.5 shadow-popover ${lebar} ${align === 'right' ? 'right-0' : 'left-0'}`}
         >
           {children}

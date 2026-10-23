@@ -534,6 +534,22 @@ export default function ExplorePage() {
     },
     [navigate, location.search, isDesktop],
   );
+  /**
+   * Pencarian baru di ponsel: panel hasilnya naik sendiri.
+   *
+   * Panel bawah terbuka dalam keadaan mengintip — tinggal segaris gagang di tepi layar.
+   * Setelah mencari lewat navbar atau lewat asisten, hasilnya memang SUDAH ada, hanya
+   * tersembunyi di balik gagang itu, dan orang menyimpulkan pencariannya tidak jalan.
+   * Ditaruh di sini, bukan di tiap pemanggil, karena pemicunya sama untuk semuanya:
+   * parameter pencarian di URL berubah. Pencarian lewat suara dan tautan yang
+   * dibagikan ikut terlayani tanpa kode tambahan.
+   */
+  useEffect(() => {
+    if (isDesktop || id) return;
+    if (!params.q && !params.category && params.needsRaw === null) return;
+    sheetRef.current?.minimalSetengah();
+  }, [params.q, params.category, params.needsRaw, isDesktop, id]);
+
   const onDetailLoaded = useCallback((f) => {
     setLoaded(f);
     setFocus({ lng: f.lon, lat: f.lat, zoom: 15, key: `sel-${f.id}` });

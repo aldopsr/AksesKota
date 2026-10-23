@@ -117,6 +117,19 @@ export default function AssistantDock() {
     };
   }
   const openFacility = (fid) => { navigate(`/facilities/${fid}`); if (!isDesktop) closeAssistant(); };
+  /**
+   * "Tampilkan hasilnya di peta" — dan benar-benar menampilkannya.
+   *
+   * Di ponsel asisten menempati hampir seluruh layar, jadi berpindah ke /map saja tidak
+   * cukup: hasilnya terbuka persis di belakang asisten, dan orang harus menutupnya
+   * sendiri dulu untuk melihat apa yang baru saja ia minta. Dikecilkan, bukan ditutup —
+   * jawaban terakhirnya tetap terbaca di bilah tipis, dan percakapannya tidak hilang
+   * kalau ia ingin bertanya lagi.
+   */
+  const tampilkanHasil = (search) => {
+    navigate(`/map${search}`);
+    if (!isDesktop) setMinimized(true);
+  };
   const routeTo = (fid, applied) => {
     navigate({ pathname: `/facilities/${fid}`, search: buildExplore({ ...paramsFrom(applied), route: true }) });
     if (!isDesktop) closeAssistant();
@@ -128,7 +141,7 @@ export default function AssistantDock() {
     if (res.usage) setUsage(res.usage);
     const route = res.actions?.find((a) => a.type === 'route');
     if (route) routeTo(route.facility_id, res.applied);
-    else if (res.actions?.some((a) => a.type === 'show_results')) navigate(`/map${buildExplore(paramsFrom(res.applied))}`);
+    else if (res.actions?.some((a) => a.type === 'show_results')) tampilkanHasil(buildExplore(paramsFrom(res.applied)));
     say(res.reply, viaVoice);
   }
 
@@ -138,7 +151,7 @@ export default function AssistantDock() {
       ? 'Baik, saya tampilkan hasilnya di peta.'
       : 'Saya belum paham. Sebutkan jenis tempat atau kebutuhan Anda, misalnya rumah sakit dengan ramp.';
     if (parsed.understood) {
-      navigate(`/map${buildExplore({ category: parsed.category ?? '', needsRaw: parsed.needs.length ? parsed.needs.join(',') : undefined, radius: parsed.radius })}`);
+      tampilkanHasil(buildExplore({ category: parsed.category ?? '', needsRaw: parsed.needs.length ? parsed.needs.join(',') : undefined, radius: parsed.radius }));
     }
     push({ role: 'assistant', text: reply });
     say(reply, viaVoice);
