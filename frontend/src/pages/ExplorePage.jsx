@@ -21,6 +21,7 @@ import { levelFor, normalizeFacility } from "../features/accessibility/match";
 import {
   ATTRIBUTE_LABEL,
   CATEGORIES,
+  CATEGORY_LABEL,
   COVERAGE_NOTE,
 } from "../features/accessibility/constants";
 import MapView from "../features/map/MapView";
@@ -574,8 +575,31 @@ export default function ExplorePage() {
     params.radius
   );
 
-  const filterAktif = (required.length > 0 || params.radius) && (
+  // Pencarian teks dan kategori ikut jadi keping yang bisa dilepas.
+  //
+  // Dulu hanya kebutuhan dan radius yang punya kepingnya, jadi setelah mencari sesuatu
+  // tidak ada satu pun jalan kembali ke daftar penuh: kata kuncinya tersimpan di URL,
+  // tidak terlihat di mana-mana kecuali sebagai judul, dan satu-satunya cara
+  // membatalkannya adalah mengosongkan kolom pencarian di navbar lalu mengirim
+  // pencarian kosong. Melepas kepingnya mengembalikan daftar apa adanya.
+  const filterAktif = hasFilters && (
     <ul aria-label="Filter aktif" className="flex flex-wrap gap-2">
+      {params.q && (
+        <li>
+          <RemovableChip
+            label={`“${params.q}”`}
+            onRemove={() => goExplore({ q: "" })}
+          />
+        </li>
+      )}
+      {params.category && (
+        <li>
+          <RemovableChip
+            label={CATEGORY_LABEL[params.category] ?? params.category}
+            onRemove={() => goExplore({ category: "" })}
+          />
+        </li>
+      )}
       {usingProfile && (
         <li>
           <RemovableChip
@@ -1025,15 +1049,11 @@ export default function ExplorePage() {
             <FloatingCard
               key={id ? "detail" : "hasil"}
               id={id ? "detail" : "hasil"}
-              label={
-                id
-                  ? (loaded?.name ?? "Detail fasilitas")
-                  : labelHasil(
-                      required.length
-                        ? ` · ${usingProfile ? "profil Anda" : `${required.length} kebutuhan`}`
-                        : "",
-                    )
-              }
+              // Judul kartu menamai ISI kartunya, bukan mengulang jumlahnya: angka itu
+              // sudah ada di baris pertama badan kartu, lengkap dengan kata kuncinya
+              // ("12 fasilitas untuk 'margo'"). Dua kali angka yang sama bersebelahan
+              // membuat yang kedua terbaca seperti angka yang berbeda.
+              label={id ? (loaded?.name ?? "Detail fasilitas") : "Daftar fasilitas"}
               // 88 px: tepat di bawah navbar. Dulu 184 px karena ada bilah perintah dan
               // baris kategori di atasnya; keduanya sudah pindah ke navbar, jadi angka
               // lama menyisakan satu jalur kosong selebar kartu.
