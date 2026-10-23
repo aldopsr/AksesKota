@@ -71,10 +71,23 @@ export default function NeedsPrompt({ onApply, onOpenFilter, onCobaJangkauan, si
 
   const isi = (
     <>
+      {/* Di dialog sambutan kalimatnya menjawab satu pertanyaan lagi: KENAPA ditanya.
+          Pengunjung pertama belum tahu peta ini menilai tempat dengan cara yang berbeda
+          dari peta lain, dan tanpa itu tiga pilihan di bawah hanya terbaca sebagai
+          formulir. Satu kalimat, bukan dua paragraf: sapaan yang panjang tidak dibaca
+          siapa pun. "Bukan satu angka untuk semua orang" sengaja sama persis dengan
+          kalimat di hero beranda — dua tempat, satu suara.
+
+          Kalimat kedua ("pilih sekali, warna penanda menyesuaikan") sengaja dibuang:
+          di layar 320 px ia mendorong dua dari tiga pilihan ke bawah lipatan, dan
+          akibatnya yang tunanetra harus menggulir untuk menemukan barisnya sendiri.
+          Lagi pula efeknya terlihat sendiri begitu satu pilihan ditekan. */}
       <p className="font-sub mt-1.5 text-sm leading-snug text-ink-secondary">
-        {ringkas
-          ? 'Pilih sekali, hasil dan warna penanda peta menyesuaikan.'
-          : 'Pilih sekali, hasil dan warna penanda peta langsung menyesuaikan.'}
+        {dalamDialog
+          ? 'Peta ini menilai tiap tempat dari kebutuhan Anda — bukan dengan satu angka untuk semua orang.'
+          : ringkas
+            ? 'Pilih sekali, hasil dan warna penanda peta menyesuaikan.'
+            : 'Pilih sekali, hasil dan warna penanda peta langsung menyesuaikan.'}
       </p>
 
       {/* Bentuk ringkas untuk kartu yang mengambang DI ATAS PETA (ponsel). */}

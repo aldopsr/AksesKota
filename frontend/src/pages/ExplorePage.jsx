@@ -122,6 +122,11 @@ export default function ExplorePage() {
   // fokusnya terkunci di dalam, Escape menutup, dan isi di belakangnya tidak terjangkau.
   const [tanyaKebutuhan, setTanyaKebutuhan] = useState(() => !kebutuhanSudahDitanya());
   const tutupTanyaKebutuhan = () => { setTanyaKebutuhan(false); tandaiKebutuhanDitanya(); };
+  // URL yang sudah membawa maksud pengguna: ia datang dari tautan yang dibagikan, bukan
+  // dari pintu depan. needsRaw yang bukan null termasuk — itu berarti kebutuhannya
+  // memang pernah diatur lalu dikosongkan sendiri, dan menanyakannya lagi mengabaikan
+  // keputusan yang baru saja ia buat.
+  const adaMaksudDiURL = !!(params.q || params.category || params.needsRaw !== null);
   const [menitJangkauan, setMenitJangkauan] = useState(params.menit);
   const [titikJangkauan, setTitikJangkauan] = useState(params.jangkauan);
   const jangkauanQ = useQuery({
@@ -463,9 +468,27 @@ export default function ExplorePage() {
           ditutup, bukan kartu yang bisa tertutup apa pun di tepi bawah. Sekali ditutup
           ia tidak bertanya lagi; jalan masuknya tinggal tombol tenang di panel hasil. */}
       <Modal
-        open={tanyaKebutuhan && required.length === 0 && !id && !modeJangkauan}
+        // profileReady ikut jadi syarat: selama profil pengguna yang sudah masuk masih
+        // dimuat, `profile` masih kosong — tanpa syarat ini dialognya berkedip sekejap
+        // di depan orang yang justru sudah pernah mengisi kebutuhannya.
+        //
+        // Tautan yang dibagikan tidak diganggu: pembawa ?q=, ?category=, atau ?needs=
+        // datang untuk sesuatu yang spesifik, dan sapaan di depan hasil yang dicarinya
+        // adalah penghalang, bukan sambutan.
+        open={tanyaKebutuhan && profileReady && required.length === 0 && !adaMaksudDiURL && !id && !modeJangkauan}
         onClose={tutupTanyaKebutuhan}
-        title="Apa yang Anda butuhkan?"
+        title={(
+          <>
+            <span className="font-sub block text-xs font-bold uppercase tracking-[0.14em] text-brand-700">
+              Selamat datang di AksesKota
+            </span>
+            Apa yang Anda butuhkan?
+          </>
+        )}
+        // "Nanti saja" berefek SAMA PERSIS dengan tombol ✕ dan tombol Escape. Dua cara
+        // menutup dengan dua akibat berbeda adalah jebakan: orang menekan ✕ mengira
+        // menunda, ternyata menolak selamanya.
+        footer={<Button variant="ghost" onClick={tutupTanyaKebutuhan}>Nanti saja</Button>}
       >
         <NeedsPrompt
           dalamDialog
