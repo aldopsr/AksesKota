@@ -1,32 +1,64 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { LocateFixed, SearchX } from 'lucide-react';
-import { api } from '../lib/api';
-import { useAuth } from '../context/AuthContext';
-import { useAssistant, useLocationState, useToast } from '../context/AppContexts';
-import { useDocumentTitle } from '../hooks/useDocumentTitle';
-import { useMediaQuery } from '../hooks/useMediaQuery';
-import { buildExplore, readExplore } from '../lib/url';
-import { levelFor, normalizeFacility } from '../features/accessibility/match';
-import { ATTRIBUTE_LABEL, CATEGORIES, COVERAGE_NOTE } from '../features/accessibility/constants';
-import MapView from '../features/map/MapView';
-import { MapControls } from '../features/map/MapChrome';
-import FacilityCard from '../features/explore/FacilityCard';
-import FilterSheet from '../features/explore/FilterSheet';
-import NeedsPrompt, { sudahDitutup as kebutuhanSudahDitanya, tandaiDitutup as tandaiKebutuhanDitanya } from '../features/accessibility/NeedsPrompt';
-import FacilityDetailPanel from '../features/explore/FacilityDetailPanel';
-import RouteSummary from '../features/explore/RouteSummary';
-import BottomSheet from '../features/explore/BottomSheet';
-import PanelJangkauan from '../features/explore/PanelJangkauan';
-import FloatingCard from '../features/explore/FloatingCard';
-import AjakanMasuk from '../features/explore/AjakanMasuk';
-import { LandingSections } from './HomePage';
-import { Alert, Button, EmptyState, LinkButton, Modal, RemovableChip, Skeleton } from '../components/ui';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { LocateFixed, SearchX } from "lucide-react";
+import { api } from "../lib/api";
+import { useAuth } from "../context/AuthContext";
+import {
+  useAssistant,
+  useLocationState,
+  useToast,
+} from "../context/AppContexts";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
+import { useMediaQuery } from "../hooks/useMediaQuery";
+import { buildExplore, readExplore } from "../lib/url";
+import { levelFor, normalizeFacility } from "../features/accessibility/match";
+import {
+  ATTRIBUTE_LABEL,
+  CATEGORIES,
+  COVERAGE_NOTE,
+} from "../features/accessibility/constants";
+import MapView from "../features/map/MapView";
+import { MapControls } from "../features/map/MapChrome";
+import FacilityCard from "../features/explore/FacilityCard";
+import FilterSheet from "../features/explore/FilterSheet";
+import NeedsPrompt, {
+  sudahDitutup as kebutuhanSudahDitanya,
+  tandaiDitutup as tandaiKebutuhanDitanya,
+} from "../features/accessibility/NeedsPrompt";
+import FacilityDetailPanel from "../features/explore/FacilityDetailPanel";
+import RouteSummary from "../features/explore/RouteSummary";
+import BottomSheet from "../features/explore/BottomSheet";
+import PanelJangkauan from "../features/explore/PanelJangkauan";
+import FloatingCard from "../features/explore/FloatingCard";
+import AjakanMasuk from "../features/explore/AjakanMasuk";
+import { LandingSections } from "./HomePage";
+import {
+  Alert,
+  Button,
+  EmptyState,
+  LinkButton,
+  Modal,
+  RemovableChip,
+  Skeleton,
+} from "../components/ui";
 
 const PAGE = 20;
-const INITIAL_ROUTE = { facilityId: null, origin: null, picking: false, loading: false, error: null, data: null };
-const round4 = (n) => (n === null || n === undefined ? null : Math.round(n * 1e4) / 1e4);
+const INITIAL_ROUTE = {
+  facilityId: null,
+  origin: null,
+  picking: false,
+  loading: false,
+  error: null,
+  data: null,
+};
+const round4 = (n) =>
+  n === null || n === undefined ? null : Math.round(n * 1e4) / 1e4;
 
 export default function ExplorePage() {
   const { id: rawId } = useParams();
@@ -39,11 +71,11 @@ export default function ExplorePage() {
   const geo = useLocationState();
   const assistant = useAssistant();
   const toast = useToast();
-  const isDesktop = useMediaQuery('(min-width: 1024px)');
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
 
   // Di "/" peta hanya hero setinggi satu layar dan halaman berlanjut ke bawah.
   // Di /map dan /facilities/:id ia kerangka aplikasi penuh tanpa bagian landing.
-  const halamanDepan = location.pathname === '/';
+  const halamanDepan = location.pathname === "/";
   /**
    * Halaman depan punya DUA keadaan, bukan satu halaman panjang.
    *
@@ -57,7 +89,7 @@ export default function ExplorePage() {
    * berhenti di puncak penjelasan, bukan kembali ke peta, karena petanya memang tidak
    * ada di dokumen itu. Jalan antar-keadaan lewat navbar: "Cara kerja" dan "Jelajahi".
    */
-  const landingTerbuka = halamanDepan && location.hash === '#cara-kerja';
+  const landingTerbuka = halamanDepan && location.hash === "#cara-kerja";
   const heroRef = useRef(null);
   const [heroTerlihat, setHeroTerlihat] = useState(true);
   useEffect(() => {
@@ -65,7 +97,10 @@ export default function ExplorePage() {
     // dilepas dari DOM. Observer lama tetap menempel pada elemen yang sudah hilang dan
     // melaporkan "tidak terlihat"; saat kembali ke "Jelajahi" elemen hero yang BARU
     // tidak pernah diamati, sehingga kartu fasilitas tidak pernah muncul lagi.
-    if (!halamanDepan || landingTerbuka || !heroRef.current) { setHeroTerlihat(true); return undefined; }
+    if (!halamanDepan || landingTerbuka || !heroRef.current) {
+      setHeroTerlihat(true);
+      return undefined;
+    }
     // Kartu mengambang memakai position: fixed, jadi tanpa ini ia tetap melayang di
     // atas bagian "Cara kerja" saat halaman digulir — menutupi isi yang tidak ada
     // hubungannya dengan peta.
@@ -77,13 +112,13 @@ export default function ExplorePage() {
     // sementara kartunya menjulur ke bawah.
     const io = new IntersectionObserver(
       ([e]) => setHeroTerlihat(e.isIntersecting),
-      { rootMargin: '-95% 0px 0px 0px', threshold: 0 },
+      { rootMargin: "-95% 0px 0px 0px", threshold: 0 },
     );
     io.observe(heroRef.current);
     return () => io.disconnect();
   }, [halamanDepan, landingTerbuka]);
 
-  useDocumentTitle(id ? null : 'Jelajahi fasilitas');
+  useDocumentTitle(id ? null : "Jelajahi fasilitas");
 
   const mapRef = useRef(null);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -99,14 +134,24 @@ export default function ExplorePage() {
   // penerima harus sama dengan yang dilihat pengirim — bukan preferensi penerima.
   const [gayaPeta, setGayaPeta] = useState(() => {
     if (params.gaya) return params.gaya;
-    try { return localStorage.getItem('ak_gaya_peta') === 'satelit' ? 'satelit' : 'jalan'; } catch { return 'jalan'; }
+    try {
+      return localStorage.getItem("ak_gaya_peta") === "satelit"
+        ? "satelit"
+        : "jalan";
+    } catch {
+      return "jalan";
+    }
   });
   // Lapisan jaringan pejalan kaki. Mati secara bawaan: layar pertama tetap harus
   // menjawab "ada apa di sekitar saya", dan 24 ribu garis sebelum pertanyaan itu
   // terjawab hanya menutupi penanda.
   const [jalurTerlihat, setJalurTerlihat] = useState(() => {
     if (params.jalur) return true;
-    try { return localStorage.getItem('ak_lapisan_jalur') === '1'; } catch { return false; }
+    try {
+      return localStorage.getItem("ak_lapisan_jalur") === "1";
+    } catch {
+      return false;
+    }
   });
   const [jalurTerlaluJauh, setJalurTerlaluJauh] = useState(false);
   const [ringkasJalur, setRingkasJalur] = useState(null);
@@ -120,24 +165,46 @@ export default function ExplorePage() {
   // alamat peramban di sebagian ponsel — persis pada layar pertama, saat ia justru
   // satu-satunya hal yang perlu dibaca. Dialog <dialog> milik peramban sendiri:
   // fokusnya terkunci di dalam, Escape menutup, dan isi di belakangnya tidak terjangkau.
-  const [tanyaKebutuhan, setTanyaKebutuhan] = useState(() => !kebutuhanSudahDitanya());
-  const tutupTanyaKebutuhan = () => { setTanyaKebutuhan(false); tandaiKebutuhanDitanya(); };
+  const [tanyaKebutuhan, setTanyaKebutuhan] = useState(
+    () => !kebutuhanSudahDitanya(),
+  );
+  const tutupTanyaKebutuhan = () => {
+    setTanyaKebutuhan(false);
+    tandaiKebutuhanDitanya();
+  };
   // URL yang sudah membawa maksud pengguna: ia datang dari tautan yang dibagikan, bukan
   // dari pintu depan. needsRaw yang bukan null termasuk — itu berarti kebutuhannya
   // memang pernah diatur lalu dikosongkan sendiri, dan menanyakannya lagi mengabaikan
   // keputusan yang baru saja ia buat.
-  const adaMaksudDiURL = !!(params.q || params.category || params.needsRaw !== null);
+  const adaMaksudDiURL = !!(
+    params.q ||
+    params.category ||
+    params.needsRaw !== null
+  );
   const [menitJangkauan, setMenitJangkauan] = useState(params.menit);
   const [titikJangkauan, setTitikJangkauan] = useState(params.jangkauan);
   const jangkauanQ = useQuery({
-    queryKey: ['jangkauan', titikJangkauan?.lng, titikJangkauan?.lat, menitJangkauan],
-    queryFn: ({ signal }) => api('/jangkauan', {
-      signal,
-      params: { lon: titikJangkauan.lng, lat: titikJangkauan.lat, menit: menitJangkauan },
-    }),
+    queryKey: [
+      "jangkauan",
+      titikJangkauan?.lng,
+      titikJangkauan?.lat,
+      menitJangkauan,
+    ],
+    queryFn: ({ signal }) =>
+      api("/jangkauan", {
+        signal,
+        params: {
+          lon: titikJangkauan.lng,
+          lat: titikJangkauan.lat,
+          menit: menitJangkauan,
+        },
+      }),
     enabled: !!titikJangkauan,
   });
-  const tutupJangkauan = () => { setModeJangkauan(false); setTitikJangkauan(null); };
+  const tutupJangkauan = () => {
+    setModeJangkauan(false);
+    setTitikJangkauan(null);
+  };
   const gantiModeJangkauan = (v) => {
     setModeJangkauan(v);
     if (!v) setTitikJangkauan(null);
@@ -147,80 +214,179 @@ export default function ExplorePage() {
   };
   const gantiJalur = (v) => {
     setJalurTerlihat(v);
-    try { localStorage.setItem('ak_lapisan_jalur', v ? '1' : '0'); } catch { /* mode privat */ }
+    try {
+      localStorage.setItem("ak_lapisan_jalur", v ? "1" : "0");
+    } catch {
+      /* mode privat */
+    }
   };
   const gantiGayaPeta = (g) => {
     setGayaPeta(g);
-    try { localStorage.setItem('ak_gaya_peta', g); } catch { /* mode privat */ }
+    try {
+      localStorage.setItem("ak_gaya_peta", g);
+    } catch {
+      /* mode privat */
+    }
   };
   const [route, setRoute] = useState(INITIAL_ROUTE);
   const autoTried = useRef(null);
 
   /* ---------- kebutuhan: URL > profil (bila login) > kosong ---------- */
-  const profileQ = useQuery({ queryKey: ['my-profile'], queryFn: () => api('/me/accessibility-profile'), enabled: !!session });
+  const profileQ = useQuery({
+    queryKey: ["my-profile"],
+    queryFn: () => api("/me/accessibility-profile"),
+    enabled: !!session,
+  });
   const profile = profileQ.data?.attributes ?? [];
   const profileReady = !session || !profileQ.isLoading;
-  const required = params.needsRaw === null ? (session ? profile : []) : params.needs;
-  const usingProfile = params.needsRaw === null && !!session && profile.length > 0;
-  const needsParam = required.length ? required.join(',') : 'none';
+  const required =
+    params.needsRaw === null ? (session ? profile : []) : params.needs;
+  const usingProfile =
+    params.needsRaw === null && !!session && profile.length > 0;
+  const needsParam = required.length ? required.join(",") : "none";
 
   /* ---------- navigasi parameter ---------- */
-  const goExplore = useCallback((patch, { keepDetail = false } = {}) => {
-    navigate({
-      pathname: keepDetail && id ? location.pathname : '/map',
-      search: buildExplore({ ...params, route: keepDetail ? params.route : false, ...patch }),
-    });
-  }, [navigate, params, id, location.pathname]);
-  const needsPatch = (codes) => ({ needsRaw: codes.length ? codes.join(',') : 'none' });
+  const goExplore = useCallback(
+    (patch, { keepDetail = false } = {}) => {
+      navigate({
+        pathname: keepDetail && id ? location.pathname : "/map",
+        search: buildExplore({
+          ...params,
+          route: keepDetail ? params.route : false,
+          ...patch,
+        }),
+      });
+    },
+    [navigate, params, id, location.pathname],
+  );
+  const needsPatch = (codes) => ({
+    needsRaw: codes.length ? codes.join(",") : "none",
+  });
   // Panel kebutuhan bisa dibuka dari navbar lewat URL (?filter=1), pola yang sama
   // dengan asisten. Parameternya langsung dibersihkan supaya tombol Back tidak
   // membukanya lagi.
   useEffect(() => {
-    if (!sp.get('filter')) return;
+    if (!sp.get("filter")) return;
     setFilterOpen(true);
     const bersih = new URLSearchParams(sp);
-    bersih.delete('filter');
-    navigate({ pathname: location.pathname, search: bersih.toString() ? `?${bersih}` : '' }, { replace: true });
+    bersih.delete("filter");
+    navigate(
+      {
+        pathname: location.pathname,
+        search: bersih.toString() ? `?${bersih}` : "",
+      },
+      { replace: true },
+    );
   }, [sp]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { if (params.assistant) { assistant.openAssistant(); navigate({ pathname: location.pathname, search: buildExplore({ ...params }) }, { replace: true }); } }, [params.assistant]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (params.assistant) {
+      assistant.openAssistant();
+      navigate(
+        { pathname: location.pathname, search: buildExplore({ ...params }) },
+        { replace: true },
+      );
+    }
+  }, [params.assistant]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---------- data: pencocokan dan urutan dihitung backend ---------- */
   const lat = round4(geo.location?.lat);
   const lon = round4(geo.location?.lon);
   const filtersKey = `${params.q}|${params.category}|${needsParam}|${params.radius}`;
-  useEffect(() => { setLimit(PAGE); }, [filtersKey]);
+  useEffect(() => {
+    setLimit(PAGE);
+  }, [filtersKey]);
   const facilitiesQ = useQuery({
-    queryKey: ['facilities', { q: params.q, category: params.category, needsParam, lat, lon, radius: params.radius, limit }],
-    queryFn: ({ signal }) => api('/facilities', { signal, params: { q: params.q, category: params.category, needs: needsParam, lat, lon, radius: params.radius, limit } }),
+    queryKey: [
+      "facilities",
+      {
+        q: params.q,
+        category: params.category,
+        needsParam,
+        lat,
+        lon,
+        radius: params.radius,
+        limit,
+      },
+    ],
+    queryFn: ({ signal }) =>
+      api("/facilities", {
+        signal,
+        params: {
+          q: params.q,
+          category: params.category,
+          needs: needsParam,
+          lat,
+          lon,
+          radius: params.radius,
+          limit,
+        },
+      }),
     enabled: profileReady,
     placeholderData: keepPreviousData,
   });
-  const results = useMemo(() => (facilitiesQ.data?.results ?? []).map(normalizeFacility), [facilitiesQ.data]);
-  const items = useMemo(() => results.map((f) => ({ facility: f, level: levelFor(f), distance: f.distance_m ?? null })), [results]);
+  const results = useMemo(
+    () => (facilitiesQ.data?.results ?? []).map(normalizeFacility),
+    [facilitiesQ.data],
+  );
+  const items = useMemo(
+    () =>
+      results.map((f) => ({
+        facility: f,
+        level: levelFor(f),
+        distance: f.distance_m ?? null,
+      })),
+    [results],
+  );
   const loadingList = facilitiesQ.isLoading || !profileReady;
   // Saat permintaan gagal, "0 fasilitas" berbohong: ia terbaca "tidak ada yang cocok di
   // sini", padahal yang terjadi adalah tidak ada jawaban sama sekali. Dua hal itu
   // menuntun pengguna ke kesimpulan yang berlawanan tentang kotanya sendiri.
-  const labelHasil = (ekor) => (facilitiesQ.error ? 'Hasil pencarian' : `${loadingList ? 'Memuat' : results.length} fasilitas${ekor}`);
+  const labelHasil = (ekor) =>
+    facilitiesQ.error
+      ? "Hasil pencarian"
+      : `${loadingList ? "Memuat" : results.length} fasilitas${ekor}`;
 
   /* ---------- lokasi ---------- */
   async function locateMe() {
     const loc = await geo.locate();
-    if (loc) { setFocus({ ...loc, zoom: 13, key: `me-${Date.now()}` }); mapRef.current?.flyTo({ lng: loc.lng, lat: loc.lat, zoom: 13 }); }
+    if (loc) {
+      setFocus({ ...loc, zoom: 13, key: `me-${Date.now()}` });
+      mapRef.current?.flyTo({ lng: loc.lng, lat: loc.lat, zoom: 13 });
+    }
     return loc;
   }
 
   /* ---------- rute (dihitung backend: Mapbox Directions + skor 70/30) ---------- */
   const routeHere = params.route && !!id;
-  useEffect(() => { setRoute((r) => (routeHere && r.facilityId === id ? r : INITIAL_ROUTE)); }, [routeHere, id]);
+  useEffect(() => {
+    setRoute((r) => (routeHere && r.facilityId === id ? r : INITIAL_ROUTE));
+  }, [routeHere, id]);
 
   async function buildRoute(origin, facilityId = id) {
-    setRoute((r) => ({ ...r, facilityId: String(facilityId), origin, picking: false, loading: true, error: null, data: null }));
+    setRoute((r) => ({
+      ...r,
+      facilityId: String(facilityId),
+      origin,
+      picking: false,
+      loading: true,
+      error: null,
+      data: null,
+    }));
     try {
       const known = results.find((x) => String(x.id) === String(facilityId));
-      const fac = known ?? normalizeFacility(await api(`/facilities/${facilityId}`, { params: { needs: 'none' } }));
-      const data = await api('/routes/walking', { params: { from: `${origin.lng},${origin.lat}`, to: `${fac.lon},${fac.lat}`, facility_id: facilityId } });
+      const fac =
+        known ??
+        normalizeFacility(
+          await api(`/facilities/${facilityId}`, { params: { needs: "none" } }),
+        );
+      const data = await api("/routes/walking", {
+        params: {
+          from: `${origin.lng},${origin.lat}`,
+          to: `${fac.lon},${fac.lat}`,
+          facility_id: facilityId,
+        },
+      });
       setRoute((r) => ({ ...r, loading: false, data }));
       if (!isDesktop) sheetRef.current?.minimalSetengah();
     } catch (e) {
@@ -228,20 +394,45 @@ export default function ExplorePage() {
     }
   }
   async function startRoute(facilityId) {
-    navigate({ pathname: `/facilities/${facilityId}`, search: buildExplore({ ...params, route: true }) });
+    navigate({
+      pathname: `/facilities/${facilityId}`,
+      search: buildExplore({ ...params, route: true }),
+    });
     const loc = geo.location ?? (await locateMe());
-    if (loc) await buildRoute({ lng: loc.lng, lat: loc.lat, label: 'Lokasi saya' }, facilityId);
+    if (loc)
+      await buildRoute(
+        { lng: loc.lng, lat: loc.lat, label: "Lokasi saya" },
+        facilityId,
+      );
     else setRoute({ ...INITIAL_ROUTE, facilityId: String(facilityId) });
   }
   // Rute dimulai lewat URL (mis. dari asisten) dan lokasi sudah ada
   useEffect(() => {
-    if (routeHere && !route.origin && !route.loading && !route.data && geo.location && autoTried.current !== id) {
+    if (
+      routeHere &&
+      !route.origin &&
+      !route.loading &&
+      !route.data &&
+      geo.location &&
+      autoTried.current !== id
+    ) {
       autoTried.current = id;
-      buildRoute({ lng: geo.location.lng, lat: geo.location.lat, label: 'Lokasi saya' });
+      buildRoute({
+        lng: geo.location.lng,
+        lat: geo.location.lat,
+        label: "Lokasi saya",
+      });
     }
   }, [routeHere, geo.location, route.origin, route.loading, route.data, id]); // eslint-disable-line react-hooks/exhaustive-deps
-  const closeRoute = () => navigate({ pathname: location.pathname, search: buildExplore({ ...params, route: false }) });
-  const routeUseMyLocation = async () => { const loc = geo.location ?? (await locateMe()); if (loc) buildRoute({ lng: loc.lng, lat: loc.lat, label: 'Lokasi saya' }); };
+  const closeRoute = () =>
+    navigate({
+      pathname: location.pathname,
+      search: buildExplore({ ...params, route: false }),
+    });
+  const routeUseMyLocation = async () => {
+    const loc = geo.location ?? (await locateMe());
+    if (loc) buildRoute({ lng: loc.lng, lat: loc.lat, label: "Lokasi saya" });
+  };
   const routeStartPick = () => {
     // Dihitung di luar updater setRoute. Updater dipanggil React pada fase render,
     // dan memanggil mengintip() dari sana berarti mengubah state komponen lain
@@ -251,7 +442,8 @@ export default function ExplorePage() {
     if (picking && !isDesktop) sheetRef.current?.mengintip();
     setRoute((r) => ({ ...r, picking, facilityId: String(id) }));
   };
-  const routePicked = ({ lng, lat: la }) => buildRoute({ lng, lat: la, label: 'Titik yang dipilih di peta' });
+  const routePicked = ({ lng, lat: la }) =>
+    buildRoute({ lng, lat: la, label: "Titik yang dipilih di peta" });
   const routeChooseFacility = (fid) => {
     const f = results.find((x) => String(x.id) === String(fid));
     if (f) buildRoute({ lng: f.lon, lat: f.lat, label: f.name });
@@ -262,10 +454,17 @@ export default function ExplorePage() {
   // menang, sebab titik yang ditulis pengirim adalah ISI tautannya — bukan tebakan
   // tentang di mana penerimanya berada.
   useEffect(() => {
-    if (!routeHere || !params.awal || route.origin || route.loading || route.data) return;
+    if (
+      !routeHere ||
+      !params.awal ||
+      route.origin ||
+      route.loading ||
+      route.data
+    )
+      return;
     if (autoTried.current === id) return;
     autoTried.current = id;
-    buildRoute({ ...params.awal, label: 'Titik dari tautan' });
+    buildRoute({ ...params.awal, label: "Titik dari tautan" });
   }, [routeHere, id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---------- keadaan hasil -> URL ----------
@@ -283,33 +482,92 @@ export default function ExplorePage() {
       gaya: gayaPeta,
       jalur: jalurTerlihat,
     });
-    if (tujuan !== location.search) navigate({ pathname: location.pathname, search: tujuan }, { replace: true });
-  }, [titikJangkauan, menitJangkauan, route.origin, routeHere, gayaPeta, jalurTerlihat]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (tujuan !== location.search)
+      navigate(
+        { pathname: location.pathname, search: tujuan },
+        { replace: true },
+      );
+  }, [
+    titikJangkauan,
+    menitJangkauan,
+    route.origin,
+    routeHere,
+    gayaPeta,
+    jalurTerlihat,
+  ]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---------- peta ---------- */
-  const onMarkerSelect = useCallback((mid) => {
-    if (id) { navigate({ pathname: `/facilities/${mid}`, search: location.search }); return; }
-    setPreviewId(mid);
-    // Di HP kartunya ada di dalam panel bawah: naikkan dulu panelnya, baru gulirkan.
-    // Tanpa ini mengetuk marker di layar kecil tidak terlihat melakukan apa pun.
-    if (!isDesktop) sheetRef.current?.minimalSetengah();
-    requestAnimationFrame(() => {
-      document.getElementById(`facility-${mid}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    });
-  }, [id, navigate, location.search, isDesktop]);
-  const onDetailLoaded = useCallback((f) => { setLoaded(f); setFocus({ lng: f.lon, lat: f.lat, zoom: 15, key: `sel-${f.id}` }); }, []);
-  const openDetail = (fid) => { navigate({ pathname: `/facilities/${fid}`, search: location.search }); };
+  const onMarkerSelect = useCallback(
+    (mid) => {
+      if (id) {
+        navigate({ pathname: `/facilities/${mid}`, search: location.search });
+        return;
+      }
+      setPreviewId(mid);
+      // Di HP kartunya ada di dalam panel bawah: naikkan dulu panelnya, baru gulirkan.
+      // Tanpa ini mengetuk marker di layar kecil tidak terlihat melakukan apa pun.
+      if (!isDesktop) sheetRef.current?.minimalSetengah();
+      requestAnimationFrame(() => {
+        document
+          .getElementById(`facility-${mid}`)
+          ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      });
+    },
+    [id, navigate, location.search, isDesktop],
+  );
+  const onDetailLoaded = useCallback((f) => {
+    setLoaded(f);
+    setFocus({ lng: f.lon, lat: f.lat, zoom: 15, key: `sel-${f.id}` });
+  }, []);
+  const openDetail = (fid) => {
+    navigate({ pathname: `/facilities/${fid}`, search: location.search });
+  };
 
   /* ---------- ringkasan ---------- */
   const catLabel = CATEGORIES.find((c) => c.code === params.category)?.label;
-  const sortText = required.length ? (geo.location ? 'kecocokan kebutuhan, lalu jarak' : 'kecocokan kebutuhan, lalu nama') : (geo.location ? 'jarak terdekat' : 'nama');
-  const hasFilters = !!(params.q || params.category || required.length || params.radius);
+  const sortText = required.length
+    ? geo.location
+      ? "kecocokan kebutuhan, lalu jarak"
+      : "kecocokan kebutuhan, lalu nama"
+    : geo.location
+      ? "jarak terdekat"
+      : "nama";
+  const hasFilters = !!(
+    params.q ||
+    params.category ||
+    required.length ||
+    params.radius
+  );
 
   const filterAktif = (required.length > 0 || params.radius) && (
     <ul aria-label="Filter aktif" className="flex flex-wrap gap-2">
-      {usingProfile && <li><RemovableChip label="Profil saya" onRemove={() => goExplore({ needsRaw: 'none' })} /></li>}
-      {!usingProfile && required.map((c) => <li key={c}><RemovableChip label={ATTRIBUTE_LABEL[c]} onRemove={() => goExplore(needsPatch(required.filter((x) => x !== c)))} /></li>)}
-      {params.radius && <li><RemovableChip label={`Radius ${params.radius >= 1000 ? `${params.radius / 1000} km` : `${params.radius} m`}`} onRemove={() => goExplore({ radius: null })} /></li>}
+      {usingProfile && (
+        <li>
+          <RemovableChip
+            label="Profil saya"
+            onRemove={() => goExplore({ needsRaw: "none" })}
+          />
+        </li>
+      )}
+      {!usingProfile &&
+        required.map((c) => (
+          <li key={c}>
+            <RemovableChip
+              label={ATTRIBUTE_LABEL[c]}
+              onRemove={() =>
+                goExplore(needsPatch(required.filter((x) => x !== c)))
+              }
+            />
+          </li>
+        ))}
+      {params.radius && (
+        <li>
+          <RemovableChip
+            label={`Radius ${params.radius >= 1000 ? `${params.radius / 1000} km` : `${params.radius} m`}`}
+            onRemove={() => goExplore({ radius: null })}
+          />
+        </li>
+      )}
     </ul>
   );
 
@@ -317,9 +575,22 @@ export default function ExplorePage() {
     <div className="space-y-4 p-4">
       <h2 className="sr-only">Hasil pencarian</h2>
       {filterAktif}
-      {params.intent === 'update' && (
-        <Alert tone="info" title="Perbarui data fasilitas" actions={<Button size="sm" variant="secondary" onClick={() => goExplore({ intent: '' })}>Mengerti</Button>}>
-          Pilih fasilitas di daftar, lalu tekan <strong>Usulkan pembaruan</strong> di halaman detailnya.
+      {params.intent === "update" && (
+        <Alert
+          tone="info"
+          title="Perbarui data fasilitas"
+          actions={
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => goExplore({ intent: "" })}
+            >
+              Mengerti
+            </Button>
+          }
+        >
+          Pilih fasilitas di daftar, lalu tekan{" "}
+          <strong>Usulkan pembaruan</strong> di halaman detailnya.
         </Alert>
       )}
       {/* Pertanyaan kebutuhan didahulukan: tanpa itu kartu tampil tanpa kecocokan
@@ -329,13 +600,19 @@ export default function ExplorePage() {
           pertama berarti orang yang mengetik "bogor" mendapat formulir kebutuhan, bukan
           jawabannya. Di layar sempit pertanyaan itu sudah punya tempatnya sendiri:
           kartu mengambang di atas peta, sebelum ada yang dicari. */}
-      {required.length === 0 && !loadingList && !tanyaKebutuhan && (isDesktop || !(params.q || params.category)) && (
-        <NeedsPrompt
-          onApply={(codes) => { goExplore(needsPatch(codes), { keepDetail: true }); toast.show(`${codes.length} kebutuhan diterapkan.`, 'info'); }}
-          onOpenFilter={() => setFilterOpen(true)}
-          onCobaJangkauan={() => gantiModeJangkauan(true)}
-        />
-      )}
+      {required.length === 0 &&
+        !loadingList &&
+        !tanyaKebutuhan &&
+        (isDesktop || !(params.q || params.category)) && (
+          <NeedsPrompt
+            onApply={(codes) => {
+              goExplore(needsPatch(codes), { keepDetail: true });
+              toast.show(`${codes.length} kebutuhan diterapkan.`, "info");
+            }}
+            onOpenFilter={() => setFilterOpen(true)}
+            onCobaJangkauan={() => gantiModeJangkauan(true)}
+          />
+        )}
 
       {/* Di HP jumlah hasil sudah terbaca di gagang panel bawah; mengulanginya di sini
           hanya menambah satu baris sebelum hasil pertama. */}
@@ -345,18 +622,23 @@ export default function ExplorePage() {
           paragraf penuh, dan bersama baris chip filter serta tombol lokasi, hampir
           separuh tinggi panel habis sebelum hasil pertama terlihat. */}
       {!facilitiesQ.error && (
-      <div className="hidden lg:block">
-        <p role="status" aria-live="polite" className="font-semibold">
-          {loadingList ? 'Memuat fasilitas…' : (
-            <>
-              {results.length} fasilitas{params.q && <> untuk “{params.q}”</>}{catLabel && <> · {catLabel}</>}
-              {required.length > 0 && (
-                <span className="font-sub ml-2 text-sm font-normal text-ink-secondary">diurutkan menurut {sortText}</span>
-              )}
-            </>
-          )}
-        </p>
-      </div>
+        <div className="hidden lg:block">
+          <p role="status" aria-live="polite" className="font-semibold">
+            {loadingList ? (
+              "Memuat fasilitas…"
+            ) : (
+              <>
+                {results.length} fasilitas{params.q && <> untuk “{params.q}”</>}
+                {catLabel && <> · {catLabel}</>}
+                {required.length > 0 && (
+                  <span className="font-sub ml-2 text-sm font-normal text-ink-secondary">
+                    diurutkan menurut {sortText}
+                  </span>
+                )}
+              </>
+            )}
+          </p>
+        </div>
       )}
       {/* Catatan privasi dipindah ke dalam tombol sebagai teks bantuan, bukan paragraf
           tersendiri: di HP paragraf itu satu blok penuh yang menyela antara daftar dan
@@ -365,34 +647,78 @@ export default function ExplorePage() {
         <Button
           variant="secondary"
           onClick={locateMe}
-          loading={geo.status === 'loading'}
+          loading={geo.status === "loading"}
           aria-describedby="catatan-lokasi"
           className="w-full sm:w-auto"
         >
-          <LocateFixed aria-hidden="true" size={15} /> Aktifkan lokasi untuk urutkan jarak
-          <span id="catatan-lokasi" className="sr-only">Lokasi hanya disimpan sementara di peramban Anda, tidak dikirim ke server.</span>
+          <LocateFixed aria-hidden="true" size={15} /> Aktifkan lokasi untuk
+          urutkan jarak
+          <span id="catatan-lokasi" className="sr-only">
+            Lokasi hanya disimpan sementara di peramban Anda, tidak dikirim ke
+            server.
+          </span>
         </Button>
       )}
-      {geo.error && <p role="alert" className="text-sm font-semibold text-danger">{geo.error}</p>}
-      {params.radius && !geo.location && <p className="font-sub text-sm text-ink-secondary">Radius hanya dipakai setelah lokasi aktif.</p>}
+      {geo.error && (
+        <p role="alert" className="text-sm font-semibold text-danger">
+          {geo.error}
+        </p>
+      )}
+      {params.radius && !geo.location && (
+        <p className="font-sub text-sm text-ink-secondary">
+          Radius hanya dipakai setelah lokasi aktif.
+        </p>
+      )}
 
-      {loadingList && <div className="space-y-2" aria-hidden="true">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-32 w-full" />)}</div>}
+      {loadingList && (
+        <div className="space-y-2" aria-hidden="true">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-32 w-full" />
+          ))}
+        </div>
+      )}
       {facilitiesQ.error && !loadingList && (
-        <Alert tone="danger" title="Data fasilitas tidak dapat dimuat" actions={<Button size="sm" variant="secondary" onClick={() => facilitiesQ.refetch()}>Coba lagi</Button>}>{facilitiesQ.error.message}</Alert>
+        <Alert
+          tone="danger"
+          title="Data fasilitas tidak dapat dimuat"
+          actions={
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => facilitiesQ.refetch()}
+            >
+              Coba lagi
+            </Button>
+          }
+        >
+          {facilitiesQ.error.message}
+        </Alert>
       )}
       {!loadingList && !facilitiesQ.error && results.length === 0 && (
         <EmptyState
-          icon={SearchX} title="Tidak ada hasil untuk parameter ini"
-          actions={(
+          icon={SearchX}
+          title="Tidak ada hasil untuk parameter ini"
+          actions={
             <>
-              {hasFilters && <Button variant="secondary" onClick={() => navigate('/map')}>Hapus semua filter</Button>}
+              {hasFilters && (
+                <Button variant="secondary" onClick={() => navigate("/map")}>
+                  Hapus semua filter
+                </Button>
+              )}
               {/* Dulu tombol ini memfokuskan #explore-search. Kolom itu pindah ke navbar
                   bersama CommandBar, jadi tombolnya diam saja saat diklik. Diganti aksi
                   yang memang bisa dikerjakan dari sini. */}
-              {params.category && <Button variant="secondary" onClick={() => goExplore({ category: '' })}>Lihat semua kategori</Button>}
+              {params.category && (
+                <Button
+                  variant="secondary"
+                  onClick={() => goExplore({ category: "" })}
+                >
+                  Lihat semua kategori
+                </Button>
+              )}
               <LinkButton to="/facilities/new">Usulkan fasilitas</LinkButton>
             </>
-          )}
+          }
         >
           {COVERAGE_NOTE}
         </EmptyState>
@@ -402,19 +728,32 @@ export default function ExplorePage() {
           tanpa itu ia hanya main sekali seumur halaman. */}
       <ul key={filtersKey} className="ak-stagger space-y-3">
         {items.map(({ facility, level, distance }, i) => (
-          <li key={facility.id} style={{ '--i': i }}>
+          <li key={facility.id} style={{ "--i": i }}>
             <FacilityCard
-              facility={facility} level={level} distance={distance} selected={String(facility.id) === String(previewId)}
-              to={`/facilities/${facility.id}${location.search}`} onRoute={() => startRoute(facility.id)}
+              facility={facility}
+              level={level}
+              distance={distance}
+              selected={String(facility.id) === String(previewId)}
+              to={`/facilities/${facility.id}${location.search}`}
+              onRoute={() => startRoute(facility.id)}
             />
           </li>
         ))}
       </ul>
 
       {!loadingList && results.length >= limit && limit < 200 && (
-        <Button variant="secondary" className="w-full" onClick={() => setLimit((l) => Math.min(200, l + PAGE))} loading={facilitiesQ.isFetching}>Muat lebih banyak</Button>
+        <Button
+          variant="secondary"
+          className="w-full"
+          onClick={() => setLimit((l) => Math.min(200, l + PAGE))}
+          loading={facilitiesQ.isFetching}
+        >
+          Muat lebih banyak
+        </Button>
       )}
-      {!loadingList && results.length > 0 && <p className="font-sub text-xs text-ink-secondary">{COVERAGE_NOTE}</p>}
+      {!loadingList && results.length > 0 && (
+        <p className="font-sub text-xs text-ink-secondary">{COVERAGE_NOTE}</p>
+      )}
     </div>
   );
 
@@ -424,21 +763,38 @@ export default function ExplorePage() {
   // pernah terhitung, kartunya tidak pernah ada, dan tombolnya tampak rusak.
   // Null tetap dibedakan dari id lain supaya satu frame data rute fasilitas
   // sebelumnya tidak sempat tampil di bawah nama fasilitas yang baru.
-  const routeSummary = routeHere && (route.facilityId === null || route.facilityId === id) ? (
-    <RouteSummary
-      route={route} facilityName={loaded?.name ?? 'fasilitas ini'} otherFacilities={results.filter((f) => String(f.id) !== id)}
-      geoStatus={geo.status} geoError={geo.error} compact={false}
-      onUseMyLocation={routeUseMyLocation} onStartPick={routeStartPick} onChooseFacility={routeChooseFacility}
-      onRetry={() => route.origin && buildRoute(route.origin)} onClose={closeRoute}
-    />
-  ) : null;
+  const routeSummary =
+    routeHere && (route.facilityId === null || route.facilityId === id) ? (
+      <RouteSummary
+        route={route}
+        facilityName={loaded?.name ?? "fasilitas ini"}
+        otherFacilities={results.filter((f) => String(f.id) !== id)}
+        geoStatus={geo.status}
+        geoError={geo.error}
+        compact={false}
+        onUseMyLocation={routeUseMyLocation}
+        onStartPick={routeStartPick}
+        onChooseFacility={routeChooseFacility}
+        onRetry={() => route.origin && buildRoute(route.origin)}
+        onClose={closeRoute}
+      />
+    ) : null;
 
   const detail = id && (
     <FacilityDetailPanel
-      id={id} required={required} usingProfile={usingProfile}
+      id={id}
+      required={required}
+      usingProfile={usingProfile}
       distance={results.find((f) => String(f.id) === id)?.distance_m ?? null}
-      onBack={() => navigate({ pathname: '/map', search: buildExplore({ ...params, route: false }) })}
-      onStartRoute={() => startRoute(id)} onEditNeeds={() => setFilterOpen(true)} onLoaded={onDetailLoaded}
+      onBack={() =>
+        navigate({
+          pathname: "/map",
+          search: buildExplore({ ...params, route: false }),
+        })
+      }
+      onStartRoute={() => startRoute(id)}
+      onEditNeeds={() => setFilterOpen(true)}
+      onLoaded={onDetailLoaded}
       awal={results.find((x) => String(x.id) === String(id)) ?? loaded ?? null}
       routeSlot={routeSummary}
     />
@@ -446,19 +802,38 @@ export default function ExplorePage() {
 
   // Gerbang panel hasil di ponsel. needsRaw, bukan required: kebutuhan yang datang
   // diam-diam dari profil pengguna yang login bukan tindakan mencari.
-  const sheetTerlihat = !!(params.q || params.category || params.needsRaw || id);
+  const sheetTerlihat = !!(
+    params.q ||
+    params.category ||
+    params.needsRaw ||
+    id
+  );
 
   const petaShell = (
     <>
       <MapView
-        ref={mapRef} items={items} selectedId={id ?? previewId} onSelect={onMarkerSelect}
-        userLocation={geo.location} origin={routeHere ? route.origin : null} routeGeometry={routeHere ? route.data?.geometry ?? null : null} routeSegmen={routeHere ? route.data?.segmen ?? null : null}
-        pickingOrigin={routeHere && route.picking} onPickOrigin={routePicked} focus={focus}
-        onError={(e) => { if ([401, 403].includes(e?.error?.status)) setMapProblem(true); }}
+        ref={mapRef}
+        items={items}
+        selectedId={id ?? previewId}
+        onSelect={onMarkerSelect}
+        userLocation={geo.location}
+        origin={routeHere ? route.origin : null}
+        routeGeometry={routeHere ? (route.data?.geometry ?? null) : null}
+        routeSegmen={routeHere ? (route.data?.segmen ?? null) : null}
+        pickingOrigin={routeHere && route.picking}
+        onPickOrigin={routePicked}
+        focus={focus}
+        onError={(e) => {
+          if ([401, 403].includes(e?.error?.status)) setMapProblem(true);
+        }}
         gaya={gayaPeta}
-        jalurTerlihat={jalurTerlihat} onJalurTerlaluJauh={setJalurTerlaluJauh} onJalurRingkas={setRingkasJalur}
-        jangkauan={jangkauanQ.data ?? null} modeJangkauan={modeJangkauan} onPickJangkauan={setTitikJangkauan}
-        fitPaddingBottom={isDesktop ? 70 : (sheetTerlihat ? 380 : 90)}
+        jalurTerlihat={jalurTerlihat}
+        onJalurTerlaluJauh={setJalurTerlaluJauh}
+        onJalurRingkas={setRingkasJalur}
+        jangkauan={jangkauanQ.data ?? null}
+        modeJangkauan={modeJangkauan}
+        onPickJangkauan={setTitikJangkauan}
+        fitPaddingBottom={isDesktop ? 70 : sheetTerlihat ? 380 : 90}
         fitPaddingLeft={isDesktop ? 430 : 60}
       />
 
@@ -468,56 +843,100 @@ export default function ExplorePage() {
           ditutup, bukan kartu yang bisa tertutup apa pun di tepi bawah. Sekali ditutup
           ia tidak bertanya lagi; jalan masuknya tinggal tombol tenang di panel hasil. */}
       <Modal
-        // profileReady ikut jadi syarat: selama profil pengguna yang sudah masuk masih
-        // dimuat, `profile` masih kosong — tanpa syarat ini dialognya berkedip sekejap
-        // di depan orang yang justru sudah pernah mengisi kebutuhannya.
-        //
-        // Tautan yang dibagikan tidak diganggu: pembawa ?q=, ?category=, atau ?needs=
-        // datang untuk sesuatu yang spesifik, dan sapaan di depan hasil yang dicarinya
-        // adalah penghalang, bukan sambutan.
-        open={tanyaKebutuhan && profileReady && required.length === 0 && !adaMaksudDiURL && !id && !modeJangkauan}
+        open={
+          tanyaKebutuhan &&
+          profileReady &&
+          required.length === 0 &&
+          !adaMaksudDiURL &&
+          !id &&
+          !modeJangkauan
+        }
         onClose={tutupTanyaKebutuhan}
-        title={(
-          <>
-            <span className="font-sub block text-xs font-bold uppercase tracking-[0.14em] text-brand-700">
-              Selamat datang di AksesKota
-            </span>
-            Apa yang Anda butuhkan?
-          </>
-        )}
-        // "Nanti saja" berefek SAMA PERSIS dengan tombol ✕ dan tombol Escape. Dua cara
-        // menutup dengan dua akibat berbeda adalah jebakan: orang menekan ✕ mengira
-        // menunda, ternyata menolak selamanya.
-        footer={<Button variant="ghost" onClick={tutupTanyaKebutuhan}>Nanti saja</Button>}
+        title={
+          <div className="flex items-center gap-3.5">
+            {/* Logo */}
+            <img
+              src="logo-akseskota.jpg"
+              className="h-11 w-11 rounded-2xl object-cover shrink-0 border border-gray-100 shadow-sm"
+              alt="akseskota"
+            />
+
+            {/* Teks */}
+            <div>
+              <span className="block text-xs font-semibold text-gray-500 mb-0.5">
+                Selamat datang di{" "}
+                <mark className="bg-brand-100 text-brand-800 rounded px-1 py-0.2 font-bold no-underline">
+                  AksesKota
+                </mark>
+              </span>
+              <h3 className="text-base font-bold text-gray-900 leading-tight">
+                Fasilitas apa yang Anda butuhkan?
+              </h3>
+            </div>
+          </div>
+        }
+        footer={
+          <Button variant="ghost" onClick={tutupTanyaKebutuhan}>
+            Nanti saja
+          </Button>
+        }
       >
         <NeedsPrompt
           dalamDialog
           onApply={(codes) => {
             tutupTanyaKebutuhan();
             goExplore(needsPatch(codes), { keepDetail: true });
-            toast.show(`${codes.length} kebutuhan diterapkan.`, 'info');
+            toast.show(`${codes.length} kebutuhan diterapkan.`, "info");
           }}
-          onOpenFilter={() => { tutupTanyaKebutuhan(); setFilterOpen(true); }}
-          onCobaJangkauan={() => { tutupTanyaKebutuhan(); gantiModeJangkauan(true); }}
+          onOpenFilter={() => {
+            tutupTanyaKebutuhan();
+            setFilterOpen(true);
+          }}
+          onCobaJangkauan={() => {
+            tutupTanyaKebutuhan();
+            gantiModeJangkauan(true);
+          }}
         />
       </Modal>
 
       {/* Dipicu oleh bukti ketertarikan, bukan oleh waktu: satu fasilitas dibuka, atau
           kebutuhan dipilih. Tombol masuk di navbar halaman peta sengaja dihapus. */}
-      {!session && <AjakanMasuk aktif={(!!id || required.length > 0) && (isDesktop || (!routeHere && !modeJangkauan))} />}
+      {!session && (
+        <AjakanMasuk
+          aktif={
+            (!!id || required.length > 0) &&
+            (isDesktop || (!routeHere && !modeJangkauan))
+          }
+        />
+      )}
 
       <MapControls
-        onZoomIn={() => mapRef.current?.zoomIn()} onZoomOut={() => mapRef.current?.zoomOut()}
-        onLocate={locateMe} locating={geo.status === 'loading'}
-        gaya={gayaPeta} onGantiGaya={gantiGayaPeta}
-        jalur={jalurTerlihat} onGantiJalur={gantiJalur} ringkasJalur={ringkasJalur}
-        modeJangkauan={modeJangkauan} onGantiJangkauan={gantiModeJangkauan}
+        onZoomIn={() => mapRef.current?.zoomIn()}
+        onZoomOut={() => mapRef.current?.zoomOut()}
+        onLocate={locateMe}
+        locating={geo.status === "loading"}
+        gaya={gayaPeta}
+        onGantiGaya={gantiGayaPeta}
+        jalur={jalurTerlihat}
+        onGantiJalur={gantiJalur}
+        ringkasJalur={ringkasJalur}
+        modeJangkauan={modeJangkauan}
+        onGantiJangkauan={gantiModeJangkauan}
       />
 
       {modeJangkauan && !titikJangkauan && (
-        <div role="status" className="absolute left-3 right-[4.25rem] top-[7.5rem] z-30 flex items-center justify-between gap-2 rounded-control bg-ink px-4 py-2 font-semibold text-white shadow-popover lg:left-1/2 lg:right-auto lg:top-32 lg:-translate-x-1/2">
+        <div
+          role="status"
+          className="absolute left-3 right-[4.25rem] top-[7.5rem] z-30 flex items-center justify-between gap-2 rounded-control bg-ink px-4 py-2 font-semibold text-white shadow-popover lg:left-1/2 lg:right-auto lg:top-32 lg:-translate-x-1/2"
+        >
           Ketuk peta untuk menghitung jangkauan
-          <button type="button" onClick={() => gantiModeJangkauan(false)} className="min-h-11 px-2 underline">Batal</button>
+          <button
+            type="button"
+            onClick={() => gantiModeJangkauan(false)}
+            className="min-h-11 px-2 underline"
+          >
+            Batal
+          </button>
         </div>
       )}
 
@@ -535,72 +954,119 @@ export default function ExplorePage() {
       {/* Lapisannya menyala tapi petanya terlalu jauh untuk menggambar apa pun —
           tanpa pesan ini tombolnya tampak rusak. */}
       {jalurTerlihat && jalurTerlaluJauh && (
-        <p role="status" className="absolute inset-x-3 bottom-4 z-30 mx-auto max-w-sm rounded-control bg-ink/90 px-3 py-2 text-center text-sm font-semibold text-white lg:bottom-auto lg:left-1/2 lg:top-[7.5rem] lg:w-fit lg:-translate-x-1/2">
+        <p
+          role="status"
+          className="absolute inset-x-3 bottom-4 z-30 mx-auto max-w-sm rounded-control bg-ink/90 px-3 py-2 text-center text-sm font-semibold text-white lg:bottom-auto lg:left-1/2 lg:top-[7.5rem] lg:w-fit lg:-translate-x-1/2"
+        >
           Perbesar peta untuk melihat jalur pejalan kaki
         </p>
       )}
 
       {mapProblem && (
         <div className="absolute inset-x-3 top-32 z-30 mx-auto max-w-md">
-          <Alert tone="danger">Peta tidak dapat dimuat (token tidak valid). Daftar hasil tetap bisa dipakai.</Alert>
+          <Alert tone="danger">
+            Peta tidak dapat dimuat (token tidak valid). Daftar hasil tetap bisa
+            dipakai.
+          </Alert>
         </div>
       )}
       {routeHere && route.picking && (
-        <div role="status" className="absolute left-3 right-[4.25rem] top-[7.5rem] z-30 flex items-center justify-between gap-2 rounded-control bg-ink px-4 py-2 font-semibold text-white shadow-popover lg:left-1/2 lg:right-auto lg:top-32 lg:-translate-x-1/2">
+        <div
+          role="status"
+          className="absolute left-3 right-[4.25rem] top-[7.5rem] z-30 flex items-center justify-between gap-2 rounded-control bg-ink px-4 py-2 font-semibold text-white shadow-popover lg:left-1/2 lg:right-auto lg:top-32 lg:-translate-x-1/2"
+        >
           Klik peta untuk menentukan titik awal
-          <button type="button" onClick={routeStartPick} className="min-h-11 px-2 underline">Batal</button>
+          <button
+            type="button"
+            onClick={routeStartPick}
+            className="min-h-11 px-2 underline"
+          >
+            Batal
+          </button>
         </div>
       )}
 
       {/* Layar lebar: kartu mengambang. HP: panel bawah yang bisa ditarik — kartu yang
           bisa digeser-geser tidak masuk akal di layar selebar telapak tangan, dan panel
           bawah sudah jadi pola yang dikenal di sana. Keduanya menampilkan isi yang sama. */}
-      {isDesktop ? (
-        heroTerlihat && (
-          <FloatingCard
-            key={id ? 'detail' : 'hasil'}
-            id={id ? 'detail' : 'hasil'}
-            label={id ? (loaded?.name ?? 'Detail fasilitas') : labelHasil(required.length ? ` · ${usingProfile ? 'profil Anda' : `${required.length} kebutuhan`}` : '')}
-            // 88 px: tepat di bawah navbar. Dulu 184 px karena ada bilah perintah dan
-            // baris kategori di atasnya; keduanya sudah pindah ke navbar, jadi angka
-            // lama menyisakan satu jalur kosong selebar kartu.
-            posisiAwal={{ x: 12, y: 88 }}
-            lebar={id ? 25 : 24}
-            onClose={id ? () => navigate({ pathname: '/map', search: location.search }) : null}
-          >
-            {id ? detail : listContent}
-          </FloatingCard>
-        )
-      ) : (
-        /* Seperti Gmaps: di ponsel peta yang pertama terlihat, bukan daftarnya. Panel
+      {isDesktop
+        ? heroTerlihat && (
+            <FloatingCard
+              key={id ? "detail" : "hasil"}
+              id={id ? "detail" : "hasil"}
+              label={
+                id
+                  ? (loaded?.name ?? "Detail fasilitas")
+                  : labelHasil(
+                      required.length
+                        ? ` · ${usingProfile ? "profil Anda" : `${required.length} kebutuhan`}`
+                        : "",
+                    )
+              }
+              // 88 px: tepat di bawah navbar. Dulu 184 px karena ada bilah perintah dan
+              // baris kategori di atasnya; keduanya sudah pindah ke navbar, jadi angka
+              // lama menyisakan satu jalur kosong selebar kartu.
+              posisiAwal={{ x: 12, y: 88 }}
+              lebar={id ? 25 : 24}
+              onClose={
+                id
+                  ? () =>
+                      navigate({ pathname: "/map", search: location.search })
+                  : null
+              }
+            >
+              {id ? detail : listContent}
+            </FloatingCard>
+          )
+        : /* Seperti Gmaps: di ponsel peta yang pertama terlihat, bukan daftarnya. Panel
            hasil baru ada begitu pengguna benar-benar mencari sesuatu — kata kunci,
            kategori, kebutuhan yang dipilih sendiri, atau satu tempat yang dibuka.
            Tanpa gerbang ini panel setengah layar menutupi peta sejak detik pertama,
            dan hero di beranda praktis jadi daftar, bukan peta. */
-        sheetTerlihat && (
-        <BottomSheet
-          ref={sheetRef}
-          // Daftar hasil dibuka setengah layar; panel yang hanya mengikuti kebutuhan
-          // tersimpan cukup mengintip supaya peta tetap jadi isi utamanya.
-          awalIdx={params.q || params.category || id ? 1 : 0}
-          label={id ? 'Detail fasilitas' : 'Hasil pencarian'}
-          ringkasan={
-            <p role="status" className="truncate text-center text-sm font-semibold">
-              {id ? (loaded?.name ?? 'Detail fasilitas') : labelHasil(required.length ? ` · ${required.length} kebutuhan` : '')}
-            </p>
-          }
-        >
-          {id ? detail : listContent}
-        </BottomSheet>
-        )
-      )}
+          sheetTerlihat && (
+            <BottomSheet
+              ref={sheetRef}
+              // Daftar hasil dibuka setengah layar; panel yang hanya mengikuti kebutuhan
+              // tersimpan cukup mengintip supaya peta tetap jadi isi utamanya.
+              awalIdx={params.q || params.category || id ? 1 : 0}
+              label={id ? "Detail fasilitas" : "Hasil pencarian"}
+              ringkasan={
+                <p
+                  role="status"
+                  className="truncate text-center text-sm font-semibold"
+                >
+                  {id
+                    ? (loaded?.name ?? "Detail fasilitas")
+                    : labelHasil(
+                        required.length
+                          ? ` · ${required.length} kebutuhan`
+                          : "",
+                      )}
+                </p>
+              }
+            >
+              {id ? detail : listContent}
+            </BottomSheet>
+          )}
     </>
   );
 
   const filterSheet = (
     <FilterSheet
-      open={filterOpen} onClose={() => setFilterOpen(false)} required={required} session={session} profile={profile}
-      onApply={(codes) => { goExplore(needsPatch(codes), { keepDetail: true }); toast.show(codes.length ? `${codes.length} kebutuhan diterapkan.` : 'Filter kebutuhan dihapus.', 'info'); }}
+      open={filterOpen}
+      onClose={() => setFilterOpen(false)}
+      required={required}
+      session={session}
+      profile={profile}
+      onApply={(codes) => {
+        goExplore(needsPatch(codes), { keepDetail: true });
+        toast.show(
+          codes.length
+            ? `${codes.length} kebutuhan diterapkan.`
+            : "Filter kebutuhan dihapus.",
+          "info",
+        );
+      }}
     />
   );
 

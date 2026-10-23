@@ -100,7 +100,7 @@ function CtaAsisten() {
       type="button"
       onClick={openAssistant}
       aria-haspopup="dialog"
-      className="ak-pil group inline-flex h-12 shrink-0 items-center justify-center gap-2.5 rounded-full bg-ink text-sm font-semibold text-white shadow-panel transition-colors hover:bg-brand-900 focus-visible:rounded-full max-lg:w-12 lg:py-1 lg:pl-5 lg:pr-1"
+      className=" ak-pil group inline-flex h-12 shrink-0 items-center justify-center gap-2.5 rounded-full bg-ink text-sm font-semibold text-white shadow-panel transition-colors hover:bg-brand-900 focus-visible:rounded-full max-lg:w-12 lg:py-1 lg:pl-5 lg:pr-1"
     >
       <Sparkles aria-hidden="true" size={19} className="lg:hidden" />
       <span className="max-lg:sr-only">Tanya asisten</span>
@@ -131,7 +131,7 @@ function PencarianNavbar() {
       chevron={false}
       align="right"
       lebar="w-[min(22rem,calc(100vw-1.5rem))] max-sm:fixed max-sm:left-3 max-sm:right-3 max-sm:top-[4.25rem] max-sm:w-auto"
-      buttonClassName={`${kaca} inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold text-ink-secondary transition-colors hover:bg-white hover:text-ink focus-visible:rounded-full max-xl:w-12 max-xl:px-0`}
+      buttonClassName={`${kaca} mt-1 inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold text-ink-secondary transition-colors hover:bg-white hover:text-ink focus-visible:rounded-full max-xl:w-12 max-xl:px-0`}
       icon={() => <Search aria-hidden="true" size={18} />}
       label={<span className="max-xl:sr-only">Cari tempat</span>}
     >
@@ -233,7 +233,7 @@ function Header() {
   return (
     <header className="pointer-events-none fixed inset-x-0 top-0 z-40 px-3 pt-3">
       <div className="mx-auto grid max-w-7xl grid-cols-[auto_minmax(0,1fr)] items-start gap-2 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-        <nav aria-label="Navigasi utama" className={`pointer-events-auto hidden items-center gap-0.5 justify-self-start rounded-full p-0.5 md:flex ${kaca}`}>
+        <nav aria-label="Navigasi utama" className={`mt-1 pointer-events-auto hidden items-center gap-0.5 justify-self-start rounded-full p-0.5 md:flex ${kaca}`}>
           <TautanNav to={tujuan.jelajahi} aktif={exploring} Ikon={Compass}>Jelajahi</TautanNav>
           {/* Sudah di halaman penjelasan: klik lagi membawa ke awalnya. Dari tempat lain
               ia berpindah ke "/#cara-kerja", dan PublicLayout menampilkannya dari atas. */}
