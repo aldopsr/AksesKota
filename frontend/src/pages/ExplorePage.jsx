@@ -262,6 +262,26 @@ export default function ExplorePage() {
   const needsPatch = (codes) => ({
     needsRaw: codes.length ? codes.join(",") : "none",
   });
+
+  /**
+   * Preset kebutuhan dipilih — termasuk apa yang terjadi SETELAHNYA.
+   *
+   * Preset tunanetra sekalian menyalakan hands-free. Orang yang baru saja menyatakan
+   * matanya tidak bisa diandalkan tidak semestinya diminta mencari tombol mikrofon
+   * dengan mata; di sini kita sudah tahu jawabannya, jadi tidak perlu ditanyakan lagi.
+   *
+   * Hanya di sini, bukan di FilterSheet: menyusun atribut satu per satu adalah pilihan
+   * sadar seseorang yang sedang menyaring, bukan pernyataan tentang dirinya sendiri —
+   * orang bisa memilih "guiding block" karena sedang mendata, bukan karena tunanetra.
+   *
+   * Tidak diam-diam: asistennya mengumumkan dirinya dan cara mematikannya ("katakan
+   * berhenti"), dan sakelarnya tetap ada di panel opsi asisten.
+   */
+  const terapkanPreset = (codes, key) => {
+    goExplore(needsPatch(codes), { keepDetail: true });
+    toast.show(`${codes.length} kebutuhan diterapkan.`, "info");
+    if (key === "netra") assistant.openAssistant({ handsFree: true });
+  };
   // Panel kebutuhan bisa dibuka dari navbar lewat URL (?filter=1), pola yang sama
   // dengan asisten. Parameternya langsung dibersihkan supaya tombol Back tidak
   // membukanya lagi.
@@ -605,10 +625,7 @@ export default function ExplorePage() {
         !tanyaKebutuhan &&
         (isDesktop || !(params.q || params.category)) && (
           <NeedsPrompt
-            onApply={(codes) => {
-              goExplore(needsPatch(codes), { keepDetail: true });
-              toast.show(`${codes.length} kebutuhan diterapkan.`, "info");
-            }}
+            onApply={terapkanPreset}
             onOpenFilter={() => setFilterOpen(true)}
             onCobaJangkauan={() => gantiModeJangkauan(true)}
           />
@@ -883,10 +900,9 @@ export default function ExplorePage() {
       >
         <NeedsPrompt
           dalamDialog
-          onApply={(codes) => {
+          onApply={(codes, key) => {
             tutupTanyaKebutuhan();
-            goExplore(needsPatch(codes), { keepDetail: true });
-            toast.show(`${codes.length} kebutuhan diterapkan.`, "info");
+            terapkanPreset(codes, key);
           }}
           onOpenFilter={() => {
             tutupTanyaKebutuhan();

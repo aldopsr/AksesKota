@@ -45,7 +45,9 @@ function Baris({ Ikon, judul, keterangan, onClick }) {
   );
 }
 
-export default function NeedsPrompt({ onApply, onOpenFilter, onCobaJangkauan, sisakanTombol = true, ringkas = false, dalamDialog = false }) {
+// onApply menerima (codes, key): key-nya dipakai pemanggil untuk perlakuan khusus per
+// preset — mis. menyalakan hands-free saat yang dipilih adalah preset tunanetra.
+export default function NeedsPrompt({ onApply, onOpenFilter, onCobaJangkauan, dalamDialog = false }) {
   const [tertutup, setTertutup] = useState(dalamDialog ? false : sudahDitutup);
 
   const tutup = () => {
@@ -53,11 +55,10 @@ export default function NeedsPrompt({ onApply, onOpenFilter, onCobaJangkauan, si
     tandaiDitutup();
   };
 
-  // Sudah pernah ditutup: sisakan satu tombol tenang, jangan bertanya lagi setiap kunjungan.
-  // Kecuali saat dipakai sebagai kartu mengambang di atas peta, atau di dalam dialog —
-  // di sana yang memutuskan muncul-tidaknya adalah pemanggilnya.
+  // Sudah pernah ditutup: sisakan satu tombol tenang, jangan bertanya lagi setiap
+  // kunjungan. Kecuali di dalam dialog — di sana yang memutuskan muncul-tidaknya
+  // adalah pemanggilnya.
   if (tertutup && !dalamDialog) {
-    if (!sisakanTombol) return null;
     return (
       <button
         type="button"
@@ -85,60 +86,31 @@ export default function NeedsPrompt({ onApply, onOpenFilter, onCobaJangkauan, si
       <p className="font-sub mt-1.5 text-sm leading-snug text-ink-secondary">
         {dalamDialog
           ? 'Peta ini menilai tiap tempat dari kebutuhan Anda — bukan dengan satu angka untuk semua orang.'
-          : ringkas
-            ? 'Pilih sekali, hasil dan warna penanda peta menyesuaikan.'
-            : 'Pilih sekali, hasil dan warna penanda peta langsung menyesuaikan.'}
+          : 'Pilih sekali, hasil dan warna penanda peta langsung menyesuaikan.'}
       </p>
 
-      {/* Bentuk ringkas untuk kartu yang mengambang DI ATAS PETA (ponsel). */}
-      {ringkas ? (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {NEEDS_PRESETS.map(({ key, labelPendek, icon, codes }) => {
-            const Icon = IKON[icon];
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => onApply(codes)}
-                className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-control border border-border bg-surface px-3 text-sm font-semibold transition-colors hover:border-brand-500"
-              >
-                <Icon aria-hidden="true" size={18} className="shrink-0 text-brand-700" />
-                {labelPendek}
-              </button>
-            );
-          })}
-          <button
-            type="button"
-            onClick={onOpenFilter}
-            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-control border border-border bg-surface px-3 text-sm font-semibold transition-colors hover:border-brand-500"
-          >
-            <SlidersHorizontal aria-hidden="true" size={18} className="shrink-0 text-brand-700" /> Pilih sendiri dari {ATTRIBUTES.length} atribut
-          </button>
-        </div>
-      ) : (
-        // ak-stagger: baris masuk bergiliran (CSS di index.css, otomatis mati bila
-        // pengguna memilih mengurangi gerakan).
-        <ul className="ak-stagger mt-4 space-y-2">
-          {NEEDS_PRESETS.map(({ key, label, icon, codes }, i) => (
-            <li key={key} style={{ '--i': i }}>
-              <Baris
-                Ikon={IKON[icon]}
-                judul={label}
-                keterangan={codes.map((c) => ATTRIBUTE_LABEL[c]).join(' · ')}
-                onClick={() => onApply(codes)}
-              />
-            </li>
-          ))}
-          <li style={{ '--i': NEEDS_PRESETS.length }}>
+      {/* ak-stagger: baris masuk bergiliran (CSS di index.css, otomatis mati bila
+          pengguna memilih mengurangi gerakan). */}
+      <ul className="ak-stagger mt-4 space-y-2">
+        {NEEDS_PRESETS.map(({ key, label, icon, codes }, i) => (
+          <li key={key} style={{ '--i': i }}>
             <Baris
-              Ikon={SlidersHorizontal}
-              judul="Pilih sendiri"
-              keterangan={`Susun dari ${ATTRIBUTES.length} atribut`}
-              onClick={onOpenFilter}
+              Ikon={IKON[icon]}
+              judul={label}
+              keterangan={codes.map((c) => ATTRIBUTE_LABEL[c]).join(' · ')}
+              onClick={() => onApply(codes, key)}
             />
           </li>
-        </ul>
-      )}
+        ))}
+        <li style={{ '--i': NEEDS_PRESETS.length }}>
+          <Baris
+            Ikon={SlidersHorizontal}
+            judul="Pilih sendiri"
+            keterangan={`Susun dari ${ATTRIBUTES.length} atribut`}
+            onClick={onOpenFilter}
+          />
+        </li>
+      </ul>
 
       {/* Jalan masuk ke jangkauan: dipisah garis tipis dan dibuat sebagai tautan tenang,
           bukan kotak sebesar preset — memilih kebutuhan tetap pekerjaan utama layar ini. */}

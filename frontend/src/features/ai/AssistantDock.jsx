@@ -71,7 +71,7 @@ function Sakelar({ id, label, hint, checked, onChange, disabled = false }) {
 
 // Asisten percakapan: ketik atau bicara; jawaban bisa dibacakan; mode hands-free mengulang dengar -> jawab -> bicara.
 export default function AssistantDock() {
-  const { open, closeAssistant } = useAssistant();
+  const { open, closeAssistant, mintaHandsFree, lupakanMintaHandsFree } = useAssistant();
   const { session } = useAuth();
   const geo = useLocationState();
   const navigate = useNavigate();
@@ -222,6 +222,12 @@ export default function AssistantDock() {
     if (open) {
       pemicuRef.current = document.activeElement;
       setMinimized(false); setOpsiOpen(false); setTimeout(() => inputRef.current?.focus(), 150);
+      // Dibuka dengan permintaan hands-free (mis. dari preset tunanetra). Dijalankan
+      // lewat toggleHandsFree yang sama dengan sakelarnya, bukan setHandsFree langsung,
+      // supaya pengumumannya ikut terdengar: tanpa itu mikrofon menyala diam-diam, dan
+      // orang yang tidak melihat layar tidak punya cara tahu bahwa ia sedang didengar.
+      if (mintaHandsFree && rec.supported && tts.supported) toggleHandsFree();
+      lupakanMintaHandsFree();
     } else {
       if (pemicuRef.current?.isConnected) pemicuRef.current.focus();
       pemicuRef.current = null;

@@ -16,7 +16,21 @@ const AssistantCtx = createContext(null);
 export const useAssistant = () => useContext(AssistantCtx);
 export function AssistantProvider({ children }) {
   const [open, setOpen] = useState(false);
-  const value = useMemo(() => ({ open, setOpen, openAssistant: () => setOpen(true), closeAssistant: () => setOpen(false) }), [open]);
+  // Permintaan "buka sekalian dengan hands-free", dari luar asisten.
+  //
+  // Dipakai saat pengguna memilih preset tunanetra: di situ ia baru saja mengatakan
+  // matanya tidak bisa diandalkan, dan menyuruhnya mencari tombol mikrofon dengan mata
+  // adalah persis masalah yang ingin kita hilangkan. Sakelarnya sendiri tetap ada di
+  // dalam asisten — ini hanya menyalakannya lebih awal.
+  const [mintaHandsFree, setMintaHandsFree] = useState(false);
+  const value = useMemo(() => ({
+    open,
+    setOpen,
+    mintaHandsFree,
+    lupakanMintaHandsFree: () => setMintaHandsFree(false),
+    openAssistant: (opsi) => { setMintaHandsFree(!!opsi?.handsFree); setOpen(true); },
+    closeAssistant: () => { setMintaHandsFree(false); setOpen(false); },
+  }), [open, mintaHandsFree]);
   return <AssistantCtx.Provider value={value}>{children}</AssistantCtx.Provider>;
 }
 
