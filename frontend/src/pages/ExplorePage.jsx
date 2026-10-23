@@ -1147,14 +1147,15 @@ export default function ExplorePage() {
   // "/": peta saja, setinggi layar penuh.
   return (
     <>
-      {/* Peta dimasukkan ke dalam kotak bersudut besar dengan margin halaman, persis
-          seperti foto hero pada acuan — bukan dibiarkan menempel ke keempat tepi layar.
-          Navbar mengambang di atasnya. */}
-      <div ref={heroRef} className="h-[100dvh] p-3">
-        <div className="relative h-full overflow-hidden rounded-[1.75rem]">
-          <h1 className="sr-only">Jelajahi fasilitas aksesibel</h1>
-          {petaShell}
-        </div>
+      {/* Peta memenuhi layar, sama seperti di /map.
+          Dulu ia duduk di dalam kotak bersudut besar dengan margin halaman, meniru foto
+          hero pada acuan. Tapi acuan itu halaman pemasaran yang fotonya memang objek di
+          atas halaman; di sini petanya ADALAH halamannya. Margin putihnya jadi bingkai
+          yang membatasi, dan berpindah dari sini ke /map terlihat seperti berpindah ke
+          aplikasi lain. */}
+      <div ref={heroRef} className="relative h-[100dvh]">
+        <h1 className="sr-only">Jelajahi fasilitas aksesibel</h1>
+        {petaShell}
       </div>
       {filterSheet}
     </>
