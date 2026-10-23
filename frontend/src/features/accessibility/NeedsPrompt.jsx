@@ -13,8 +13,13 @@ import { ATTRIBUTES, ATTRIBUTE_LABEL, NEEDS_PRESETS } from './constants';
 const IKON = { kursi_roda: Accessibility, netra: Eye };
 
 const KUNCI = 'ak_needs_prompt_ditutup';
-const sudahDitutup = () => {
+/** Sudah pernah ditanya (dan ditutup) di peramban ini? */
+export const sudahDitutup = () => {
   try { return localStorage.getItem(KUNCI) === '1'; } catch { return false; }
+};
+/** Catat bahwa pertanyaannya sudah ditutup, supaya tidak muncul lagi tiap kunjungan. */
+export const tandaiDitutup = () => {
+  try { localStorage.setItem(KUNCI, '1'); } catch { /* mode privat */ }
 };
 
 // Satu gaya baris untuk semua pilihan supaya ketiganya benar-benar sejajar.
@@ -40,17 +45,18 @@ function Baris({ Ikon, judul, keterangan, onClick }) {
   );
 }
 
-export default function NeedsPrompt({ onApply, onOpenFilter, onCobaJangkauan, sisakanTombol = true, ringkas = false }) {
-  const [tertutup, setTertutup] = useState(sudahDitutup);
+export default function NeedsPrompt({ onApply, onOpenFilter, onCobaJangkauan, sisakanTombol = true, ringkas = false, dalamDialog = false }) {
+  const [tertutup, setTertutup] = useState(dalamDialog ? false : sudahDitutup);
 
   const tutup = () => {
     setTertutup(true);
-    try { localStorage.setItem(KUNCI, '1'); } catch { /* mode privat */ }
+    tandaiDitutup();
   };
 
   // Sudah pernah ditutup: sisakan satu tombol tenang, jangan bertanya lagi setiap kunjungan.
-  // Kecuali saat dipakai sebagai kartu mengambang di atas peta.
-  if (tertutup) {
+  // Kecuali saat dipakai sebagai kartu mengambang di atas peta, atau di dalam dialog —
+  // di sana yang memutuskan muncul-tidaknya adalah pemanggilnya.
+  if (tertutup && !dalamDialog) {
     if (!sisakanTombol) return null;
     return (
       <button
@@ -63,23 +69,8 @@ export default function NeedsPrompt({ onApply, onOpenFilter, onCobaJangkauan, si
     );
   }
 
-  return (
-    <section
-      aria-labelledby="needs-prompt-judul"
-      className="relative rounded-card border border-brand-200 bg-brand-50 p-4 sm:p-5"
-    >
-      <button
-        type="button"
-        onClick={tutup}
-        aria-label="Tutup, lanjutkan tanpa memilih kebutuhan"
-        className="absolute right-2 top-2 inline-flex size-11 items-center justify-center rounded-control text-ink-secondary transition-colors hover:bg-brand-100"
-      >
-        <X aria-hidden="true" size={18} />
-      </button>
-
-      <h2 id="needs-prompt-judul" className="pr-10 text-lg font-bold leading-snug">
-        Apa yang Anda butuhkan?
-      </h2>
+  const isi = (
+    <>
       <p className="font-sub mt-1.5 text-sm leading-snug text-ink-secondary">
         {ringkas
           ? 'Pilih sekali, hasil dan warna penanda peta menyesuaikan.'
@@ -153,6 +144,31 @@ export default function NeedsPrompt({ onApply, onOpenFilter, onCobaJangkauan, si
           </button>
         </div>
       )}
+    </>
+  );
+
+  // Di dalam dialog, judul dan tombol tutup sudah disediakan dialognya sendiri —
+  // mengulangnya di sini berarti dua tombol tutup dan dua judul yang sama.
+  if (dalamDialog) return isi;
+
+  return (
+    <section
+      aria-labelledby="needs-prompt-judul"
+      className="relative rounded-card border border-brand-200 bg-brand-50 p-4 sm:p-5"
+    >
+      <button
+        type="button"
+        onClick={tutup}
+        aria-label="Tutup, lanjutkan tanpa memilih kebutuhan"
+        className="absolute right-2 top-2 inline-flex size-11 items-center justify-center rounded-control text-ink-secondary transition-colors hover:bg-brand-100"
+      >
+        <X aria-hidden="true" size={18} />
+      </button>
+
+      <h2 id="needs-prompt-judul" className="pr-10 text-lg font-bold leading-snug">
+        Apa yang Anda butuhkan?
+      </h2>
+      {isi}
     </section>
   );
 }

@@ -286,7 +286,11 @@
 
 /* ---------- dialog & bottom sheet ---------- */
 dialog { max-width: min(34rem, calc(100vw - 2rem)); width: 100%; }
-dialog::backdrop { background: rgb(17 24 39 / .55); }
+/* Latar dialog diburamkan, bukan sekadar digelapkan: pertanyaan kebutuhan muncul di
+   atas peta yang penuh warna dan garis, dan tanpa buram mata masih ikut membaca peta
+   alih-alih dialognya. Warna gelapnya tetap, supaya kontras teks tidak bergantung pada
+   dukungan backdrop-filter. */
+dialog::backdrop { background: rgb(17 24 39 / .55); backdrop-filter: blur(6px); }
 dialog[open] { animation: ak-dialog var(--motion-slow) cubic-bezier(0.2, 0, 0, 1); }
 @keyframes ak-dialog { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 @media (max-width: 639px) {

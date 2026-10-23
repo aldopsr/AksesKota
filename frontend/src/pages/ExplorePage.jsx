@@ -14,7 +14,7 @@ import MapView from '../features/map/MapView';
 import { MapControls } from '../features/map/MapChrome';
 import FacilityCard from '../features/explore/FacilityCard';
 import FilterSheet from '../features/explore/FilterSheet';
-import NeedsPrompt from '../features/accessibility/NeedsPrompt';
+import NeedsPrompt, { sudahDitutup as kebutuhanSudahDitanya, tandaiDitutup as tandaiKebutuhanDitanya } from '../features/accessibility/NeedsPrompt';
 import FacilityDetailPanel from '../features/explore/FacilityDetailPanel';
 import RouteSummary from '../features/explore/RouteSummary';
 import BottomSheet from '../features/explore/BottomSheet';
@@ -22,7 +22,7 @@ import PanelJangkauan from '../features/explore/PanelJangkauan';
 import FloatingCard from '../features/explore/FloatingCard';
 import AjakanMasuk from '../features/explore/AjakanMasuk';
 import { LandingSections } from './HomePage';
-import { Alert, Button, EmptyState, LinkButton, RemovableChip, Skeleton } from '../components/ui';
+import { Alert, Button, EmptyState, LinkButton, Modal, RemovableChip, Skeleton } from '../components/ui';
 
 const PAGE = 20;
 const INITIAL_ROUTE = { facilityId: null, origin: null, picking: false, loading: false, error: null, data: null };
@@ -115,6 +115,13 @@ export default function ExplorePage() {
   // yang sama — satu tanpa larangan, satu dengan tangga dibuang. Selisihnya yang
   // jadi jawabannya.
   const [modeJangkauan, setModeJangkauan] = useState(!!params.jangkauan);
+  // Pertanyaan kebutuhan pada kunjungan pertama: dialog di tengah layar, bukan kartu
+  // yang menumpang di tepi bawah peta. Kartu itu tertutup bilah navigasi atau bilah
+  // alamat peramban di sebagian ponsel — persis pada layar pertama, saat ia justru
+  // satu-satunya hal yang perlu dibaca. Dialog <dialog> milik peramban sendiri:
+  // fokusnya terkunci di dalam, Escape menutup, dan isi di belakangnya tidak terjangkau.
+  const [tanyaKebutuhan, setTanyaKebutuhan] = useState(() => !kebutuhanSudahDitanya());
+  const tutupTanyaKebutuhan = () => { setTanyaKebutuhan(false); tandaiKebutuhanDitanya(); };
   const [menitJangkauan, setMenitJangkauan] = useState(params.menit);
   const [titikJangkauan, setTitikJangkauan] = useState(params.jangkauan);
   const jangkauanQ = useQuery({
@@ -317,7 +324,7 @@ export default function ExplorePage() {
           pertama berarti orang yang mengetik "bogor" mendapat formulir kebutuhan, bukan
           jawabannya. Di layar sempit pertanyaan itu sudah punya tempatnya sendiri:
           kartu mengambang di atas peta, sebelum ada yang dicari. */}
-      {required.length === 0 && !loadingList && (isDesktop || !(params.q || params.category)) && (
+      {required.length === 0 && !loadingList && !tanyaKebutuhan && (isDesktop || !(params.q || params.category)) && (
         <NeedsPrompt
           onApply={(codes) => { goExplore(needsPatch(codes), { keepDetail: true }); toast.show(`${codes.length} kebutuhan diterapkan.`, 'info'); }}
           onOpenFilter={() => setFilterOpen(true)}
@@ -450,22 +457,27 @@ export default function ExplorePage() {
         fitPaddingLeft={isDesktop ? 430 : 60}
       />
 
-      {/* Sejak panel hasil di ponsel baru muncul saat mencari, pertanyaan kebutuhan
-          ikut hilang dari layar pertama — padahal tanpa kebutuhan terpilih semua marker
-          berwarna sama dan aplikasi ini tidak punya apa pun untuk dikatakan. Jadi di
-          ponsel ia naik ke atas peta sebagai kartu mengambang di tepi bawah, bukan
-          baris pertama sebuah daftar yang belum ada. */}
-      {!isDesktop && !sheetTerlihat && !jalurTerlihat && !modeJangkauan && required.length === 0 && (
-        <div className="absolute inset-x-3 bottom-4 z-30">
-          <NeedsPrompt
-            ringkas
-            sisakanTombol={false}
-            onApply={(codes) => { goExplore(needsPatch(codes), { keepDetail: true }); toast.show(`${codes.length} kebutuhan diterapkan.`, 'info'); }}
-            onOpenFilter={() => setFilterOpen(true)}
-            onCobaJangkauan={() => gantiModeJangkauan(true)}
-          />
-        </div>
-      )}
+      {/* Pertanyaan kebutuhan pada kunjungan pertama. Tanpa kebutuhan terpilih semua
+          penanda berwarna sama dan aplikasi ini belum punya apa pun untuk dikatakan,
+          jadi ia ditanyakan lebih dulu — tapi sebagai dialog di tengah layar yang bisa
+          ditutup, bukan kartu yang bisa tertutup apa pun di tepi bawah. Sekali ditutup
+          ia tidak bertanya lagi; jalan masuknya tinggal tombol tenang di panel hasil. */}
+      <Modal
+        open={tanyaKebutuhan && required.length === 0 && !id && !modeJangkauan}
+        onClose={tutupTanyaKebutuhan}
+        title="Apa yang Anda butuhkan?"
+      >
+        <NeedsPrompt
+          dalamDialog
+          onApply={(codes) => {
+            tutupTanyaKebutuhan();
+            goExplore(needsPatch(codes), { keepDetail: true });
+            toast.show(`${codes.length} kebutuhan diterapkan.`, 'info');
+          }}
+          onOpenFilter={() => { tutupTanyaKebutuhan(); setFilterOpen(true); }}
+          onCobaJangkauan={() => { tutupTanyaKebutuhan(); gantiModeJangkauan(true); }}
+        />
+      </Modal>
 
       {/* Dipicu oleh bukti ketertarikan, bukan oleh waktu: satu fasilitas dibuka, atau
           kebutuhan dipilih. Tombol masuk di navbar halaman peta sengaja dihapus. */}
