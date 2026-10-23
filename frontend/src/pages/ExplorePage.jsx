@@ -124,7 +124,6 @@ export default function ExplorePage() {
   const [filterOpen, setFilterOpen] = useState(false);
   const sheetRef = useRef(null);
   const [limit, setLimit] = useState(PAGE);
-  const [previewId, setPreviewId] = useState(null);
   const [focus, setFocus] = useState(null);
   const [loaded, setLoaded] = useState(null); // fasilitas yang sedang dibuka (untuk sheet mobile)
   const [mapProblem, setMapProblem] = useState(false);
@@ -517,23 +516,23 @@ export default function ExplorePage() {
   ]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---------- peta ---------- */
+  /**
+   * Menekan penanda membuka detail fasilitasnya — sama persis dengan menekan kartunya.
+   *
+   * Dulu ia hanya menyorot kartu yang bersangkutan di daftar hasil, jadi satu-satunya
+   * jalan menuju detail adalah lewat daftar — artinya orang harus tahu DULU nama
+   * tempat yang dicarinya. Padahal di peta orang menunjuk tempat, bukan nama: "yang
+   * ini, yang di seberang stasiun itu". Penanda yang tidak bisa dibuka membuat peta
+   * cuma jadi hiasan di samping daftar.
+   */
   const onMarkerSelect = useCallback(
     (mid) => {
-      if (id) {
-        navigate({ pathname: `/facilities/${mid}`, search: location.search });
-        return;
-      }
-      setPreviewId(mid);
-      // Di HP kartunya ada di dalam panel bawah: naikkan dulu panelnya, baru gulirkan.
-      // Tanpa ini mengetuk marker di layar kecil tidak terlihat melakukan apa pun.
+      navigate({ pathname: `/facilities/${mid}`, search: location.search });
+      // Di HP detailnya ada di dalam panel bawah: naikkan dulu panelnya, kalau tidak
+      // mengetuk penanda di layar kecil tidak terlihat melakukan apa pun.
       if (!isDesktop) sheetRef.current?.minimalSetengah();
-      requestAnimationFrame(() => {
-        document
-          .getElementById(`facility-${mid}`)
-          ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-      });
     },
-    [id, navigate, location.search, isDesktop],
+    [navigate, location.search, isDesktop],
   );
   const onDetailLoaded = useCallback((f) => {
     setLoaded(f);
@@ -750,7 +749,7 @@ export default function ExplorePage() {
               facility={facility}
               level={level}
               distance={distance}
-              selected={String(facility.id) === String(previewId)}
+              selected={String(facility.id) === String(id)}
               to={`/facilities/${facility.id}${location.search}`}
               onRoute={() => startRoute(facility.id)}
             />
@@ -831,7 +830,7 @@ export default function ExplorePage() {
       <MapView
         ref={mapRef}
         items={items}
-        selectedId={id ?? previewId}
+        selectedId={id}
         onSelect={onMarkerSelect}
         userLocation={geo.location}
         origin={routeHere ? route.origin : null}

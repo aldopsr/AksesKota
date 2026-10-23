@@ -139,6 +139,18 @@ const MapCanvas = forwardRef(function MapCanvas({
       container: containerRef.current, style: GAYA_PETA[gayaRef.current] ?? GAYA_PETA.jalan,
       center: [118, -2.5], zoom: 3.6,
     });
+    // 'style.load', bukan 'load'.
+    //
+    // 'load' baru menyala setelah gaya DAN sumber ubin pertama selesai dimuat. Satu
+    // permintaan sumber yang gagal — jaringan hotel, kuota, DNS yang meleset sekejap —
+    // membuatnya tidak pernah menyala sama sekali, dan karena seluruh lapisan peta
+    // menunggu tanda ini, hasilnya peta tanpa satu pun penanda, rute, atau jangkauan.
+    // Terukur: gaya 200, iconset 200, satu TileJSON gagal, nol penanda.
+    //
+    // 'style.load' menyala begitu gayanya selesai diurai. Di titik itu wadahnya sudah
+    // punya ukuran (syarat sebenarnya agar penanda tidak terlempar ke 0,0) dan
+    // addSource/addLayer sudah sah dipanggil — yang memang dua hal yang ditunggu.
+    map.on('style.load', () => setReady(true));
     map.on('load', () => setReady(true));
     map.on('error', (e) => live.current.onError?.(e));
     map.on('click', (e) => {
