@@ -434,6 +434,7 @@ export default function AssistantDock() {
                                 </p>
                               )}
                               <FacilityCard
+                                berbagiLayout={false}
                                 facility={f} level={levelFor(f)} distance={f.distance_m ?? null}
                                 to={`/facilities/${f.id}`} onOpen={() => { if (!isDesktop) closeAssistant(); }}
                                 onRoute={() => routeTo(f.id, msg.applied)}

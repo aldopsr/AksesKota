@@ -33,7 +33,7 @@ function AttributeChip({ code, status, urutan = 0 }) {
  */
 // onOpen: kait opsional yang ikut jalan saat kartunya dibuka — bukan pengganti navigasi.
 // Dipakai panel asisten, yang harus menutup dirinya sendiri di layar sempit.
-export default function FacilityCard({ facility: f, level, distance, selected, to, onRoute, onOpen }) {
+export default function FacilityCard({ facility: f, level, distance, selected, to, onRoute, onOpen, berbagiLayout = true }) {
   const Icon = categoryIcon(f.category);
   const jarak = distance !== null && distance !== undefined ? formatDistance(distance) : null;
   const kebutuhan = Object.entries(f.needs_status ?? {});
@@ -49,6 +49,21 @@ export default function FacilityCard({ facility: f, level, distance, selected, t
    * Yang berharga adalah kebalikannya: apa yang TIDAK ada, atau belum diketahui.
    * Kartu sempurna kini diam; kartu bermasalah yang berbicara.
    */
+  /**
+   * layoutId hanya dipasang bila kartunya memang punya pasangan untuk dituju.
+   *
+   * layoutId itu GLOBAL di motion: dua elemen dengan id sama yang hidup bersamaan
+   * dianggap satu elemen yang berpindah, dan yang kalah dirender kosong. Fasilitas yang
+   * sama bisa muncul dua kali sekaligus — sekali di daftar hasil, sekali di kartu
+   * rekomendasi dalam percakapan asisten — dan akibatnya nama serta lencana di kartu
+   * asisten hilang, menyisakan alamat yang menggantung tanpa judul.
+   *
+   * Di dalam asisten tidak ada panel detail yang ditujunya, jadi tidak ada yang hilang
+   * dengan mematikannya di sana.
+   */
+  const idNama = berbagiLayout ? { layoutId: `nama-${f.id}` } : {};
+  const idLencana = berbagiLayout ? { layoutId: `match-${f.id}` } : {};
+
   const perluPerhatian = kebutuhan.filter(([, status]) => status !== 'available');
   const chipTampil = perluPerhatian.slice(0, 3);
   const sisaChip = perluPerhatian.length - chipTampil.length;
@@ -65,7 +80,7 @@ export default function FacilityCard({ facility: f, level, distance, selected, t
           hilang lalu muncul lagi — aplikasi terasa satu ruang, bukan tumpukan halaman. */}
       {f.label && (
         <div className="mb-2 flex items-center justify-between gap-2">
-          <m.div layoutId={`match-${f.id}`}><MatchBadge level={level} percent={belumBisaDinilai(f) ? null : f.match_pct} /></m.div>
+          <m.div {...idLencana}><MatchBadge level={level} percent={belumBisaDinilai(f) ? null : f.match_pct} /></m.div>
           {jarak && <span className="font-sub shrink-0 text-sm font-semibold text-ink-secondary">{jarak}</span>}
         </div>
       )}
@@ -80,7 +95,7 @@ export default function FacilityCard({ facility: f, level, distance, selected, t
               Kecamatan Bogor Tengah Provinsi Jawa Barat", namanya memanjat jadi empat
               baris dan kartunya hampir dua kali tinggi kartu lain. Nama utuhnya tetap
               ada di atribut title dan di halaman detail. */}
-          <m.h3 layoutId={`nama-${f.id}`} title={f.name} className="line-clamp-2 text-base font-semibold leading-snug">
+          <m.h3 {...idNama} title={f.name} className="line-clamp-2 text-base font-semibold leading-snug">
             <Link to={to} onClick={onOpen} aria-current={selected ? 'true' : undefined} className="after:absolute after:inset-0 focus-visible:outline-none">{f.name}</Link>
           </m.h3>
           {/* Satu baris keterangan, bukan tiga. Kategori sudah dikatakan ikon di
