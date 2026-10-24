@@ -51,14 +51,20 @@ assert.equal(galat.status, 503);
 assert.equal(galat.extra.upstream, 429);
 assert.match(galat.message, /Kuota asisten AI hari ini sudah habis/);
 
-// 6. 404 (nama model salah) TIDAK memicu giliran: sama untuk semua kunci, jadi
-//    mengulanginya hanya memperlambat kegagalan yang sudah pasti.
+// 6. 404 IKUT memicu giliran. Google memakai 404 yang sama untuk "akun ini tidak boleh
+//    memakai model tersebut", jadi akun lain masih berpeluang — ini kasus nyata: satu
+//    kunci baru membalas 404 sementara kunci lama di daftar yang sama berfungsi.
 pakai('model404', 'k4');
 jawaban.set('model404', 404);
-dipanggil.length = 0;
+assert.equal(teks(await generate({})), 'ok k4');
+
+// 6b. Kalau SEMUA kunci membalas 404 (nama model yang memang keliru), kodenya tetap
+//     dilaporkan apa adanya supaya sebabnya bisa dibedakan dari kuota habis.
+pakai('model404', 'model404b');
+jawaban.set('model404b', 404);
 const g404 = await generate({}).catch((e) => e);
 assert.equal(g404.extra.upstream, 404);
-assert.deepEqual(dipanggil, ['model404'], '404 seharusnya berhenti di kunci pertama');
+assert.match(g404.message, /sedang sibuk/);
 
 // 7. tanpa kunci sama sekali -> ditolak sebelum menyentuh jaringan
 pakai('');
@@ -66,4 +72,4 @@ assert.equal(geminiEnabled(), false);
 assert.equal((await generate({}).catch((e) => e)).status, 503);
 
 srv.close();
-console.log('OK — giliran kunci Gemini: lewati yang habis, ingat yang sehat, 404 tidak diulang');
+console.log('OK — giliran kunci Gemini: lewati yang habis/ditolak/404, ingat yang sehat');

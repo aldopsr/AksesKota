@@ -22,12 +22,18 @@ export const geminiEnabled = () => daftarKunci().length > 0;
 /**
  * Status yang berarti "coba kunci berikutnya", bukan "menyerah".
  *
- * 429 kuota habis, 403 kunci ditolak, 400 kunci tidak sah — ketiganya tentang KUNCI
- * ITU, jadi kunci lain masih punya peluang. 404 sengaja TIDAK masuk: itu soal nama
- * model, yang sama untuk semua kunci, dan mengulanginya lima kali hanya memperlambat
- * kegagalan yang sudah pasti.
+ * 429 kuota habis, 403 ditolak, 400 tidak sah — ketiganya tentang KUNCI ITU.
+ *
+ * 404 juga, dan ini sempat salah dirancang. Mudah mengira 404 berarti "nama modelnya
+ * keliru", yang sama untuk semua kunci sehingga tidak perlu diulang. Ternyata Google
+ * memakai 404 yang sama untuk "akun ini tidak boleh memakai model tersebut" — pesan
+ * aslinya pernah terbaca persis begitu: "no longer available to new users". Jadi 404
+ * BISA tentang kuncinya, dan akun yang baru dibuat justru yang paling mungkin kena.
+ *
+ * Harga memasukkannya kecil: kalau nama modelnya memang keliru, tiap kunci membalas
+ * 404 dalam ~300 ms lalu berhenti, dan kode 404 tetap dilaporkan apa adanya.
  */
-const COBA_KUNCI_LAIN = new Set([400, 403, 429]);
+const COBA_KUNCI_LAIN = new Set([400, 403, 404, 429]);
 
 // Kunci yang terakhir berhasil. Bertahan selama instance serverless-nya hidup, jadi
 // permintaan berikutnya tidak menabrak lagi kunci yang sudah diketahui habis.
