@@ -38,9 +38,17 @@ Tanpa token Mapbox semua halaman tetap berfungsi, hanya petanya diganti panel pe
 
 **Opsional di `backend/.env`:**
 - `GEMINI_API_KEY` (dari Google AI Studio) untuk mengaktifkan asisten AI penuh; `GEMINI_MODEL`, `AI_DAILY_LIMIT` opsional.
-  **Boleh diisi beberapa kunci dipisah koma** (`kunci1,kunci2,kunci3`): kunci yang kehabisan kuota harian
-  dilewati otomatis dan yang sehat diingat, jadi asisten tidak mati di tengah jalan dan tidak perlu
-  ganti env lalu deploy ulang. Diuji di `npm run test:kunci`.
+  **`GEMINI_API_KEY` dan `GEMINI_MODEL` sama-sama boleh berisi daftar dipisah koma.** Tiap pasangan
+  kunci-model dicoba bergiliran sampai ada yang menjawab; yang kehabisan kuota (429), ditolak (403/400),
+  atau tidak tersedia untuk akun itu (404) dilewati, dan pasangan yang sehat diingat. Ini bukan kemewahan:
+  free tier hanya **20 permintaan/hari dan 5/menit per model per akun**, sedangkan satu pertanyaan
+  pengguna memakai 2–3 permintaan karena function calling. Kuota dihitung per model, jadi model cadangan
+  menambah jatah pada kunci yang sama — terukur: saat `gemini-2.5-flash` sebuah akun sudah 429,
+  `gemini-flash-lite-latest` pada kunci yang sama masih menjawab dalam 1,5 detik.
+  Diuji di `npm run test:kunci` (9 kasus). **`npm run cek:gemini`** memeriksa tiap kunci di `.env`
+  terhadap daftar model dan mencetak mana yang BISA — isi kuncinya tidak pernah dicetak.
+  Terukur: akun lama bisa `gemini-2.5-flash` tapi 404 untuk `gemini-3.5-flash`, akun baru persis
+  kebalikannya; karena itu daftar bawaannya memuat keduanya.
 - `MAPBOX_TOKEN` agar rute jalan kaki berfungsi (tanpa ini `/api/routes/walking` membalas 503 dan UI menampilkan pesan).
 - `SUPABASE_URL` + `SUPABASE_SERVICE_KEY` untuk menyimpan foto di Supabase Storage (buat bucket **publik** `facility-photos`). Tanpa ini foto disimpan di `backend/uploads/` dan dilayani lewat `/uploads` (cukup untuk development).
 - `CORS_ORIGIN` berisi URL frontend (pisahkan dengan koma).

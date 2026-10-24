@@ -10,9 +10,11 @@ const dipanggil = [];
 const srv = http.createServer(async (req, res) => {
   for await (const _ of req) { /* buang body */ }
   const k = req.headers['x-goog-api-key'];
-  dipanggil.push(k);
+  const m = req.url.match(/models\/([^:]+):/)[1];
+  dipanggil.push(`${k}|${m}`);
   res.setHeader('content-type', 'application/json');
-  res.statusCode = jawaban.get(k) ?? 200;
+  // Jawaban bisa dipatok per pasangan "kunci|model", atau per kunci saja.
+  res.statusCode = jawaban.get(`${k}|${m}`) ?? jawaban.get(k) ?? 200;
   res.end(res.statusCode === 200 ? JSON.stringify({ candidates: [{ content: { parts: [{ text: 'ok ' + k }] } }] }) : '{}');
 });
 await new Promise((r) => srv.listen(4997, r));
@@ -20,6 +22,8 @@ process.env.GEMINI_API_BASE = 'http://localhost:4997';
 
 const { generate, geminiEnabled } = await import('../src/ai/gemini.js');
 const pakai = (...k) => { process.env.GEMINI_API_KEY = k.join(','); };
+// Satu model saja, kecuali kasus yang memang menguji cadangan model.
+process.env.GEMINI_MODEL = 'm1';
 const teks = (hasil) => hasil.candidates[0].content.parts[0].text;
 
 // 1. satu kunci sehat
@@ -35,7 +39,7 @@ assert.equal(teks(await generate({})), 'ok k2');
 // 3. kunci sehat diingat: panggilan berikutnya tidak menabrak yang habis lagi
 dipanggil.length = 0;
 assert.equal(teks(await generate({})), 'ok k2');
-assert.deepEqual(dipanggil, ['k2'], 'kunci yang sudah habis seharusnya tidak dicoba lagi');
+assert.deepEqual(dipanggil, ['k2|m1'], 'kunci yang sudah habis seharusnya tidak dicoba lagi');
 
 // 4. kunci tidak sah (400) dan ditolak (403) juga dilewati
 pakai('tidaksah', 'ditolak', 'k3');
@@ -66,10 +70,32 @@ const g404 = await generate({}).catch((e) => e);
 assert.equal(g404.extra.upstream, 404);
 assert.match(g404.message, /sedang sibuk/);
 
+// 6c. Model cadangan: kunci yang sama, model pertama 404, model kedua jalan. Ini kasus
+//     akun baru — gemini-2.5-flash ditolak untuknya, yang lebih ringan diterima.
+process.env.GEMINI_MODEL = 'mBaru,mLama';
+pakai('kbaru');
+jawaban.set('kbaru|mBaru', 404);
+assert.equal(teks(await generate({})), 'ok kbaru');
+
+// 6d. Model dicoba habis dulu pada satu kunci sebelum pindah kunci: kuota dihitung per
+//     model per akun, jadi kunci yang satu modelnya habis bisa punya sisa di model lain.
+//     Disetel ulang ke pasangan pertama dulu lewat satu panggilan yang pasti berhasil,
+//     karena "ingat yang sehat" dari kasus sebelumnya membuat titik mulainya bergeser.
+process.env.GEMINI_MODEL = 'mLama';
+pakai('kA');
+assert.equal(teks(await generate({})), 'ok kA');
+process.env.GEMINI_MODEL = 'mBaru,mLama';
+pakai('kA', 'kB');
+jawaban.set('kA|mBaru', 429);
+dipanggil.length = 0;
+assert.equal(teks(await generate({})), 'ok kA');
+assert.deepEqual(dipanggil, ['kA|mBaru', 'kA|mLama'], 'model kedua pada kunci yang sama harus dicoba sebelum pindah kunci');
+process.env.GEMINI_MODEL = 'm1';
+
 // 7. tanpa kunci sama sekali -> ditolak sebelum menyentuh jaringan
 pakai('');
 assert.equal(geminiEnabled(), false);
 assert.equal((await generate({}).catch((e) => e)).status, 503);
 
 srv.close();
-console.log('OK — giliran kunci Gemini: lewati yang habis/ditolak/404, ingat yang sehat');
+console.log('OK — giliran kunci & model Gemini: lewati yang habis/ditolak/404, ingat yang sehat');

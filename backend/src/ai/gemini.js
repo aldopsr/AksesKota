@@ -35,8 +35,38 @@ export const geminiEnabled = () => daftarKunci().length > 0;
  */
 const COBA_KUNCI_LAIN = new Set([400, 403, 404, 429]);
 
-// Kunci yang terakhir berhasil. Bertahan selama instance serverless-nya hidup, jadi
-// permintaan berikutnya tidak menabrak lagi kunci yang sudah diketahui habis.
+/**
+ * GEMINI_MODEL juga boleh berisi beberapa nama model, dipisah koma.
+ *
+ * Alasannya sama tidak menyenangkannya dengan kunci: ketersediaan model BERBEDA per
+ * akun. Akun lama bisa memakai gemini-2.5-flash, akun yang baru dibuat membalas 404
+ * untuk model yang sama ("no longer available to new users"). Jadi satu nama model
+ * tidak pernah cukup untuk sekumpulan kunci dari beberapa akun — dan menebak-nebak
+ * nama yang benar untuk tiap akun di tengah penjurian bukan rencana.
+ *
+ * Bawaannya empat, urutannya hasil pengukuran pada dua akun nyata (24 Okt 2026):
+ *   gemini-2.5-flash          jalan di akun lama; akun BARU membalas 404 untuk ini
+ *   gemini-3.5-flash          kebalikannya — jalan di akun baru (2,4 dtk)
+ *   gemini-flash-lite-latest  alias model ringan termutakhir, jalan di keduanya, dan
+ *                             KUOTANYA TERPISAH: masih menjawab saat jatah 2.5-flash
+ *                             pada kunci yang sama sudah 429
+ *   gemini-2.5-flash-lite     cadangan untuk akun yang punya ini tapi bukan aliasnya
+ *
+ * gemini-flash-latest sengaja TIDAK dipakai: diuji pada hari yang sama di dua akun, ia
+ * tidak menjawab sampai 25 detik sementara yang lain menjawab di bawah tiga detik.
+ *
+ * Daftar ini sengaja lebar karena harga menebaknya murah (404 kembali dalam ~400 ms)
+ * sedangkan harga salah tebak mahal: asisten mati total di depan juri. Pasangan yang
+ * berhasil diingat, jadi pemborosan itu paling banyak sekali per cold start.
+ */
+const daftarModel = () =>
+  (process.env.GEMINI_MODEL ?? 'gemini-2.5-flash,gemini-3.5-flash,gemini-flash-lite-latest,gemini-2.5-flash-lite')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+// Pasangan (kunci, model) yang terakhir berhasil. Bertahan selama instance serverless
+// hidup, jadi permintaan berikutnya tidak menabrak lagi yang sudah diketahui gagal.
 let mulai = 0;
 
 export async function generate(body) {
@@ -44,33 +74,38 @@ export async function generate(body) {
   if (!kunci.length) throw new HttpError(503, 'Asisten AI belum diaktifkan di server.', { fallback: true });
 
   const base = process.env.GEMINI_API_BASE ?? 'https://generativelanguage.googleapis.com/v1beta';
-  const model = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
+  const model = daftarModel();
+  // Satu daftar datar berisi semua pasangan, diurut per kunci: habiskan model-model satu
+  // kunci dulu sebelum pindah kunci. Kuota dihitung per model per akun, jadi kunci yang
+  // satu modelnya habis masih mungkin punya sisa di model lainnya.
+  const pasangan = kunci.flatMap((k, ik) => model.map((m, im) => ({ k, m, label: `kunci #${ik + 1}/${kunci.length} ${m}` })));
   let galatTerakhir = null;
 
-  for (let n = 0; n < kunci.length; n += 1) {
-    const i = (mulai + n) % kunci.length;
+  for (let n = 0; n < pasangan.length; n += 1) {
+    const i = (mulai + n) % pasangan.length;
+    const { k, m, label } = pasangan[i];
     let res;
     try {
-      res = await fetch(`${base}/models/${model}:generateContent`, {
+      res = await fetch(`${base}/models/${m}:generateContent`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-goog-api-key': kunci[i] },
+        headers: { 'content-type': 'application/json', 'x-goog-api-key': k },
         body: JSON.stringify(body),
         signal: AbortSignal.timeout(20_000),
       });
     } catch (e) {
-      // Jaringan putus bukan salah kuncinya — kunci lain akan gagal dengan cara sama.
+      // Jaringan putus bukan salah kuncinya — pasangan lain akan gagal dengan cara sama.
       console.error('[gemini] gagal terhubung:', e.name);
       throw new HttpError(503, 'Asisten AI tidak dapat dihubungi saat ini.', { fallback: true });
     }
 
     if (res.ok) {
-      mulai = i; // kunci ini sehat; mulai dari sini lain kali
+      mulai = i; // pasangan ini sehat; mulai dari sini lain kali
       return res.json();
     }
 
-    // Nomor urutnya, bukan kuncinya: log bisa menunjukkan kunci ke berapa yang habis
-    // tanpa pernah menuliskan satu pun karakter rahasianya.
-    console.error(`[gemini] kunci #${i + 1}/${kunci.length} status`, res.status); // jangan log body/kunci
+    // Nomor urut dan nama model, tidak pernah kuncinya: log cukup untuk tahu pasangan
+    // mana yang gagal tanpa menuliskan satu pun karakter rahasia.
+    console.error(`[gemini] ${label} status`, res.status); // jangan log body/kunci
     galatTerakhir = res.status;
     if (!COBA_KUNCI_LAIN.has(res.status)) break;
   }
@@ -81,7 +116,8 @@ export async function generate(body) {
   // tanpa menebak. Kode statusnya bukan rahasia; isi body-nya tidak pernah dikirim
   // karena di situlah kunci bisa terpantul kembali.
   //
-  // Sampai di sini berarti SEMUA kunci sudah dicoba. 429 dipisah pesannya: itu
+  // Sampai di sini berarti SEMUA pasangan kunci-model sudah dicoba. 429 dipisah
+  // pesannya: itu
   // satu-satunya yang akan dialami pengguna biasa, dan "coba lagi sebentar lagi" di
   // situ menyesatkan — kuota harian tidak pulih dalam hitungan menit.
   const pesan = galatTerakhir === 429
