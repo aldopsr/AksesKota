@@ -44,26 +44,39 @@ const COBA_KUNCI_LAIN = new Set([400, 403, 404, 429]);
  * tidak pernah cukup untuk sekumpulan kunci dari beberapa akun — dan menebak-nebak
  * nama yang benar untuk tiap akun di tengah penjurian bukan rencana.
  *
- * Bawaannya empat, urutannya hasil pengukuran pada dua akun nyata (24 Okt 2026):
- *   gemini-2.5-flash          jalan di akun lama; akun BARU membalas 404 untuk ini
- *   gemini-3.5-flash          kebalikannya — jalan di akun baru (2,4 dtk)
- *   gemini-flash-lite-latest  alias model ringan termutakhir, jalan di keduanya, dan
- *                             KUOTANYA TERPISAH: masih menjawab saat jatah 2.5-flash
- *                             pada kunci yang sama sudah 429
- *   gemini-2.5-flash-lite     cadangan untuk akun yang punya ini tapi bukan aliasnya
+ * Urutannya hasil pengukuran empat kunci nyata dari akun berbeda (24 Okt 2026):
  *
- * gemini-flash-latest sengaja TIDAK dipakai: diuji pada hari yang sama di dua akun, ia
- * tidak menjawab sampai 25 detik sementara yang lain menjawab di bawah tiga detik.
+ *                            kunci1  kunci2  kunci3  kunci4
+ *   gemini-3.5-flash           ok      ok      ok      ok     <- jalan di SEMUA akun
+ *   gemini-flash-lite-latest   ok      ok      ok      ok     <- jalan di semua akun
+ *   gemini-2.5-flash           ok     429     404     404     <- hanya akun lama
+ *   gemini-2.5-flash-lite     404     404     404     404     <- dibuang
+ *   gemini-flash-latest      timeout timeout timeout  503     <- dibuang
  *
- * Daftar ini sengaja lebar karena harga menebaknya murah (404 kembali dalam ~400 ms)
- * sedangkan harga salah tebak mahal: asisten mati total di depan juri. Pasangan yang
- * berhasil diingat, jadi pemborosan itu paling banyak sekali per cold start.
+ * Yang paling luas didahulukan supaya tidak ada ketukan sia-sia: menaruh 2.5-flash di
+ * depan membuat tiga dari empat kunci membuang satu panggilan 404 lebih dulu. Ia tetap
+ * dipertahankan di urutan ketiga karena kuota dihitung PER MODEL — pada kunci yang
+ * memilikinya, ia menambah jatah, bukan menggantikan.
+ *
+ * Harga menebak murah (404 kembali ~300 ms) sedangkan harga salah tebak mahal: asisten
+ * mati total di depan juri. Pasangan yang berhasil diingat, jadi ketukan sia-sia paling
+ * banyak terjadi sekali per cold start.
  */
-const daftarModel = () =>
-  (process.env.GEMINI_MODEL ?? 'gemini-2.5-flash,gemini-3.5-flash,gemini-flash-lite-latest,gemini-2.5-flash-lite')
+const MODEL_BAWAAN = ['gemini-3.5-flash', 'gemini-flash-lite-latest', 'gemini-2.5-flash'];
+const daftarModel = () => {
+  const isi = (process.env.GEMINI_MODEL ?? '')
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
+  // KOSONG = pakai bawaan, bukan "tidak ada model".
+  //
+  // `?? bawaan` saja tidak cukup: variabel yang ADA tapi isinya kosong bukan nullish,
+  // jadi ia lolos dan menghasilkan daftar nol panjang — lalu perulangannya tidak pernah
+  // berjalan sekali pun dan asisten membalas 503 tanpa pernah menyentuh Google. Itu
+  // bukan kasus teoretis: mengosongkan GEMINI_MODEL adalah cara yang kami sarankan
+  // sendiri untuk "kembali ke bawaan", dan di Vercel variabel kosong juga biasa.
+  return isi.length ? isi : MODEL_BAWAAN;
+};
 
 // Pasangan (kunci, model) yang terakhir berhasil. Bertahan selama instance serverless
 // hidup, jadi permintaan berikutnya tidak menabrak lagi yang sudah diketahui gagal.

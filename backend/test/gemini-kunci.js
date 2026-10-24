@@ -92,6 +92,19 @@ assert.equal(teks(await generate({})), 'ok kA');
 assert.deepEqual(dipanggil, ['kA|mBaru', 'kA|mLama'], 'model kedua pada kunci yang sama harus dicoba sebelum pindah kunci');
 process.env.GEMINI_MODEL = 'm1';
 
+// 6e. GEMINI_MODEL yang ADA tapi kosong harus jatuh ke daftar bawaan, bukan jadi
+//     "tidak ada model" yang membuat perulangannya tidak berjalan sama sekali.
+process.env.GEMINI_MODEL = '';
+pakai('kKosong');
+assert.equal(teks(await generate({})), 'ok kKosong');
+// Model MANA yang dipakai tergantung titik mulai yang diingat dari kasus sebelumnya;
+// yang diuji di sini cuma satu: daftarnya tidak kosong, jadi salah satu bawaan terpakai.
+assert.ok(
+  ['gemini-3.5-flash', 'gemini-flash-lite-latest', 'gemini-2.5-flash'].some((m) => dipanggil.at(-1).endsWith('|' + m)),
+  'harus memakai salah satu model bawaan, bukan daftar kosong',
+);
+process.env.GEMINI_MODEL = 'm1';
+
 // 7. tanpa kunci sama sekali -> ditolak sebelum menyentuh jaringan
 pakai('');
 assert.equal(geminiEnabled(), false);
