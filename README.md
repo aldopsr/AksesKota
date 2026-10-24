@@ -38,6 +38,9 @@ Tanpa token Mapbox semua halaman tetap berfungsi, hanya petanya diganti panel pe
 
 **Opsional di `backend/.env`:**
 - `GEMINI_API_KEY` (dari Google AI Studio) untuk mengaktifkan asisten AI penuh; `GEMINI_MODEL`, `AI_DAILY_LIMIT` opsional.
+  **Boleh diisi beberapa kunci dipisah koma** (`kunci1,kunci2,kunci3`): kunci yang kehabisan kuota harian
+  dilewati otomatis dan yang sehat diingat, jadi asisten tidak mati di tengah jalan dan tidak perlu
+  ganti env lalu deploy ulang. Diuji di `npm run test:kunci`.
 - `MAPBOX_TOKEN` agar rute jalan kaki berfungsi (tanpa ini `/api/routes/walking` membalas 503 dan UI menampilkan pesan).
 - `SUPABASE_URL` + `SUPABASE_SERVICE_KEY` untuk menyimpan foto di Supabase Storage (buat bucket **publik** `facility-photos`). Tanpa ini foto disimpan di `backend/uploads/` dan dilayani lewat `/uploads` (cukup untuk development).
 - `CORS_ORIGIN` berisi URL frontend (pisahkan dengan koma).
